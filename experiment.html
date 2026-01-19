@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תוכנית הניסוי - מיזם ח"ץ</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/experiment.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar - Right Side -->
+        <aside class="sidebar">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span id="user-display-name"></span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>בית</span>
+                </a>
+
+                <!-- Current Experiment -->
+                <div class="experiment-nav-item">
+                    <div class="experiment-header active expanded" id="current-experiment-header">
+                        <i class="fas fa-flask"></i>
+                        <span id="sidebar-experiment-name">ניסוי 1</span>
+                        <i class="fas fa-caret-down toggle-icon"></i>
+                    </div>
+                    <div class="sub-menu open">
+                        <!-- תוכנית הניסוי - Top Level -->
+                        <a href="#" class="sub-item active" data-view="basic">
+                            <span>תוכנית הניסוי</span>
+                        </a>
+
+                        <!-- הכנות לניסוי - Expandable -->
+                        <div class="sub-item has-submenu expanded" data-submenu="prep-submenu" id="prep-toggle">
+                            <i class="fas fa-caret-down"></i>
+                            <span>הכנות לניסוי</span>
+                        </div>
+                        <div class="sub-sub-menu open" id="prep-submenu">
+                            <a href="#" class="sub-sub-item" data-view="crop">פרטי הגידול</a>
+                            <a href="#" class="sub-sub-item" data-view="structure">מבנה</a>
+                            <a href="#" class="sub-sub-item" data-view="soil">טיפול בקרקע</a>
+                            <a href="#" class="sub-sub-item" data-view="drip">סוג ופריסת הטפטוף</a>
+                        </div>
+
+                        <!-- מהלך הניסוי - Expandable -->
+                        <div class="sub-item has-submenu" data-submenu="progress-submenu" id="progress-toggle">
+                            <i class="fas fa-caret-down"></i>
+                            <span>מהלך הניסוי</span>
+                        </div>
+                        <div class="sub-sub-menu" id="progress-submenu">
+                            <a href="#" class="sub-sub-item" data-view="progress-actions">תת קטגוריה 1</a>
+                        </div>
+
+                        <!-- נתוני יבול -->
+                        <a href="#" class="sub-item" data-view="yield">
+                            <span>נתוני יבול</span>
+                        </a>
+
+                        <!-- יומן אירועים -->
+                        <a href="#" class="sub-item" data-view="events">
+                            <span>יומן אירועים</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>התנתק</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tabs for treatments - shown when in crop/structure/soil/drip views -->
+            <div class="tabs-container" id="treatments-tabs" style="display: none;">
+                <div class="tabs-nav" id="tabs-nav">
+                    <!-- Tabs will be generated dynamically -->
+                </div>
+            </div>
+
+            <!-- Breadcrumb -->
+            <div class="breadcrumb">
+                <span id="breadcrumb-text">ניסוי 1 > תוכנית הניסוי</span>
+            </div>
+
+            <!-- Toggle for shared data - shown in crop details views -->
+            <div class="toggle-container" id="shared-toggle-container" style="display: none;">
+                <span class="toggle-label">נתונים זהים לכלל הטיפולים</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="shared-data-toggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <!-- All view sections -->
+            <form id="experiment-form" class="form-container">
+
+                <!-- View: Basic Info (תוכנית הניסוי) -->
+                <div id="view-basic" class="view-section active">
+                    <!-- Lead Researcher -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>חוקר מוביל:</label>
+                            <input type="text" id="lead-researcher" readonly>
+                        </div>
+                    </div>
+
+                    <!-- Partners -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>שותפים:</label>
+                            <div class="partners-add-container">
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" id="partner-search" placeholder="חפש/י שותף (שם או אימייל)..." autocomplete="off">
+                                    <div id="partner-suggestions" class="autocomplete-suggestions"></div>
+                                </div>
+                                <button type="button" id="add-partner" class="btn-add">+</button>
+                            </div>
+                            <div class="partners-container" id="partners-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Year & Month -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>שנת הניסוי:</label>
+                            <select id="experiment-year"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>חודש הניסוי:</label>
+                            <select id="experiment-month">
+                                <option value="">בחר חודש</option>
+                                <option value="1">ינואר</option>
+                                <option value="2">פברואר</option>
+                                <option value="3">מרץ</option>
+                                <option value="4">אפריל</option>
+                                <option value="5">מאי</option>
+                                <option value="6">יוני</option>
+                                <option value="7">יולי</option>
+                                <option value="8">אוגוסט</option>
+                                <option value="9">ספטמבר</option>
+                                <option value="10">אוקטובר</option>
+                                <option value="11">נובמבר</option>
+                                <option value="12">דצמבר</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Start Date & Work Package -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>תאריך תחילת הניסוי:</label>
+                            <input type="date" id="start-date">
+                        </div>
+                        <div class="form-group">
+                            <label>חבילת עבודה:</label>
+                            <select id="work-package">
+                                <option value="">בחר חבילה</option>
+                                <option value="wp1">חבילה 1</option>
+                                <option value="wp2">חבילה 2</option>
+                                <option value="wp3">חבילה 3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Site & Coordinates -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>אתר הניסוי:</label>
+                            <select id="experiment-site">
+                                <option value="">בחר אתר</option>
+                                <option value="volcani">מכון וולקני</option>
+                                <option value="newe-yaar">נווה יער</option>
+                                <option value="gilat">גלעד</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>קורדינטות אתר הניסוי:</label>
+                            <div class="input-with-btn">
+                                <input type="text" id="site-coordinates" placeholder="לחץ/י על הכפתור או הזן/י ידנית (לדוגמה: 31.5, 34.75)">
+                                <button type="button" id="pick-location-btn" class="btn-icon" title="בחר/י מיקום ממפה">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                                <button type="button" id="open-google-maps-btn" class="btn-icon btn-secondary" title="פתח/י בגוגל מפות" style="display: none;">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Goal -->
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>מטרת הניסוי:</label>
+                            <textarea id="experiment-goal" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>תקציר הניסוי:</label>
+                            <textarea id="experiment-summary" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Treatments & Repetitions Count -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>מספר הטיפולים:</label>
+                            <input type="number" id="treatments-count" min="1" value="3">
+                        </div>
+                        <div class="form-group">
+                            <label>מספר החזרות לטיפול:</label>
+                            <input type="number" id="repetitions-count" min="1">
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Treatments -->
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>פרטי טיפולים:</label>
+                            <div id="treatments-container" class="treatments-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- Independent Variables -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>משתנה בלתי תלוי:</label>
+                            <div class="variables-list" id="independent-vars-container"></div>
+                            <div class="input-with-btn" style="margin-top: 10px;">
+                                <input type="text" id="new-independent-var" placeholder="הוסף משתנה...">
+                                <button type="button" id="add-independent-var" class="btn-add">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>מספר רמות:</label>
+                            <input type="number" id="levels-count" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>ערך:</label>
+                            <input type="text" id="level-value">
+                        </div>
+                    </div>
+
+                    <!-- Dependent Variables -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>משתנה תלוי:</label>
+                            <div class="variables-list" id="dependent-vars-container"></div>
+                            <div class="input-with-btn" style="margin-top: 10px;">
+                                <input type="text" id="new-dependent-var" placeholder="הוסף משתנה...">
+                                <button type="button" id="add-dependent-var" class="btn-add">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Keywords -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>מילות מפתח:</label>
+                            <div class="keywords-container">
+                                <select id="keywords-select">
+                                    <option value="">בחר מילת מפתח</option>
+                                    <option value="עגבניות">עגבניות</option>
+                                    <option value="הדברה">הדברה</option>
+                                    <option value="חממה">חממה</option>
+                                    <option value="שדה פתוח">שדה פתוח</option>
+                                </select>
+                                <button type="button" id="add-keyword" class="btn-add">+</button>
+                            </div>
+                            <div id="keywords-list" class="keywords-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Crop Details (פרטי הגידול) -->
+                <div id="view-crop" class="view-section">
+                    <h3 class="section-title">פרטי הגידול</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>מועד שתילה:</label>
+                            <input type="date" id="planting-date">
+                        </div>
+                        <div class="form-group">
+                            <label>סוג גידול:</label>
+                            <input type="text" id="crop-type" placeholder="עגבניה">
+                        </div>
+                        <div class="form-group">
+                            <label>זן:</label>
+                            <input type="text" id="variety" placeholder="איקראם">
+                        </div>
+                        <div class="form-group">
+                            <label>צמח מורכב:</label>
+                            <select id="grafted-plant">
+                                <option value="no">לא</option>
+                                <option value="yes">כן</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>סוג הזן:</label>
+                            <select id="variety-type">
+                                <option value="regular">רגיל</option>
+                                <option value="cherry">שרי</option>
+                                <option value="cluster">אשכולות</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>צמח מפוצל:</label>
+                            <input type="text" id="split-plant" placeholder="לא">
+                        </div>
+                        <div class="form-group">
+                            <label>משתלה:</label>
+                            <input type="text" id="nursery" placeholder="חישתיל">
+                        </div>
+                        <div class="form-group">
+                            <label>כמות שתילים:</label>
+                            <input type="number" id="seedlings-count" placeholder="1400">
+                        </div>
+                        <div class="form-group">
+                            <label>עומד שתילה:</label>
+                            <input type="text" id="planting-density" placeholder='30 ס"מ'>
+                        </div>
+                        <div class="form-group">
+                            <label>מבנה שתילה:</label>
+                            <input type="text" id="planting-structure" placeholder="3 צמדים">
+                        </div>
+                        <div class="form-group">
+                            <label>שטח הניסוי (דונם):</label>
+                            <input type="number" id="experiment-area" step="0.01" placeholder="0.2">
+                        </div>
+                        <div class="form-group">
+                            <label>שם הכנה:</label>
+                            <input type="text" id="preparation-name">
+                        </div>
+                    </div>
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>הערות:</label>
+                            <textarea id="crop-notes" rows="4"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Structure (מבנה) -->
+                <div id="view-structure" class="view-section">
+                    <h3 class="section-title">דרישות המבנה</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>סוג המבנה:</label>
+                            <input type="text" id="structure-type" placeholder="חממות">
+                        </div>
+                        <div class="form-group">
+                            <label>גודל מבנה (דונם):</label>
+                            <input type="number" id="structure-size" step="0.01" placeholder="0.6">
+                        </div>
+                        <div class="form-group">
+                            <label>מספר גמלונים:</label>
+                            <input type="number" id="structure-tunnels" placeholder="3">
+                        </div>
+                        <div class="form-group">
+                            <label>אורך שלוחה (מ'):</label>
+                            <input type="number" id="structure-length" placeholder="15">
+                        </div>
+                        <div class="form-group">
+                            <label>רוחב גמלון (מ'):</label>
+                            <input type="number" id="structure-width" placeholder="9">
+                        </div>
+                        <div class="form-group">
+                            <label>חיפוי גג:</label>
+                            <select id="roof-covering">
+                                <option value="">בחר</option>
+                                <option value="nylon">ניילון</option>
+                                <option value="glass">זכוכית</option>
+                                <option value="net">רשת</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>שטיפת רשתות:</label>
+                            <select id="net-washing">
+                                <option value="">בחר</option>
+                                <option value="nylon">ניילון</option>
+                                <option value="net">רשת</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>מפנה המבנה:</label>
+                            <select id="structure-direction">
+                                <option value="">בחר</option>
+                                <option value="north">צפון</option>
+                                <option value="south">דרום</option>
+                                <option value="east">מזרח</option>
+                                <option value="west">מערב</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>פעולות חריגות חשובות הנדרשות בהמשך:</label>
+                            <textarea id="structure-notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Soil Treatment (טיפול בקרקע) -->
+                <div id="view-soil" class="view-section">
+                    <h3 class="section-title">טיפול בקרקע</h3>
+                    <p>להמשיך לפתח</p>
+                </div>
+
+                <!-- View: Drip (סוג ופריסת הטפטוף) -->
+                <div id="view-drip" class="view-section">
+                    <h3 class="section-title">סוג ופריסת הטפטוף</h3>
+                    <p>להמשיך לפתח</p>
+                </div>
+
+                <!-- View: Progress (מהלך הניסוי) -->
+                <div id="view-progress-actions" class="view-section">
+                    <h3 class="section-title">מהלך הניסוי </h3>
+                    <p>חלק זה יפותח בהמשך...</p>
+                </div>
+
+                <!-- View: Yield (נתוני יבול) -->
+                <div id="view-yield" class="view-section">
+                    <h3 class="section-title">נתוני יבול</h3>
+                    <p>חלק זה יפותח בהמשך...</p>
+                </div>
+
+                <!-- View: Events (יומן אירועים) -->
+                <div id="view-events" class="view-section">
+                    <h3 class="section-title">יומן אירועים</h3>
+                    <p>חלק זה יפותח בהמשך...</p>
+                </div>
+
+                <!-- Save Button -->
+                <div class="form-actions">
+                    <button type="submit" class="btn-save">שמור</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Modal for Location Picker -->
+    <div id="location-picker-modal" class="modal-overlay hidden">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h2>בחר/י מיקום מהמפה (OpenStreetMap)</h2>
+                <button type="button" id="close-location-modal" class="btn-close-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="map-container" style="width: 100%; height: 500px; border-radius: 8px;"></div>
+                <div class="selected-coords" style="margin-top: 10px; text-align: center;">
+                    <strong>קורדינטות נבחרות:</strong> <span id="selected-coordinates">לא נבחרו</span>
+                </div>
+                <p style="text-align: center; margin-top: 10px; color: #666; font-size: 13px;">
+                    <i class="fas fa-info-circle"></i> ניתן ללחוץ על המפה או לגרור את הסמן
+                </p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="cancel-location" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="confirm-location" class="modal-btn modal-btn-primary">אישור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet (OpenStreetMap) - Free and Open Source -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="js/experiment.js"></script>
+</body>
+</html>

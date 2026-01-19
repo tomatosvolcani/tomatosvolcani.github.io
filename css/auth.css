@@ -1,0 +1,97 @@
+/* =========================================
+   Auth Pages - Login, Register, Forgot Password
+   ========================================= */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f9f9f9;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    direction: rtl;
+}
+
+.auth-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 380px;
+    text-align: center;
+    border: 1px solid #e0e0e0;
+}
+
+.auth-card h2 {
+    margin-bottom: 25px;
+    color: #333;
+    font-weight: 600;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    text-align: right;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+    font-size: 14px;
+}
+
+.input-group input,
+.input-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    direction: rtl;
+    text-align: right;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+    outline: none;
+    border-color: #666;
+}
+
+.auth-card button {
+    width: 100%;
+    padding: 12px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background 0.2s;
+    margin-top: 10px;
+}
+
+.auth-card button:hover {
+    background: #444;
+}
+
+.block-link {
+    display: block;
+    margin-top: 15px;
+}
+
+.text-link {
+    color: #666;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.text-link:hover {
+    color: #333;
+    text-decoration: underline;
+}
+

@@ -1,0 +1,457 @@
+/* =========================================
+   Layout - App Container & Sidebar
+   ========================================= */
+
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    flex-direction: row-reverse; /* Normal row direction */
+}
+
+/* =========================================
+   Sidebar - Right Side
+   ========================================= */
+.sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: #f8f8f8;
+    border-left: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    order: 2; /* Sidebar on right */
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.user-info i {
+    font-size: 18px;
+    color: #666;
+}
+
+.user-info span {
+    font-weight: 500;
+    color: #333;
+    text-align: right;
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+    direction: rtl;
+    text-align: right;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    color: #444;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+    border-right: 3px solid transparent;
+    cursor: pointer;
+    text-align: right;
+}
+
+.nav-item:hover {
+    background: #eee;
+}
+
+.nav-item.active {
+    background: #e8e8e8;
+    border-right-color: #333;
+    font-weight: 500;
+}
+
+.nav-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* Experiment in sidebar with expandable submenu */
+.experiment-nav-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.experiment-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    color: #444;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-right: 3px solid transparent;
+}
+
+.experiment-header:hover {
+    background: #eee;
+}
+
+.experiment-header.active {
+    background: #e8e8e8;
+    border-right-color: #333;
+}
+
+.experiment-header i.toggle-icon {
+    margin-right: auto;
+    font-size: 10px;
+    transition: transform 0.2s;
+    /* Default (closed) should point left -> rotate 90deg from the down icon */
+    transform: rotate(90deg);
+}
+
+.experiment-header.expanded i.toggle-icon {
+    /* Expanded (open) should point down -> no rotation */
+    transform: rotate(0deg);
+}
+
+/* Sub Menu */
+.sub-menu {
+    display: none;
+    padding-right: 20px;
+    background: #f0f0f0;
+    direction: rtl;
+    text-align: right;
+}
+
+.sub-menu.open {
+    display: block;
+}
+
+.sub-menu-title {
+    padding: 10px 20px;
+    font-weight: 600;
+    color: #555;
+    font-size: 13px;
+    border-bottom: 1px solid #ddd;
+    text-align: right;
+}
+
+.sub-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    color: #555;
+    font-size: 14px;
+    text-decoration: none;
+    transition: background 0.2s;
+    cursor: pointer;
+    text-align: right;
+}
+
+.sub-item span {
+    pointer-events: none;
+}
+
+.sub-item:hover {
+    background: #e0e0e0;
+}
+
+.sub-item.active {
+    background: #d8d8d8;
+    font-weight: 500;
+}
+
+.sub-item i {
+    font-size: 10px;
+    transition: transform 0.2s;
+    pointer-events: none;
+    /* Default (closed) should point left */
+    transform: rotate(90deg);
+}
+
+.sub-item.expanded i {
+    /* Expanded (open) should point down */
+    transform: rotate(0deg);
+}
+
+/* Sub-sub menu (level 2) */
+.sub-sub-menu {
+    display: none;
+    padding-right: 15px;
+    direction: rtl;
+    text-align: right;
+}
+
+.sub-sub-menu.open {
+    display: block;
+}
+
+.sub-sub-item {
+    display: block;
+    padding: 8px 20px;
+    color: #666;
+    font-size: 13px;
+    text-decoration: none;
+    transition: background 0.2s;
+    text-align: right;
+    cursor: pointer;
+}
+
+.sub-sub-item span {
+    pointer-events: none;
+}
+
+.sub-sub-item:hover {
+    background: #d5d5d5;
+}
+
+.sub-sub-item.active {
+    background: #ccc;
+    font-weight: 500;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.btn-logout {
+    width: 100%;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #555;
+    font-size: 14px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.btn-logout:hover {
+    background: #f5f5f5;
+}
+
+/* =========================================
+   Main Content Area
+   ========================================= */
+.main-content {
+    flex: 1;
+    padding: 25px 40px;
+    background: #fff;
+    overflow-y: auto;
+    min-height: 100vh;
+    order: 1; /* Main content on left */
+    direction: rtl;
+    text-align: right;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 25px;
+    text-align: right;
+    direction: rtl;
+}
+
+.breadcrumb a {
+    color: #666;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-link {
+    color: #0066cc;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.breadcrumb-link:hover {
+    color: #0052a3;
+    text-decoration: underline;
+}
+
+.breadcrumb-text {
+    color: #666;
+}
+
+.breadcrumb-current {
+    color: #333;
+    font-weight: 500;
+}
+
+/* =========================================
+   Dashboard Grid
+   ========================================= */
+.dashboard-main {
+    flex: 1;
+    order: 1; /* Dashboard on left */
+    padding: 30px 40px;
+    background: #fff;
+    direction: rtl;
+    text-align: right;
+}
+
+.dashboard-main h1 {
+    margin-bottom: 25px;
+    text-align: right;
+}
+
+.experiments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.experiment-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.experiment-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.experiment-card h3 {
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.experiment-card .date {
+    color: #888;
+    font-size: 13px;
+}
+
+.experiment-card .site {
+    color: #666;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* Add Experiment Card */
+.add-experiment-btn {
+    background: #fafafa;
+    border: 2px dashed #ccc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+    color: #999;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.add-experiment-btn:hover {
+    background: #f0f0f0;
+    border-color: #aaa;
+    color: #666;
+}
+
+.add-experiment-btn .plus-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.add-experiment-btn span {
+    font-size: 14px;
+}
+
+/* =========================================
+   Modal
+   ========================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal {
+    background: white;
+    border-radius: 10px;
+    padding: 30px;
+    min-width: 400px;
+    max-width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal h2 {
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 15px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 10px 25px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.2s;
+    cursor: pointer;
+    border: none;
+}
+
+.modal-btn-primary {
+    background: #4CAF50;
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: #45a049;
+}
+
+.modal-btn-secondary {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #555;
+}
+
+.modal-btn-secondary:hover {
+    background: #eee;
+}

@@ -1,0 +1,455 @@
+/* =========================================
+   Experiment Page Specific Styles
+   ========================================= */
+
+/* RTL Support */
+.main-content,
+.form-container,
+.view-section {
+    direction: rtl;
+    text-align: right;
+}
+
+/* View Sections */
+.view-section {
+    display: none;
+}
+
+.view-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Section Title */
+.section-title {
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 18px;
+    text-align: right;
+}
+
+/* Form Grid for details pages */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+    direction: rtl;
+}
+
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tabs Navigation */
+.tabs-container {
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0 20px;
+    margin: -25px -40px 25px -40px;
+    direction: rtl;
+}
+
+.tabs-nav {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 0;
+    overflow-x: auto;
+    justify-content: flex-end;
+}
+
+.tab-item {
+    padding: 15px 25px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #666;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.tab-item:hover {
+    background: #eee;
+    color: #333;
+}
+
+.tab-item.active {
+    background: #fff;
+    border-bottom-color: #333;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Toggle Switch */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.toggle-label {
+    font-size: 14px;
+    color: #555;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 26px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #333;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* Treatments Grid */
+.treatments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.treatment-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.treatment-item label {
+    font-size: 13px;
+    color: #666;
+}
+
+.treatment-item input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Variables */
+.variables-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.variable-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #fafafa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+.variable-row input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Keywords */
+.keywords-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.keyword-tag {
+    background: #e8e8e8;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.keyword-tag .remove {
+    cursor: pointer;
+    color: #888;
+    font-size: 12px;
+}
+
+.keyword-tag .remove:hover {
+    color: #333;
+}
+
+/* Partners */
+.partners-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.partner-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.partner-row input {
+    flex: 1;
+}
+
+.partner-row .partner-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.partner-row .partner-name {
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+}
+
+.partner-row .partner-email {
+    font-size: 12px;
+    color: #666;
+}
+
+.partners-add-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.autocomplete-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.autocomplete-wrapper input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    display: none;
+}
+
+.autocomplete-suggestions.active {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: #f5f5f5;
+}
+
+.suggestion-item .suggestion-name {
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.suggestion-item .suggestion-email {
+    font-size: 12px;
+    color: #666;
+}
+
+.suggestion-item .suggestion-role {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+}
+
+.btn-add {
+    padding: 10px 20px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-add:hover {
+    background: #555;
+}
+
+/* =========================================
+   Location Picker Modal
+   ========================================= */
+.modal-large {
+    max-width: 900px;
+    width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.btn-close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.selected-coords {
+    font-size: 14px;
+    color: #555;
+}
+
+.selected-coords span {
+    font-weight: 600;
+    color: #333;
+}
+
+#map-container {
+    border: 1px solid #ddd;
+}
+
+.input-with-btn {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-with-btn input {
+    flex: 1;
+}
+
+.input-with-btn .btn-icon {
+    padding: 10px 14px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+}
+
+.input-with-btn .btn-icon:hover {
+    background: #555;
+}
+
+.input-with-btn .btn-icon.btn-secondary {
+    background: #4285f4;
+}
+
+.input-with-btn .btn-icon.btn-secondary:hover {
+    background: #3367d6;
+}

@@ -1,0 +1,194 @@
+/* =========================================
+   Forms - General Form Styles
+   ========================================= */
+
+.form-container {
+    max-width: 1000px;
+    direction: rtl;
+    text-align: right;
+}
+
+/* Form Rows */
+.form-row {
+    display: flex;
+    gap: 25px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    direction: rtl;
+}
+
+.form-row.full-width .form-group {
+    flex: 1;
+    min-width: 100%;
+}
+
+/* Form Groups */
+.form-group {
+    flex: 1;
+    min-width: 180px;
+    text-align: right;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    text-align: right;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color 0.2s;
+    direction: rtl;
+    text-align: right;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #888;
+}
+
+.form-group input[readonly] {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-group input[type="date"] {
+    cursor: pointer;
+}
+
+/* Input with button */
+.input-with-btn {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.input-with-btn input,
+.input-with-btn select {
+    flex: 1;
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
+.btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.2s, transform 0.1s;
+    cursor: pointer;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: #4CAF50;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #45a049;
+}
+
+.btn-secondary {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #555;
+}
+
+.btn-secondary:hover {
+    background: #eee;
+}
+
+/* Icon Buttons */
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.btn-icon:hover {
+    background: #f5f5f5;
+}
+
+.btn-icon.btn-delete:hover {
+    background: #fee;
+    color: #d00;
+    border-color: #fcc;
+}
+
+/* Add Button */
+.btn-add {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 20px;
+    line-height: 1;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.btn-add:hover {
+    background: #f5f5f5;
+}
+
+/* Save Button */
+.btn-save {
+    padding: 12px 40px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.btn-save:hover {
+    background: #45a049;
+}
+
+/* =========================================
+   Form Actions
+   ========================================= */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #eee;
+}
+

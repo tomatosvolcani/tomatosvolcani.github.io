@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת איגום נתונים - מיזם ח"ץ</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar - Right Side -->
+        <aside class="sidebar">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span id="user-display-name"></span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>בית</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>התנתק</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <h1>הניסויים שלי</h1>
+            <div class="experiments-grid" id="experiments-grid">
+                <!-- Add experiment button - always visible -->
+                <div class="experiment-card add-experiment-btn" id="add-experiment-btn">
+                    <div class="plus-icon">+</div>
+                    <span>הוסף ניסוי חדש</span>
+                </div>
+                <!-- Experiments will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for new experiment -->
+    <div id="new-experiment-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>יצירת ניסוי חדש</h2>
+            <input type="text" id="new-experiment-name" class="modal-input" placeholder="שם הניסוי">
+            <div class="modal-actions">
+                <button id="cancel-new-experiment" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button id="confirm-new-experiment" class="modal-btn modal-btn-primary">צור ניסוי</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,48 @@
+ 
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הרשמה - מיזם ח"ץ</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="auth-card">
+        <h2>הרשמה למערכת</h2>
+        <div class="input-group">
+            <input type="text" id="reg-fname" placeholder=" ">
+            <label>שם פרטי:</label>
+        </div>
+        <div class="input-group">
+            <input type="text" id="reg-lname" placeholder=" ">
+            <label>שם משפחה:</label>
+        </div>
+        <div class="input-group">
+            <input type="email" id="reg-email" placeholder=" ">
+            <label>כתובת אימייל:</label>
+        </div>
+        <div class="input-group">
+            <input type="password" id="reg-pass" placeholder=" ">
+            <label>סיסמה:</label>
+        </div>
+        <div class="input-group">
+            <input type="tel" id="reg-phone" placeholder=" ">
+            <label>טלפון נייד:</label>
+        </div>
+        <div class="input-group">
+            <select id="reg-role">
+                <option value="" disabled selected>בחר/י תפקיד...</option>
+                <option value="חוקר">חוקר/ת</option>
+                <option value="חקלאי">חקלאי/ת</option>
+            </select>
+            <label>תפקיד:</label>
+        </div>
+        <button id="btn-register">הירשם/י</button>
+        <a href="index.html" class="text-link block-link">כבר רשום/ה? התחבר/י כאן</a>
+    </div>
+    <script type="module" src="js/register.js"></script>
+</body>
+</html>
