@@ -12,34 +12,61 @@
 <body>
     <div class="auth-card">
         <h2>הרשמה למערכת</h2>
+        <p>צור/י חשבון חדש במערכת מיזם ח"ץ</p>
+
         <div class="input-group">
-            <input type="text" id="reg-fname" placeholder=" ">
-            <label>שם פרטי:</label>
+            <label for="reg-fname">שם פרטי</label>
+            <div class="input-wrapper">
+                <i class="fa-regular fa-user input-icon"></i>
+                <input type="text" id="reg-fname" placeholder="הכנס/י שם פרטי">
+            </div>
         </div>
+
         <div class="input-group">
-            <input type="text" id="reg-lname" placeholder=" ">
-            <label>שם משפחה:</label>
+            <label for="reg-lname">שם משפחה</label>
+            <div class="input-wrapper">
+                <i class="fa-regular fa-user input-icon"></i>
+                <input type="text" id="reg-lname" placeholder="הכנס/י שם משפחה">
+            </div>
         </div>
+
         <div class="input-group">
-            <input type="email" id="reg-email" placeholder=" ">
-            <label>כתובת אימייל:</label>
+            <label for="reg-email">כתובת אימייל</label>
+            <div class="input-wrapper">
+                <i class="fa-regular fa-envelope input-icon"></i>
+                <input type="email" id="reg-email" placeholder="הכנס/י כתובת אימייל">
+            </div>
         </div>
+
         <div class="input-group">
-            <input type="password" id="reg-pass" placeholder=" ">
-            <label>סיסמה:</label>
+            <label for="reg-pass">סיסמה</label>
+            <div class="input-wrapper">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input type="password" id="reg-pass" placeholder="הכנס/י סיסמה (לפחות 6 תווים)">
+            </div>
         </div>
+
         <div class="input-group">
-            <input type="tel" id="reg-phone" placeholder=" ">
-            <label>טלפון נייד:</label>
+            <label for="reg-phone">טלפון נייד</label>
+            <div class="input-wrapper">
+                <i class="fa-solid fa-mobile-screen input-icon"></i>
+                <input type="tel" id="reg-phone" placeholder="הכנס/י מספר טלפון">
+            </div>
         </div>
+
         <div class="input-group">
-            <select id="reg-role">
-                <option value="" disabled selected>בחר/י תפקיד...</option>
-                <option value="חוקר">חוקר/ת</option>
-                <option value="חקלאי">חקלאי/ת</option>
-            </select>
-            <label>תפקיד:</label>
+            <label for="reg-role">תפקיד</label>
+            <div class="input-wrapper">
+                <i class="fa-solid fa-briefcase input-icon"></i>
+                <select id="reg-role">
+                    <option value="" disabled selected>בחר/י תפקיד...</option>
+                    <option value="חוקר">חוקר/ת</option>
+                    <option value="חקלאי">חקלאי/ת</option>
+                </select>
+                <i class="fa-solid fa-chevron-down select-arrow"></i>
+            </div>
         </div>
+
         <button id="btn-register">הירשם/י</button>
         <a href="index.html" class="text-link block-link">כבר רשום/ה? התחבר/י כאן</a>
     </div>

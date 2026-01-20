@@ -12,14 +12,24 @@
 <body>
     <div class="auth-card">
         <h2>התחברות</h2>
+        <p>ברוכים הבאים למערכת מיזם ח"ץ</p>
+
         <div class="input-group">
-            <input type="email" id="login-email" placeholder=" ">
-            <label>אימייל:</label>
+            <label for="login-email">אימייל</label>
+            <div class="input-wrapper">
+                <i class="fa-regular fa-envelope input-icon"></i>
+                <input type="email" id="login-email" placeholder="הכנס/י כתובת אימייל">
+            </div>
         </div>
+
         <div class="input-group">
-            <input type="password" id="login-pass" placeholder=" ">
-            <label>סיסמה:</label>
+            <label for="login-pass">סיסמה</label>
+            <div class="input-wrapper">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input type="password" id="login-pass" placeholder="הכנס/י סיסמה">
+            </div>
         </div>
+
         <button id="btn-login">התחבר/י</button>
         <a href="forgot_password.html" class="text-link block-link">שכחתי סיסמה</a>
         <a href="register.html" class="text-link block-link">אין לך חשבון? הירשם/י כאן</a>

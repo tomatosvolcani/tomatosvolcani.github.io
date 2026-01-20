@@ -4,7 +4,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f9f9f9;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
     margin: 0;
     display: flex;
     justify-content: center;
@@ -15,19 +15,30 @@ body {
 
 .auth-card {
     background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    width: 380px;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    width: 400px;
     text-align: center;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #e8e8e8;
 }
 
 .auth-card h2 {
-    margin-bottom: 25px;
-    color: #333;
+    margin-bottom: 8px;
+    color: #2c3e50;
     font-weight: 600;
+    font-size: 1.75rem;
 }
+
+.auth-card > p {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+/* =========================================
+   Input Groups with Labels Above
+   ========================================= */
 
 .input-group {
     margin-bottom: 20px;
@@ -38,60 +49,156 @@ body {
     display: block;
     margin-bottom: 8px;
     font-weight: 500;
-    color: #555;
+    color: #4a5568;
     font-size: 14px;
+    text-align: right;
 }
 
-.input-group input,
-.input-group select {
+/* Input wrapper for icon positioning */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper .input-icon {
+    position: absolute;
+    right: 14px;
+    color: #9ca3af;
+    font-size: 16px;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.input-wrapper input,
+.input-wrapper select {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    padding: 14px 44px 14px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     box-sizing: border-box;
     direction: rtl;
     text-align: right;
-    font-size: 14px;
-    transition: border-color 0.2s;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    background-color: #fafbfc;
 }
 
-.input-group input:focus,
-.input-group select:focus {
+.input-wrapper input:focus,
+.input-wrapper select:focus {
     outline: none;
-    border-color: #666;
+    border-color: #4a5568;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(74, 85, 104, 0.1);
 }
+
+.input-wrapper:focus-within .input-icon {
+    color: #4a5568;
+}
+
+/* Select specific styling */
+.input-wrapper select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding-left: 40px;
+}
+
+.input-wrapper .select-arrow {
+    position: absolute;
+    left: 14px;
+    color: #9ca3af;
+    font-size: 12px;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.input-wrapper:focus-within .select-arrow {
+    color: #4a5568;
+}
+
+/* Placeholder styling */
+.input-wrapper input::placeholder {
+    color: #cbd5e0;
+    font-size: 14px;
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
 
 .auth-card button {
     width: 100%;
-    padding: 12px;
-    background: #333;
+    padding: 14px;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 16px;
-    font-weight: 500;
-    transition: background 0.2s;
+    font-weight: 600;
+    transition: all 0.3s ease;
     margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(44, 62, 80, 0.2);
 }
 
 .auth-card button:hover {
-    background: #444;
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(44, 62, 80, 0.25);
 }
+
+.auth-card button:active {
+    transform: translateY(0);
+}
+
+/* =========================================
+   Links
+   ========================================= */
 
 .block-link {
     display: block;
-    margin-top: 15px;
+    margin-top: 18px;
 }
 
 .text-link {
-    color: #666;
+    color: #64748b;
     font-size: 14px;
-    transition: color 0.2s;
+    transition: color 0.2s ease;
+    text-decoration: none;
 }
 
 .text-link:hover {
-    color: #333;
+    color: #2c3e50;
     text-decoration: underline;
+}
+
+/* =========================================
+   Divider (optional for future use)
+   ========================================= */
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 25px 0;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.auth-divider::before {
+    margin-left: 15px;
+}
+
+.auth-divider::after {
+    margin-right: 15px;
 }
 
