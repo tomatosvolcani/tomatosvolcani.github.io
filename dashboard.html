@@ -9,6 +9,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div class="dev-notice">
+        <i class="fas fa-code"></i>
+        <span>מערכת בתהליך פיתוח: זמנית, ייתכנו שיבושים או אי-דיוקים.</span>
+    </div>
+
+    <!-- Hamburger Menu Button (Mobile) -->
+    <button class="hamburger-btn" id="hamburger-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <div class="app-container">
         <!-- Sidebar - Right Side -->
         <aside class="sidebar">
@@ -33,6 +46,15 @@
         <!-- Main Content -->
         <main class="dashboard-main">
             <h1>הניסויים שלי</h1>
+
+            <!-- Loading Spinner -->
+            <div class="loading-container" id="loading-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <p class="loading-text">קורא נתונים מהשרת...</p>
+            </div>
+
             <div class="experiments-grid" id="experiments-grid">
                 <!-- Add experiment button - always visible -->
                 <div class="experiment-card add-experiment-btn" id="add-experiment-btn">

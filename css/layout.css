@@ -455,3 +455,188 @@
 .modal-btn-secondary:hover {
     background: #eee;
 }
+
+/* =========================================
+   Ownership Badge - Experiment Cards
+   ========================================= */
+.ownership-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.ownership-badge.owner {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.ownership-badge.shared {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.experiment-card {
+    position: relative;
+}
+
+.experiment-card.shared-experiment {
+    border-right: 3px solid #1565c0;
+}
+
+.experiment-card .owner-name {
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+/* =========================================
+   Hamburger Menu - Mobile
+   ========================================= */
+.hamburger-btn {
+    display: none;
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 1001;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.hamburger-btn i {
+    font-size: 20px;
+    color: #333;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* =========================================
+   Responsive - Mobile
+   ========================================= */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .hamburger-btn {
+        display: block;
+    }
+
+    .sidebar {
+        position: fixed;
+        right: -280px;
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: 1000;
+        transition: right 0.3s ease;
+        box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .sidebar.open {
+        right: 0;
+    }
+
+    .main-content,
+    .dashboard-main {
+        padding: 70px 15px 20px 15px;
+        order: 1;
+        width: 100%;
+    }
+
+    .experiments-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal {
+        min-width: auto;
+        margin: 15px;
+        padding: 20px;
+    }
+
+    /* Tabs responsive */
+    .tabs-container {
+        margin: -70px -15px 20px -15px;
+        padding: 60px 10px 0 10px;
+    }
+
+    .tabs-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-item {
+        padding: 12px 15px;
+        font-size: 13px;
+    }
+
+    /* Forms responsive */
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .partners-add-container {
+        flex-direction: column;
+    }
+
+    .autocomplete-wrapper {
+        width: 100%;
+    }
+
+    .input-with-btn {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .input-with-btn input {
+        width: 100%;
+    }
+
+    .input-with-btn .btn-icon {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Breadcrumb responsive */
+    .breadcrumb {
+        font-size: 12px;
+        margin-bottom: 15px;
+    }
+
+    /* Toggle responsive */
+    .toggle-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}

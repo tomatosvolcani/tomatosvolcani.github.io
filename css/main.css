@@ -20,6 +20,27 @@ body {
     min-height: 100vh;
 }
 
+/* Development Notice Banner */
+/* ההודעה של הבהרה שהמערכת בפיתוח ויש אי דיוקים */
+
+.dev-notice {
+    background-color: #fff3cd;
+    border-bottom: 1px solid #ffc107;
+    color: #856404;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.dev-notice i {
+    font-size: 16px;
+}
+/* סיום הקטע של הבהרה שהמערכת בפיתוח ויש אי דיוקים */
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
@@ -177,3 +198,49 @@ button.btn-countdown .countdown-text {
     display: inline;
 }
 
+/* =========================================
+   Loading Spinner
+   ========================================= */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 20px;
+}
+
+.loading-container.hidden {
+    display: none;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner i {
+    font-size: 48px;
+    color: #4CAF50;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 16px;
+    color: #666;
+    text-align: center;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

@@ -23,6 +23,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize event listeners
 function initEventListeners() {
+    // Hamburger menu (Mobile)
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (hamburgerBtn && sidebar) {
+        hamburgerBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+            // Change icon
+            const icon = hamburgerBtn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-bars');
+                icon.classList.toggle('fa-times');
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            const icon = hamburgerBtn?.querySelector('i');
+            if (icon) {
+                icon.classList.add('fa-bars');
+                icon.classList.remove('fa-times');
+            }
+        });
+    }
+
     // Add experiment button
     const addBtn = document.getElementById('add-experiment-btn');
     if (addBtn) {
@@ -151,14 +181,15 @@ async function loadExperiments() {
     if (!currentUser) return;
 
     const experimentsGrid = document.getElementById('experiments-grid');
+    const loadingContainer = document.getElementById('loading-container');
 
     if (!experimentsGrid) return;
 
-    try {
-        const experimentsRef = collection(db, "users", currentUser.uid, "experiments");
-        const q = query(experimentsRef, orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
+    // הצג את הספינר והסתר את הגריד
+    if (loadingContainer) loadingContainer.classList.remove('hidden');
+    experimentsGrid.style.display = 'none';
 
+    try {
         // Keep the add button, remove other cards
         const addBtn = document.getElementById('add-experiment-btn');
         experimentsGrid.innerHTML = '';
@@ -170,17 +201,50 @@ async function loadExperiments() {
             experimentsGrid.appendChild(newAddBtn);
         }
 
-        // Add experiment cards to grid
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
+        // 1. טעינת הניסויים שלי (שאני הקמתי)
+        const myExperimentsRef = collection(db, "users", currentUser.uid, "experiments");
+        const myQuery = query(myExperimentsRef, orderBy("createdAt", "desc"));
+        const myExperimentsSnapshot = await getDocs(myQuery);
 
-            // Add card to grid
-            const card = createExperimentCard(docSnap.id, data);
+        // Add my experiment cards to grid
+        myExperimentsSnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const card = createExperimentCard(docSnap.id, data, currentUser.uid, false); // isShared = false
             experimentsGrid.appendChild(card);
         });
 
+        // 2. טעינת ניסויים שאני שותף בהם
+        const sharedExperimentsRef = collection(db, "users", currentUser.uid, "sharedExperiments");
+        const sharedSnapshot = await getDocs(sharedExperimentsRef);
+
+        // לכל ניסוי משותף - טען את הפרטים מהבעלים המקורי
+        for (const sharedDoc of sharedSnapshot.docs) {
+            const sharedData = sharedDoc.data();
+            const ownerUid = sharedData.ownerUid;
+            const experimentId = sharedData.experimentId;
+
+            if (ownerUid && experimentId) {
+                try {
+                    const originalExperimentRef = doc(db, "users", ownerUid, "experiments", experimentId);
+                    const originalExperimentSnap = await getDoc(originalExperimentRef);
+
+                    if (originalExperimentSnap.exists()) {
+                        const experimentData = originalExperimentSnap.data();
+                        const card = createExperimentCard(experimentId, experimentData, ownerUid, true); // isShared = true
+                        experimentsGrid.appendChild(card);
+                    }
+                } catch (error) {
+                    console.error("Error loading shared experiment:", error);
+                }
+            }
+        }
+
     } catch (error) {
         console.error("Error loading experiments:", error);
+    } finally {
+        // הסתר את הספינר והצג את הגריד
+        if (loadingContainer) loadingContainer.classList.add('hidden');
+        experimentsGrid.style.display = 'grid';
     }
 }
 
@@ -198,19 +262,35 @@ function createAddButton() {
 }
 
 // Create experiment card element
-function createExperimentCard(id, data) {
+function createExperimentCard(id, data, ownerUid, isShared = false) {
     const card = document.createElement('div');
     card.className = 'experiment-card';
+    if (isShared) {
+        card.classList.add('shared-experiment');
+    }
+
+    // סמל לציון האם זה ניסוי שלי או שאני שותף בו
+    const ownershipIcon = isShared
+        ? '<span class="ownership-badge shared" title="ניסוי שאני שותף בו"><i class="fas fa-users"></i></span>'
+        : '<span class="ownership-badge owner" title="ניסוי שהקמתי"><i class="fas fa-user-check"></i></span>';
+
     card.innerHTML = `
+        ${ownershipIcon}
         <h3>
             <i class="fas fa-flask"></i>
             ${data.experimentName || 'ניסוי ללא שם'}
         </h3>
         <p class="date">${formatDate(data.createdAt)}</p>
         ${data.experimentSite ? `<p class="site">${data.experimentSite}</p>` : ''}
+        ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
     `;
     card.addEventListener('click', () => {
-        window.location.href = `experiment.html?id=${id}`;
+        // מעביר גם את ownerUid לניסויים משותפים
+        if (isShared) {
+            window.location.href = `experiment.html?id=${id}&owner=${ownerUid}`;
+        } else {
+            window.location.href = `experiment.html?id=${id}`;
+        }
     });
     return card;
 }

@@ -5,6 +5,8 @@ import {
     doc,
     getDoc,
     updateDoc,
+    setDoc,
+    deleteDoc,
     serverTimestamp,
     collection,
     getDocs
@@ -22,6 +24,8 @@ let currentView = 'basic';
 let currentTreatmentIndex = 0;
 let allUsers = []; // All users for partner selection
 let selectedPartner = null; // Currently selected partner from autocomplete
+let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
+let isSharedExperiment = false; // האם זה ניסוי שאני שותף בו
 
 // =========================================
 // Initialization
@@ -54,6 +58,16 @@ onAuthStateChanged(auth, async (user) => {
     const urlParams = new URLSearchParams(window.location.search);
     currentExperimentId = urlParams.get('id');
     const section = urlParams.get('section');
+    const ownerParam = urlParams.get('owner'); // לניסויים משותפים
+
+    // קבע את הבעלים של הניסוי
+    if (ownerParam) {
+        experimentOwnerUid = ownerParam;
+        isSharedExperiment = true;
+    } else {
+        experimentOwnerUid = currentUser.uid;
+        isSharedExperiment = false;
+    }
 
     if (currentExperimentId) {
         await loadExperiment();
@@ -133,13 +147,13 @@ async function loadAllUsers() {
             });
         });
 
-        console.log(`✅ Loaded ${allUsers.length} users for partner selection from publicUsers collection`);
+        console.log(` Loaded ${allUsers.length} users for partner selection from publicUsers collection`);
     } catch (error) {
-        console.error("❌ Error loading users:", error);
+        console.error(" Error loading users:", error);
 
         // Check if it's a permission error
         if (error.code === 'permission-denied') {
-            console.error('🔒 Firestore permission denied.');
+            console.error(' Firestore permission denied.');
             console.error('Please create publicUsers collection and update Firestore Rules:');
             console.error('match /publicUsers/{userId} { allow read: if request.auth != null; }');
             showToast('שגיאת הרשאות - לא ניתן לטעון רשימת משתמשים. יש לעדכן את כללי Firestore ולוודא שיש אוסף publicUsers.', 'error', 5000);
@@ -173,7 +187,8 @@ function initYearsDropdown() {
 // =========================================
 async function loadExperiment() {
     try {
-        const experimentRef = doc(db, "users", currentUser.uid, "experiments", currentExperimentId);
+        // טען מהבעלים של הניסוי (יכול להיות המשתמש הנוכחי או אחר אם זה ניסוי משותף)
+        const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         const experimentSnap = await getDoc(experimentRef);
 
         if (experimentSnap.exists()) {
@@ -654,13 +669,17 @@ function collectFormData() {
 // Save Experiment
 // =========================================
 async function saveExperiment() {
-    if (!currentUser || !currentExperimentId) return;
+    if (!currentUser || !currentExperimentId || !experimentOwnerUid) return;
 
     const formData = collectFormData();
 
     try {
-        const experimentRef = doc(db, "users", currentUser.uid, "experiments", currentExperimentId);
+        // שמור לבעלים של הניסוי
+        const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         await updateDoc(experimentRef, formData);
+
+        // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
+        await syncSharedExperiments(formData.partners);
 
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
@@ -673,9 +692,93 @@ async function saveExperiment() {
 }
 
 // =========================================
+// Sync Shared Experiments
+// =========================================
+async function syncSharedExperiments(currentPartners) {
+    // רק הבעלים המקורי יכול לסנכרן שותפים
+    if (experimentOwnerUid !== currentUser.uid) return;
+
+    try {
+        // מצא את כל המשתמשים שהם שותפים כרגע
+        const partnerEmails = currentPartners.map(p => p.email).filter(e => e);
+
+        // מצא את ה-UID של כל שותף
+        for (const partner of currentPartners) {
+            if (!partner.email) continue;
+
+            // מצא את המשתמש לפי האימייל
+            const partnerUser = allUsers.find(u => u.email === partner.email);
+            if (partnerUser && partnerUser.uid) {
+                // הוסף אסמכתא לניסוי באוסף sharedExperiments של השותף
+                const sharedRef = doc(db, "users", partnerUser.uid, "sharedExperiments", currentExperimentId);
+                await setDoc(sharedRef, {
+                    experimentId: currentExperimentId,
+                    ownerUid: currentUser.uid,
+                    ownerEmail: currentUser.email,
+                    addedAt: serverTimestamp()
+                }, { merge: true });
+            }
+        }
+
+        // הסר שותפים שכבר לא ברשימה (אם יש רשימה קודמת)
+        if (experimentData?.partners) {
+            const previousPartners = experimentData.partners;
+            for (const oldPartner of previousPartners) {
+                if (!oldPartner.email) continue;
+                // אם השותף הישן לא נמצא ברשימה החדשה
+                if (!partnerEmails.includes(oldPartner.email)) {
+                    const oldUser = allUsers.find(u => u.email === oldPartner.email);
+                    if (oldUser && oldUser.uid) {
+                        // הסר את האסמכתא
+                        const sharedRef = doc(db, "users", oldUser.uid, "sharedExperiments", currentExperimentId);
+                        try {
+                            await deleteDoc(sharedRef);
+                        } catch (e) {
+                            console.log("Could not delete shared reference:", e);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error syncing shared experiments:", error);
+    }
+}
+
+// =========================================
 // Event Listeners
 // =========================================
 function initEventListeners() {
+    // Hamburger menu (Mobile)
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (hamburgerBtn && sidebar) {
+        hamburgerBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+            // Change icon
+            const icon = hamburgerBtn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-bars');
+                icon.classList.toggle('fa-times');
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            const icon = hamburgerBtn?.querySelector('i');
+            if (icon) {
+                icon.classList.add('fa-bars');
+                icon.classList.remove('fa-times');
+            }
+        });
+    }
+
     // Form submit
     const form = document.getElementById('experiment-form');
     if (form) {
@@ -685,11 +788,6 @@ function initEventListeners() {
         });
     }
 
-    // Add partner
-    const addPartnerBtn = document.getElementById('add-partner');
-    if (addPartnerBtn) {
-        addPartnerBtn.addEventListener('click', () => addPartnerRow());
-    }
 
     // Treatment count change
     const treatmentsCount = document.getElementById('treatments-count');
@@ -1052,7 +1150,9 @@ function initPartnersAutocomplete() {
 
     // Add partner button
     if (addBtn) {
-        addBtn.addEventListener('click', () => {
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             if (selectedPartner) {
                 addPartnerFromSelection(selectedPartner);
                 searchInput.value = '';
@@ -1111,16 +1211,20 @@ function displaySuggestions(users, container) {
 }
 
 function selectPartner(user) {
-    selectedPartner = user;
+    // מוסיף ישירות כאשר בוחרים מהרשימה
+    addPartnerFromSelection(user);
+
     const searchInput = document.getElementById('partner-search');
     if (searchInput) {
-        searchInput.value = `${user.fullName} (${user.email})`;
+        searchInput.value = '';
     }
 
     const suggestionsContainer = document.getElementById('partner-suggestions');
     if (suggestionsContainer) {
         suggestionsContainer.classList.remove('active');
     }
+
+    selectedPartner = null;
 }
 
 function addPartnerFromSelection(user) {
