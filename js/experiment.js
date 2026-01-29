@@ -50,6 +50,9 @@ onAuthStateChanged(auth, async (user) => {
 
     await loadUserData();
 
+    // טען את כל המשתמשים מוקדם - נדרש לסנכרון שותפים!
+    await loadAllUsers();
+
     // Ensure year dropdown is initialized before loading experiment data so
     // populateForm can set the select value into existing options.
     initYearsDropdown();
@@ -146,19 +149,14 @@ async function loadAllUsers() {
                 fullName: `${data.firstName || ''} ${data.lastName || ''}`.trim()
             });
         });
-
-        console.log(` Loaded ${allUsers.length} users for partner selection from publicUsers collection`);
     } catch (error) {
-        console.error(" Error loading users:", error);
+        console.error("Error loading users:", error);
 
         // Check if it's a permission error
         if (error.code === 'permission-denied') {
-            console.error(' Firestore permission denied.');
-            console.error('Please create publicUsers collection and update Firestore Rules:');
-            console.error('match /publicUsers/{userId} { allow read: if request.auth != null; }');
-            showToast('שגיאת הרשאות - לא ניתן לטעון רשימת משתמשים. יש לעדכן את כללי Firestore ולוודא שיש אוסף publicUsers.', 'error', 5000);
+            showToast('שגיאת הרשאות - לא ניתן לטעון רשימת משתמשים.', 'error', 5000);
         } else {
-            showToast('שגיאה בטעינת רשימת משתמשים: ' + error.message, 'error');
+            showToast('שגיאה בטעינת רשימת משתמשים', 'error');
         }
 
         allUsers = []; // Empty array so the UI doesn't break
@@ -690,12 +688,17 @@ async function saveExperiment() {
         await updateDoc(experimentRef, formData);
 
         // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
-        await syncSharedExperiments(formData.partners);
+        const syncResult = await syncSharedExperiments(formData.partners);
 
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
 
-        showToast('הניסוי נשמר בהצלחה!', 'success');
+        // הודעת הצלחה עם מידע על שותפים
+        if (syncResult && syncResult.added > 0) {
+            showToast(`הניסוי נשמר! נוספו ${syncResult.added} שותפים חדשים.`, 'success');
+        } else {
+            showToast('הניסוי נשמר בהצלחה!', 'success');
+        }
     } catch (error) {
         console.error("Error saving experiment:", error);
         showToast('שגיאה בשמירת הניסוי: ' + error.message, 'error');
@@ -707,9 +710,18 @@ async function saveExperiment() {
 // =========================================
 async function syncSharedExperiments(currentPartners) {
     // רק הבעלים המקורי יכול לסנכרן שותפים
-    if (experimentOwnerUid !== currentUser.uid) return;
+    if (experimentOwnerUid !== currentUser.uid) return { added: 0, removed: 0 };
+
+    let addedCount = 0;
+    let removedCount = 0;
 
     try {
+        // בדיקה שיש לנו את רשימת המשתמשים
+        if (allUsers.length === 0) {
+            showToast('שגיאה: לא ניתן לסנכרן שותפים. נסה לרענן את הדף.', 'warning');
+            return { added: 0, removed: 0 };
+        }
+
         // מצא את כל המשתמשים שהם שותפים כרגע
         const partnerEmails = currentPartners.map(p => p.email).filter(e => e);
 
@@ -717,8 +729,9 @@ async function syncSharedExperiments(currentPartners) {
         for (const partner of currentPartners) {
             if (!partner.email) continue;
 
-            // מצא את המשתמש לפי האימייל
-            const partnerUser = allUsers.find(u => u.email === partner.email);
+            // מצא את המשתמש לפי האימייל (case-insensitive)
+            const partnerUser = allUsers.find(u => u.email.toLowerCase() === partner.email.toLowerCase());
+
             if (partnerUser && partnerUser.uid) {
                 // הוסף אסמכתא לניסוי באוסף sharedExperiments של השותף
                 const sharedRef = doc(db, "users", partnerUser.uid, "sharedExperiments", currentExperimentId);
@@ -728,6 +741,10 @@ async function syncSharedExperiments(currentPartners) {
                     ownerEmail: currentUser.email,
                     addedAt: serverTimestamp()
                 }, { merge: true });
+
+                addedCount++;
+            } else {
+                showToast(`לא נמצא משתמש עם האימייל: ${partner.email}`, 'warning');
             }
         }
 
@@ -738,21 +755,26 @@ async function syncSharedExperiments(currentPartners) {
                 if (!oldPartner.email) continue;
                 // אם השותף הישן לא נמצא ברשימה החדשה
                 if (!partnerEmails.includes(oldPartner.email)) {
-                    const oldUser = allUsers.find(u => u.email === oldPartner.email);
+                    const oldUser = allUsers.find(u => u.email.toLowerCase() === oldPartner.email.toLowerCase());
                     if (oldUser && oldUser.uid) {
                         // הסר את האסמכתא
                         const sharedRef = doc(db, "users", oldUser.uid, "sharedExperiments", currentExperimentId);
                         try {
                             await deleteDoc(sharedRef);
+                            removedCount++;
                         } catch (e) {
-                            console.log("Could not delete shared reference:", e);
+                            // התעלם משגיאות מחיקה
                         }
                     }
                 }
             }
         }
+
+        return { added: addedCount, removed: removedCount };
     } catch (error) {
         console.error("Error syncing shared experiments:", error);
+        showToast('שגיאה בסנכרון שותפים: ' + error.message, 'error');
+        return { added: 0, removed: 0 };
     }
 }
 
@@ -1134,8 +1156,8 @@ function initPartnersAutocomplete() {
 
     if (!searchInput || !suggestionsContainer) return;
 
-    // Load all users for partner selection
-    loadAllUsers();
+    // allUsers כבר נטען ב-onAuthStateChanged
+    // אין צורך לטעון שוב כאן
 
     // Search and filter
     searchInput.addEventListener('input', () => {

@@ -6,11 +6,39 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
     margin: 0;
+    min-height: 100vh;
+    direction: rtl;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Auth page wrapper - centers the card */
+.auth-page-wrapper {
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    direction: rtl;
+    padding: 20px;
+}
+
+/* Dev notice positioning for auth pages */
+body > .dev-notice {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+
+/* Push content down when dev-notice is present */
+body > .dev-notice + .auth-card,
+body > .dev-notice + .auth-page-wrapper {
+    margin-top: 50px;
+}
+
+/* Center auth-card when no wrapper */
+body > .auth-card {
+    margin: auto;
 }
 
 .auth-card {
@@ -19,6 +47,7 @@ body {
     border-radius: 16px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.08);
     width: 400px;
+    max-width: calc(100% - 40px);
     text-align: center;
     border: 1px solid #e8e8e8;
 }
