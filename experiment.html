@@ -93,32 +93,42 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Tabs for treatments - shown when in crop/structure/soil/drip views -->
-            <div class="tabs-container" id="treatments-tabs" style="display: none;">
-                <div class="tabs-nav" id="tabs-nav">
-                    <!-- Tabs will be generated dynamically -->
+            <!-- Loading Spinner -->
+            <div class="loading-container" id="loading-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
                 </div>
+                <p class="loading-text">טוען את פרטי הניסוי...</p>
             </div>
 
-            <!-- Breadcrumb -->
-            <div class="breadcrumb">
-                <span id="breadcrumb-text">ניסוי 1 > תוכנית הניסוי</span>
-            </div>
+            <!-- Experiment Content (hidden during loading) -->
+            <div id="experiment-content">
+                <!-- Tabs for treatments - shown when in crop/structure/soil/drip views -->
+                <div class="tabs-container" id="treatments-tabs" style="display: none;">
+                    <div class="tabs-nav" id="tabs-nav">
+                        <!-- Tabs will be generated dynamically -->
+                    </div>
+                </div>
 
-            <!-- Toggle for shared data - shown in crop details views -->
-            <div class="toggle-container" id="shared-toggle-container" style="display: none;">
-                <span class="toggle-label">נתונים זהים לכלל הטיפולים</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="shared-data-toggle" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
+                <!-- Breadcrumb -->
+                <div class="breadcrumb">
+                    <span id="breadcrumb-text">ניסוי 1 > תוכנית הניסוי</span>
+                </div>
 
-            <!-- All view sections -->
-            <form id="experiment-form" class="form-container">
+                <!-- Toggle for shared data - shown in crop details views -->
+                <div class="toggle-container" id="shared-toggle-container" style="display: none;">
+                    <span class="toggle-label">נתונים זהים לכלל הטיפולים</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="shared-data-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
 
-                <!-- View: Basic Info (תוכנית הניסוי) -->
-                <div id="view-basic" class="view-section active">
+                <!-- All view sections -->
+                <form id="experiment-form" class="form-container">
+
+                    <!-- View: Basic Info (תוכנית הניסוי) -->
+                    <div id="view-basic" class="view-section active">
                     <!-- Lead Researcher -->
                     <div class="form-row">
                         <div class="form-group">
@@ -463,6 +473,7 @@
                     <button type="submit" class="btn-save">שמור</button>
                 </div>
             </form>
+            </div><!-- End experiment-content -->
         </main>
     </div>
 

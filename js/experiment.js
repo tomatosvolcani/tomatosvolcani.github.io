@@ -186,6 +186,13 @@ function initYearsDropdown() {
 // Load Experiment
 // =========================================
 async function loadExperiment() {
+    const loadingContainer = document.getElementById('loading-container');
+    const experimentContent = document.getElementById('experiment-content');
+
+    // הצג את הספינר והסתר את התוכן
+    if (loadingContainer) loadingContainer.classList.remove('hidden');
+    if (experimentContent) experimentContent.style.display = 'none';
+
     try {
         // טען מהבעלים של הניסוי (יכול להיות המשתמש הנוכחי או אחר אם זה ניסוי משותף)
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
@@ -203,6 +210,10 @@ async function loadExperiment() {
     } catch (error) {
         console.error("Error loading experiment:", error);
         showToast('שגיאה בטעינת הניסוי', 'error');
+    } finally {
+        // הס��ר את הספינר והצג את התוכן
+        if (loadingContainer) loadingContainer.classList.add('hidden');
+        if (experimentContent) experimentContent.style.display = 'block';
     }
 }
 
