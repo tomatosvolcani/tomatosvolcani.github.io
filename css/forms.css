@@ -145,6 +145,18 @@
     border-color: #fcc;
 }
 
+/* Google Maps Button */
+.btn-icon.btn-google-maps {
+    background: #fff;
+    border: 1px solid #4285f4;
+    color: #4285f4;
+}
+
+.btn-icon.btn-google-maps:hover {
+    background: #4285f4;
+    color: #fff;
+}
+
 /* Add Button */
 .btn-add {
     width: 34px;
