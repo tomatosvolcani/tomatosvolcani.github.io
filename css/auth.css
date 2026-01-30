@@ -1,10 +1,11 @@
 /* =========================================
    Auth Pages - Login, Register, Forgot Password
+   Professional & Clean Design
    ========================================= */
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     margin: 0;
     min-height: 100vh;
     direction: rtl;
@@ -12,97 +13,14 @@ body {
     flex-direction: column;
 }
 
-/* =========================================
-   Split Screen Layout
-   ========================================= */
-
-body.split-screen-layout {
-    background: #fff;
-}
-
-body.split-screen-layout > .dev-notice {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-}
-
-.split-container {
-    display: flex;
-    flex-direction: row;
-    height: 100vh;
-    width: 100%;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-}
-
-/* Right Side - Brand Panel (Image) */
-.brand-panel {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    height: 100vh;
-    background: #f5f5f5;
-}
-
-.brand-panel.image-panel {
-    padding: 0;
-}
-
-.brand-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-    display: block;
-}
-
-
-/* Left Side - Auth Panel */
-.auth-panel {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 50px;
-    background: #fff;
-    height: 100vh;
-    overflow-y: auto;
-    position: relative;
-}
-
-.auth-panel .auth-card {
-    width: 100%;
-    max-width: 380px;
-    box-shadow: none;
-    border: none;
-    padding: 0;
-}
-
-.auth-panel .auth-card h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin-bottom: 8px;
-}
-
-.auth-panel .auth-card > p {
-    color: #64748b;
-    font-size: 15px;
-    margin-bottom: 35px;
-}
-
-/* Auth page wrapper - for non-split pages */
+/* Auth page wrapper */
 .auth-page-wrapper {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    padding: 40px 20px;
+    margin-top: 50px;
 }
 
 /* Dev notice positioning for auth pages */
@@ -114,39 +32,29 @@ body > .dev-notice {
     z-index: 100;
 }
 
-/* Push content down when dev-notice is present */
-body > .dev-notice + .auth-card,
-body > .dev-notice + .auth-page-wrapper {
-    margin-top: 50px;
-}
-
-/* Center auth-card when no wrapper */
-body > .auth-card {
-    margin: auto;
-}
-
 .auth-card {
     background: white;
-    padding: 2.5rem;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-    width: 400px;
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 8px 25px rgba(0,0,0,0.06);
+    width: 420px;
     max-width: calc(100% - 40px);
     text-align: center;
-    border: 1px solid #e8e8e8;
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
 .auth-card h2 {
     margin-bottom: 8px;
-    color: #2c3e50;
-    font-weight: 600;
-    font-size: 1.75rem;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 1.85rem;
+    letter-spacing: -0.02em;
 }
 
 .auth-card > p {
-    color: #7f8c8d;
-    font-size: 14px;
-    margin-bottom: 25px;
+    color: #64748b;
+    font-size: 15px;
+    margin-bottom: 30px;
 }
 
 /* =========================================
@@ -349,27 +257,28 @@ body > .auth-card {
    Responsive - Mobile
    ========================================= */
 
-@media (max-width: 900px) {
-    .split-container {
-        flex-direction: column;
+@media (max-width: 480px) {
+    .auth-page-wrapper {
+        padding: 20px 15px;
     }
 
-    /* Hide brand panel completely on mobile */
-    .brand-panel {
-        display: none;
-    }
-
-    .auth-panel {
-        padding: 30px 20px 50px;
-        min-height: calc(100vh - 42px);
-    }
-
-    .auth-panel .auth-card {
-        max-width: 100%;
+    .auth-card {
         padding: 2rem;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-        border: 1px solid #e8e8e8;
         border-radius: 16px;
+    }
+
+    .auth-card h2 {
+        font-size: 1.5rem;
+    }
+
+    .input-wrapper input,
+    .input-wrapper select {
+        padding: 12px 40px 12px 12px;
+        font-size: 14px;
+    }
+
+    .auth-card button {
+        padding: 13px;
     }
 }
 

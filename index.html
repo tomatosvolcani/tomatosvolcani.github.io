@@ -9,50 +9,42 @@
     <link rel="stylesheet" href="css/auth.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="split-screen-layout">
+<body>
     <div class="dev-notice">
         <i class="fas fa-code"></i>
         <span>מערכת בתהליך פיתוח: זמנית, ייתכנו שיבושים או אי-דיוקים.</span>
     </div>
 
-    <div class="split-container">
-        <!-- Right Side - Image Panel -->
-        <div class="brand-panel image-panel">
-            <img src="SideIMG.png" alt="מערכת מיזם ח״ץ" class="brand-image">
-        </div>
+    <div class="auth-page-wrapper">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <i class="fas fa-seedling"></i>
+            </div>
+            <h2>התחברות</h2>
+            <p>ברוכים הבאים למערכת מיזם ח"ץ</p>
 
-        <!-- Left Side - Login Form -->
-        <div class="auth-panel">
-            <div class="auth-card">
-                <div class="auth-logo">
-                    <i class="fas fa-seedling"></i>
+            <div class="input-group">
+                <label for="login-email">אימייל</label>
+                <div class="input-wrapper">
+                    <i class="fa-regular fa-envelope input-icon"></i>
+                    <input type="email" id="login-email" placeholder="הכנס/י כתובת אימייל">
                 </div>
-                <h2>התחברות</h2>
-                <p>ברוכים הבאים למערכת מיזם ח"ץ</p>
+            </div>
 
-                <div class="input-group">
-                    <label for="login-email">אימייל</label>
-                    <div class="input-wrapper">
-                        <i class="fa-regular fa-envelope input-icon"></i>
-                        <input type="email" id="login-email" placeholder="הכנס/י כתובת אימייל">
-                    </div>
+            <div class="input-group">
+                <label for="login-pass">סיסמה</label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" id="login-pass" placeholder="הכנס/י סיסמה">
                 </div>
+            </div>
 
-                <div class="input-group">
-                    <label for="login-pass">סיסמה</label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-lock input-icon"></i>
-                        <input type="password" id="login-pass" placeholder="הכנס/י סיסמה">
-                    </div>
-                </div>
+            <button id="btn-login">התחבר/י</button>
 
-                <button id="btn-login">התחבר/י</button>
-
-                <div class="auth-links">
-                    <a href="forgot_password.html" class="text-link">שכחתי סיסמה</a>
-                    <span class="link-divider">|</span>
-                    <a href="register.html" class="text-link">הרשמה</a>
-                </div>
+            <div class="auth-links">
+                <a href="forgot_password.html" class="text-link">שכחתי סיסמה</a>
+                <span class="link-divider">|</span>
+                <a href="register.html" class="text-link">הרשמה</a>
             </div>
         </div>
     </div>
