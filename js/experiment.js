@@ -339,12 +339,29 @@ function populateForm() {
         setFieldValue('drip-rows', drip.rows);
         setFieldValue('drip-notes', drip.notes);
     }
+
+    // עדכון כפתור Google Maps אחרי שהנתונים נטענו
+    updateGoogleMapsButtonVisibility();
 }
 
 function setFieldValue(id, value) {
     const el = document.getElementById(id);
     if (el && value !== undefined && value !== null) {
         el.value = value;
+    }
+}
+
+// עדכון כפתור Google Maps - פונקציה גלובלית שניתן לקרוא לה מכל מקום
+function updateGoogleMapsButtonVisibility() {
+    const openGoogleMapsBtn = document.getElementById('open-google-maps-btn');
+    const coordsInput = document.getElementById('site-coordinates');
+
+    if (openGoogleMapsBtn && coordsInput) {
+        if (coordsInput.value && coordsInput.value.trim()) {
+            openGoogleMapsBtn.style.display = 'block';
+        } else {
+            openGoogleMapsBtn.style.display = 'none';
+        }
     }
 }
 
@@ -962,15 +979,6 @@ function initLocationPicker() {
 
     if (!pickLocationBtn) return;
 
-    // Show/hide Google Maps button based on coordinates
-    const updateGoogleMapsBtn = () => {
-        if (openGoogleMapsBtn && coordsInput.value) {
-            openGoogleMapsBtn.style.display = 'block';
-        } else if (openGoogleMapsBtn) {
-            openGoogleMapsBtn.style.display = 'none';
-        }
-    };
-
     // Open in Google Maps (external link - free!)
     if (openGoogleMapsBtn) {
         openGoogleMapsBtn.addEventListener('click', () => {
@@ -1010,15 +1018,10 @@ function initLocationPicker() {
         });
     }
 
-    // Update button visibility on page load
-    updateGoogleMapsBtn();
-
     // Watch for changes to coordinates
     if (coordsInput) {
-        const observer = new MutationObserver(updateGoogleMapsBtn);
-        observer.observe(coordsInput, { attributes: true, attributeFilter: ['value'] });
-        coordsInput.addEventListener('change', updateGoogleMapsBtn);
-        coordsInput.addEventListener('input', updateGoogleMapsBtn);
+        coordsInput.addEventListener('change', updateGoogleMapsButtonVisibility);
+        coordsInput.addEventListener('input', updateGoogleMapsButtonVisibility);
     }
 }
 
