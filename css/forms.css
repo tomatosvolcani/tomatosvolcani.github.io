@@ -145,6 +145,22 @@
     border-color: #fcc;
 }
 
+.btn-icon.btn-delete.disabled,
+.btn-icon.btn-delete:disabled {
+    background: #f5f5f5;
+    color: #ccc;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-icon.btn-delete.disabled:hover,
+.btn-icon.btn-delete:disabled:hover {
+    background: #f5f5f5;
+    color: #ccc;
+    border-color: #e0e0e0;
+}
+
 /* Google Maps Button */
 .btn-icon.btn-google-maps {
     background: #fff;
@@ -175,6 +191,20 @@
 }
 
 .btn-add:hover {
+    background: #f5f5f5;
+}
+
+.btn-add.disabled,
+.btn-add:disabled {
+    background: #f5f5f5;
+    color: #ccc;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-add.disabled:hover,
+.btn-add:disabled:hover {
     background: #f5f5f5;
 }
 

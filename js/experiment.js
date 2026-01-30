@@ -520,15 +520,24 @@ function addPartnerRow(partnerData = null) {
     row.className = 'partner-row';
     row.dataset.email = partnerEmail; // Store email in data attribute
 
+    // בדיקה אם המשתמש הנוכחי הוא הבעלים של הניסוי
+    const isOwner = currentUser && experimentOwnerUid && currentUser.uid === experimentOwnerUid;
+    const disabledClass = isOwner ? '' : 'disabled';
+    const disabledAttr = isOwner ? '' : 'disabled';
+    const disabledTitle = isOwner ? '' : 'title="רק מי שהקים את הניסוי יכול למחוק שותפים"';
+
     row.innerHTML = `
         <div class="partner-info">
             <div class="partner-name">${partnerName || 'לא צוין שם'}</div>
             <div class="partner-email">${partnerEmail || 'אין אימייל'}</div>
         </div>
-        <button type="button" class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
+        <button type="button" class="btn-icon btn-delete ${disabledClass}" ${disabledAttr} ${disabledTitle}><i class="fas fa-trash"></i></button>
     `;
 
-    row.querySelector('.btn-delete').addEventListener('click', () => row.remove());
+    const deleteBtn = row.querySelector('.btn-delete');
+    if (isOwner) {
+        deleteBtn.addEventListener('click', () => row.remove());
+    }
     container.appendChild(row);
 }
 
@@ -1158,6 +1167,22 @@ function initPartnersAutocomplete() {
     const addBtn = document.getElementById('add-partner');
 
     if (!searchInput || !suggestionsContainer) return;
+
+    // בדיקה אם המשתמש הנוכחי הוא הבעלים של הניסוי
+    const isOwner = currentUser && experimentOwnerUid && currentUser.uid === experimentOwnerUid;
+
+    // אם המשתמש אינו הבעלים - השבת את האפשרות להוסיף שותפים
+    if (!isOwner) {
+        searchInput.disabled = true;
+        searchInput.placeholder = 'רק מי שהקים/ה את הניסוי יכול/ה להוסיף שותפים';
+        searchInput.title = 'רק מי שהקים/ה את הניסוי יכול/ה להוסיף שותפים';
+        if (addBtn) {
+            addBtn.disabled = true;
+            addBtn.classList.add('disabled');
+            addBtn.title = 'רק מי שהקים/ה את הניסוי יכול/ה להוסיף שותפים';
+        }
+        return; // אין צורך להמשיך עם האירועים
+    }
 
     // allUsers כבר נטען ב-onAuthStateChanged
     // אין צורך לטעון שוב כאן
