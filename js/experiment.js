@@ -201,6 +201,8 @@ async function loadExperiment() {
             populateForm();
             updateUI();
             generateTreatmentTabs();
+            // אתחל את ה-autocomplete של השותפים אחרי שהניסוי נטען
+            initPartnersAutocomplete();
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -966,8 +968,8 @@ function initEventListeners() {
     // Location Picker
     initLocationPicker();
 
-    // Partners Autocomplete
-    initPartnersAutocomplete();
+    // Partners Autocomplete - נקרא אחרי טעינת הניסוי ב-loadExperiment
+    // initPartnersAutocomplete();
 }
 
 // =========================================
