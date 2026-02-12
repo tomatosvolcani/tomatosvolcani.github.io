@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול משתמשים - מערכת מיזם ח"ץ</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Page Header */
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h1 {
+            font-size: 26px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        /* Users Table */
+        .users-table-container {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            direction: rtl;
+        }
+
+        .users-table thead {
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .users-table th {
+            padding: 14px 20px;
+            text-align: right;
+            font-weight: 600;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .users-table tbody tr {
+            border-bottom: 1px solid #f3f4f6;
+            transition: background-color 0.15s ease;
+        }
+
+        .users-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .users-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .users-table td {
+            padding: 16px 20px;
+            text-align: right;
+            font-size: 14px;
+            color: #111827;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.approved {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-badge.pending {
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        .status-badge.admin {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .status-badge i {
+            font-size: 10px;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            padding: 7px 14px;
+            border: 1px solid;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn i {
+            font-size: 11px;
+        }
+
+        .action-btn.approve {
+            background: #ffffff;
+            color: #16a34a;
+            border-color: #16a34a;
+        }
+
+        .action-btn.approve:hover {
+            background: #16a34a;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+        }
+
+        .action-btn.reject {
+            background: #ffffff;
+            color: #dc2626;
+            border-color: #dc2626;
+        }
+
+        .action-btn.reject:hover {
+            background: #dc2626;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+        }
+
+        .action-btn.view {
+            background: #ffffff;
+            color: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .action-btn.view:hover {
+            background: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .action-btn:disabled:hover {
+            background: #ffffff;
+            box-shadow: none;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 18px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-btn i {
+            font-size: 12px;
+        }
+
+        .filter-btn:hover {
+            border-color: #d1d5db;
+            background: #f9fafb;
+        }
+
+        .filter-btn.active {
+            background: #1e40af;
+            color: #ffffff;
+            border-color: #1e40af;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.2);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #d1d5db;
+        }
+
+        .empty-state p {
+            font-size: 15px;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        /* Loading State */
+        .loading-container {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading-spinner i {
+            font-size: 32px;
+            color: #3b82f6;
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+
+        .breadcrumb-link {
+            color: #6b7280;
+            transition: color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .breadcrumb-link:hover {
+            color: #3b82f6;
+        }
+
+        .breadcrumb-current {
+            color: #111827;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="dev-notice">
+        <i class="fas fa-code"></i>
+        <span>מערכת בתהליך פיתוח: זמנית, ייתכנו שיבושים או אי-דיוקים.</span>
+    </div>
+
+    <!-- Hamburger Menu Button (Mobile) -->
+    <button class="hamburger-btn" id="hamburger-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <!-- Sidebar - Right Side -->
+        <aside class="sidebar">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span id="user-display-name"></span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>בית</span>
+                </a>
+                <div class="nav-separator"></div>
+                <div class="nav-section-title">ניהול מערכת</div>
+                <a href="admin-users.html" class="nav-item active">
+                    <i class="fas fa-users-cog"></i>
+                    <span>ניהול משתמשים</span>
+                </a>
+                <a href="admin-experiments.html" class="nav-item">
+                    <i class="fas fa-flask"></i>
+                    <span>כל הניסויים</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>התנתק/י</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="breadcrumb">
+                <span class="breadcrumb-link" onclick="window.location.href='dashboard.html'">בית</span>
+                <span> / </span>
+                <span class="breadcrumb-current">ניהול משתמשים</span>
+            </div>
+
+            <div class="page-header">
+                <h1>ניהול משתמשים</h1>
+                <p class="page-subtitle">אישור וניהול משתמשי המערכת</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-section">
+                <button class="filter-btn active" data-filter="all">
+                    <i class="fas fa-users"></i> כולם
+                </button>
+                <button class="filter-btn" data-filter="pending">
+                    <i class="fas fa-clock"></i> ממתינים לאישור
+                </button>
+                <button class="filter-btn" data-filter="approved">
+                    <i class="fas fa-check"></i> מאושרים
+                </button>
+                <button class="filter-btn" data-filter="admin">
+                    <i class="fas fa-user-shield"></i> מנהלים
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading-container" id="loading-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <p class="loading-text">טוען משתמשים...</p>
+            </div>
+
+            <!-- Users Table -->
+            <div class="users-table-container" id="users-table-container" style="display: none;">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>שם</th>
+                            <th>אימייל</th>
+                            <th>תפקיד</th>
+                            <th>סטטוס</th>
+                            <th>תאריך הרשמה</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- Users will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="empty-state" style="display: none;">
+                <i class="fas fa-users"></i>
+                <p>לא נמצאו משתמשים</p>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="js/admin-users.js"></script>
+</body>
+</html>
+

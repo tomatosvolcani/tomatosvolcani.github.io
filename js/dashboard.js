@@ -9,7 +9,8 @@ import {
     addDoc,
     serverTimestamp,
     query,
-    orderBy
+    orderBy,
+    limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 
@@ -159,10 +160,15 @@ async function loadUserData() {
         const docSnap = await getDoc(doc(db, "users", currentUser.uid));
         if (docSnap.exists()) {
             userData = docSnap.data();
+
             const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
             if (userDisplayName) {
                 userDisplayName.textContent = fullName || currentUser.email || 'משתמש';
             }
+
+            // בדיקת הרשאות ניהול - מנסים לגשת לנתונים מוגבלים
+            // אם Firestore Rules מאפשרים - יש הרשאות ניהול
+            await checkAndDisplayAdminMenu();
         } else {
             if (userDisplayName) {
                 userDisplayName.textContent = currentUser.email || 'משתמש';
@@ -174,6 +180,44 @@ async function loadUserData() {
             userDisplayName.textContent = 'משתמש';
         }
     }
+}
+
+// בדיקת הרשאות ניהול והצגת תפריט
+// הגישה: מנסים לקרוא משתמשים אחרים - אם מצליחים יש הרשאות
+async function checkAndDisplayAdminMenu() {
+    try {
+        // מנסים לקרוא 2 משתמשים - רק מנהל יכול לפי ה-Rules
+        const usersQuery = query(collection(db, "users"), limit(2));
+        const snapshot = await getDocs(usersQuery);
+
+        // אם קראנו יותר ממשתמש אחד - יש הרשאות ניהול
+        if (snapshot.size > 1) {
+            displayAdminMenu();
+        }
+    } catch (error) {
+        // אין הרשאות - זה בסדר, לא מציגים תפריט ניהול
+    }
+}
+
+// הצגת תפריט ניהול לאדמין בסיידבר
+function displayAdminMenu() {
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (!sidebar) return;
+
+    const adminMenuHTML = `
+        <div class="nav-separator"></div>
+        <div class="nav-section-title">ניהול מערכת</div>
+        <a href="admin-users.html" class="nav-item">
+            <i class="fas fa-users-cog"></i>
+            <span>ניהול משתמשים</span>
+        </a>
+        <a href="admin-experiments.html" class="nav-item">
+            <i class="fas fa-flask"></i>
+            <span>כל הניסויים</span>
+        </a>
+    `;
+
+    sidebar.insertAdjacentHTML('beforeend', adminMenuHTML);
 }
 
 // Load experiments from Firestore

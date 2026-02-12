@@ -9,7 +9,9 @@ import {
     deleteDoc,
     serverTimestamp,
     collection,
-    getDocs
+    getDocs,
+    query,
+    limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 
@@ -119,10 +121,52 @@ async function loadUserData() {
             if (userDisplay) {
                 userDisplay.textContent = fullName || currentUser.email || 'משתמש';
             }
+
+            // בדיקת הרשאות ניהול על ידי ניסיון גישה לנתונים מוגבלים
+            await checkAndDisplayAdminMenu();
         }
     } catch (error) {
         console.error("Error fetching user data:", error);
     }
+}
+
+// בדיקת הרשאות ניהול והצגת תפריט
+async function checkAndDisplayAdminMenu() {
+    try {
+        const usersQuery = query(collection(db, "users"), limit(2));
+        const snapshot = await getDocs(usersQuery);
+        if (snapshot.size > 1) {
+            displayAdminMenuInExperiment();
+        }
+    } catch (error) {
+        // אין הרשאות ניהול - לא מציגים תפריט
+    }
+}
+
+// הצגת תפריט ניהול לאדמין בסיידבר של דף הניסוי
+function displayAdminMenuInExperiment() {
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (!sidebar) return;
+
+    // בדוק אם התפריט כבר קיים
+    if (document.querySelector('.admin-menu-section')) return;
+
+    const adminMenuHTML = `
+        <div class="admin-menu-section">
+            <div class="nav-separator"></div>
+            <div class="nav-section-title">ניהול מערכת</div>
+            <a href="admin-users.html" class="nav-item">
+                <i class="fas fa-users-cog"></i>
+                <span>ניהול משתמשים</span>
+            </a>
+            <a href="admin-experiments.html" class="nav-item">
+                <i class="fas fa-flask"></i>
+                <span>כל הניסויים</span>
+            </a>
+        </div>
+    `;
+
+    sidebar.insertAdjacentHTML('beforeend', adminMenuHTML);
 }
 
 // Load all users for partner selection

@@ -53,6 +53,23 @@
     text-align: right;
 }
 
+/* מפריד בין סעיפים בתפריט */
+.nav-separator {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 15px 20px;
+}
+
+/* כותרת סעיף בתפריט */
+.nav-section-title {
+    padding: 12px 20px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .nav-item {
     display: flex;
     align-items: center;
