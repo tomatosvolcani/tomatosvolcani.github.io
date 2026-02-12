@@ -153,18 +153,10 @@ async function loadAllExperiments() {
 
 // עדכון סטטיסטיקות
 function updateStatistics() {
-    const currentYear = new Date().getFullYear();
-
     // סה"כ ניסויים
     const totalEl = document.getElementById('total-experiments');
     if (totalEl) totalEl.textContent = allExperiments.length;
 
-    // ניסויים השנה
-    const thisYearExperiments = allExperiments.filter(exp =>
-        exp.experimentYear === currentYear
-    );
-    const thisYearEl = document.getElementById('current-year-experiments');
-    if (thisYearEl) thisYearEl.textContent = thisYearExperiments.length;
 
     // מספר חוקרים ייחודיים
     const uniqueOwners = new Set(allExperiments.map(exp => exp.ownerUid));
