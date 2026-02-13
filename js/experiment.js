@@ -253,12 +253,52 @@ async function loadExperiment() {
         }
     } catch (error) {
         console.error("Error loading experiment:", error);
-        showToast('שגיאה בטעינת הניסוי', 'error');
+
+        // בדיקה אם זו שגיאת הרשאות
+        if (error.code === 'permission-denied') {
+            showAccessDeniedMessage();
+        } else {
+            showToast('שגיאה בטעינת הניסוי', 'error');
+            setTimeout(() => {
+                window.location.href = "dashboard.html";
+            }, 2000);
+        }
     } finally {
-        // הס��ר את הספינר והצג את התוכן
+        // הסתר את הספינר והצג את התוכן
         if (loadingContainer) loadingContainer.classList.add('hidden');
         if (experimentContent) experimentContent.style.display = 'block';
     }
+}
+
+// הצגת הודעת "אין גישה" עם הסבר
+function showAccessDeniedMessage() {
+    const experimentContent = document.getElementById('experiment-content');
+    if (!experimentContent) return;
+
+    experimentContent.innerHTML = `
+        <div class="access-denied-container">
+            <div class="access-denied-icon">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h2>אין לך הרשאה לצפות בניסוי זה</h2>
+            <p class="access-denied-text">
+                הניסוי הזה לא שותף איתך. כדי לקבל גישה, בקש מבעל הניסוי לשתף אותו איתך.
+            </p>
+            <div class="access-denied-steps">
+                <h3>איך לקבל גישה?</h3>
+                <ol>
+                    <li>פנה לבעל הניסוי ובקש ממנו לשתף אותך</li>
+                    <li>בעל הניסוי צריך להיכנס לניסוי שלו</li>
+                    <li>בחלק "שותפים" - להוסיף אותך כשותף</li>
+                    <li>לאחר מכן תוכל לגשת לניסוי מהדשבורד שלך</li>
+                </ol>
+            </div>
+            <button class="btn-back-home" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-home"></i>
+                חזרה לדשבורד
+            </button>
+        </div>
+    `;
 }
 
 // Update UI elements

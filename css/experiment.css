@@ -2,6 +2,108 @@
    Experiment Page Specific Styles
    ========================================= */
 
+/* =========================================
+   Access Denied Message
+   ========================================= */
+.access-denied-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.access-denied-icon {
+    width: 100px;
+    height: 100px;
+    background: #fef2f2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.access-denied-icon i {
+    font-size: 48px;
+    color: #dc2626;
+}
+
+.access-denied-container h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 12px 0;
+}
+
+.access-denied-text {
+    font-size: 15px;
+    color: #6b7280;
+    max-width: 450px;
+    margin: 0 auto 32px;
+    line-height: 1.6;
+}
+
+.access-denied-steps {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 32px;
+    text-align: right;
+    max-width: 500px;
+    margin-bottom: 32px;
+}
+
+.access-denied-steps h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 16px 0;
+}
+
+.access-denied-steps ol {
+    margin: 0;
+    padding: 0 20px 0 0;
+    list-style-position: inside;
+}
+
+.access-denied-steps li {
+    font-size: 14px;
+    color: #4b5563;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.access-denied-steps li:last-child {
+    margin-bottom: 0;
+}
+
+.btn-back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: #3b82f6;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-back-home:hover {
+    background: #2563eb;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-back-home i {
+    font-size: 14px;
+}
+
 /* RTL Support */
 .main-content,
 .form-container,
