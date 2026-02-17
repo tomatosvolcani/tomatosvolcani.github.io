@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>התחברות - מיזם ח"ץ</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* =========================================
+           Global Styles
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            direction: rtl;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            margin: 0;
+            min-height: 100vh;
+            direction: rtl;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* =========================================
+           Dev Notice
+           ========================================= */
+        .dev-notice {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background-color: #fff3cd;
+            border-bottom: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .dev-notice i {
+            font-size: 16px;
+        }
+
+        /* =========================================
+           Auth Page - Split Two Columns
+           ========================================= */
+        .auth-page-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            margin-top: 50px;
+        }
+
+        /* Container for card + image */
+        .auth-container {
+            display: flex;
+            flex-direction: row; /* כרטיס בצד שמאל, תמונה בצד ימין */
+            max-width: 1100px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 8px 25px rgba(0,0,0,0.06);
+            overflow: hidden;
+            min-height: 600px;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+
+        /* Image side */
+        .auth-image {
+            flex: 1;
+            background-image: url('SideIMG.png');
+            /* Show the whole image scaled to fit while staying centered */
+            background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
+            min-width: 300px;
+            background-color: #f3f4f6; /* light fallback when using contain */
+            position: relative;
+            order: 2; /* ensure image appears on the right */
+        }
+
+        /* Ensure the card appears on the left */
+        .auth-card {
+            order: 1;
+        }
+
+        /* Optional: Add overlay on image */
+        .auth-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.12);
+        }
+
+        /* Login card */
+        .auth-card {
+            flex: 1;
+            background: white;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .auth-card h2 {
+            margin-bottom: 8px;
+            color: #1e293b;
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.02em;
+        }
+
+        .auth-card > p {
+            color: #64748b;
+            font-size: 15px;
+            margin-bottom: 30px;
+        }
+
+        /* =========================================
+           Input Groups
+           ========================================= */
+        .input-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 14px;
+            text-align: right;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper .input-icon {
+            position: absolute;
+            right: 14px;
+            color: #9ca3af;
+            font-size: 16px;
+            pointer-events: none;
+            transition: color 0.2s ease;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 14px 44px 14px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            box-sizing: border-box;
+            direction: rtl;
+            text-align: right;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            background-color: #fafbfc;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: #10b981;
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .input-wrapper:focus-within .input-icon {
+            color: #10b981;
+        }
+
+        .input-wrapper input::placeholder {
+            color: #cbd5e0;
+            font-size: 14px;
+        }
+
+        /* =========================================
+           Button
+           ========================================= */
+        .auth-card button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .auth-card button:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .auth-card button:active {
+            transform: translateY(0);
+        }
+
+        /* =========================================
+           Links
+           ========================================= */
+        .auth-links {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .link-divider {
+            color: #e2e8f0;
+        }
+
+        .text-link {
+            color: #64748b;
+            font-size: 14px;
+            transition: color 0.2s ease;
+            text-decoration: none;
+        }
+
+        .text-link:hover {
+            color: #10b981;
+            text-decoration: underline;
+        }
+
+        /* =========================================
+           Responsive - Mobile
+           ========================================= */
+        @media (max-width: 768px) {
+            .auth-container {
+                flex-direction: column;
+                min-height: auto;
+            }
+            
+            .auth-image {
+                min-width: auto;
+                min-height: 250px;
+                order: 1;
+            }
+            
+            .auth-card {
+                order: 2;
+                padding: 2rem;
+            }
+            
+            .dev-notice {
+                font-size: 12px;
+                padding: 8px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .auth-page-wrapper {
+                padding: 20px 10px;
+            }
+            
+            .auth-container {
+                border-radius: 16px;
+            }
+            
+            .auth-image {
+                min-height: 200px;
+            }
+            
+            .auth-card {
+                padding: 1.5rem;
+            }
+
+            .auth-card h2 {
+                font-size: 1.5rem;
+            }
+
+            .input-wrapper input {
+                padding: 12px 40px 12px 12px;
+                font-size: 14px;
+            }
+
+            .auth-card button {
+                padding: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dev-notice">
+        <i class="fas fa-code"></i>
+        <span>מערכת בתהליך פיתוח: זמנית, ייתכנו שיבושים או אי-דיוקים.</span>
+    </div>
+
+    <div class="auth-page-wrapper">
+        <div class="auth-container">
+            <!-- תמונה בצד שמאל -->
+            <div class="auth-image"></div>
+            
+            <!-- כרטיס התחברות בצד ימין -->
+            <div class="auth-card">
+                <h2>התחברות</h2>
+                <p>ברוכים הבאים למערכת מיזם ח"ץ</p>
+
+                <div class="input-group">
+                    <label for="login-email">אימייל</label>
+                    <div class="input-wrapper">
+                        <i class="fa-regular fa-envelope input-icon"></i>
+                        <input type="email" id="login-email" placeholder="הכנס/י כתובת אימייל">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="login-pass">סיסמה</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="login-pass" placeholder="הכנס/י סיסמה">
+                    </div>
+                </div>
+
+                <button id="btn-login">התחבר/י</button>
+
+                <div class="auth-links">
+                    <a href="#" class="text-link">שכחתי סיסמה</a>
+                    <span class="link-divider">|</span>
+                    <a href="#" class="text-link">הרשמה</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple demo functionality
+        document.getElementById('btn-login').addEventListener('click', function() {
+            alert('התחברות - זהו רק דמו');
+        });
+    </script>
+</body>
+</html>

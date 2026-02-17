@@ -555,3 +555,282 @@
 .input-with-btn .btn-icon.btn-secondary:hover {
     background: #3367d6;
 }
+
+/* =========================================
+   Events Log (יומן אירועים)
+   ========================================= */
+.events-toolbar {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+}
+
+.btn-add-event {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-add-event:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-add-event i {
+    font-size: 14px;
+}
+
+.events-table-container {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.events-table {
+    width: 100%;
+    border-collapse: collapse;
+    direction: rtl;
+}
+
+.events-table thead {
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.events-table th {
+    padding: 14px 16px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+}
+
+.events-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s ease;
+}
+
+.events-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.events-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.events-table td {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #4b5563;
+    vertical-align: middle;
+}
+
+.events-table td input[type="date"],
+.events-table td input[type="text"],
+.events-table td textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.events-table td input:focus,
+.events-table td textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.events-table td textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+/* File upload cell */
+.file-upload-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 180px;
+}
+
+.file-input-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.btn-upload-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-upload-file:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #166534;
+}
+
+.file-info .file-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-info .btn-file-action {
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 12px;
+    transition: color 0.2s;
+}
+
+.file-info .btn-file-action:hover {
+    color: #374151;
+}
+
+.file-info .btn-file-action.btn-download:hover {
+    color: #3b82f6;
+}
+
+.file-info .btn-file-action.btn-delete-file:hover {
+    color: #dc2626;
+}
+
+/* Events actions column */
+.events-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-delete-event {
+    padding: 8px 12px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-delete-event:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+}
+
+/* No events message */
+.no-events-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.no-events-message i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.no-events-message p {
+    font-size: 15px;
+    margin: 0;
+}
+
+/* Hide table when no events */
+.events-table-container.has-events .no-events-message {
+    display: none;
+}
+
+.events-table-container:not(.has-events) .events-table {
+    display: none;
+}
+
+/* Upload progress */
+.upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.upload-progress .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.upload-progress .progress-bar-fill {
+    height: 100%;
+    background: #3b82f6;
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .events-table {
+        font-size: 13px;
+    }
+
+    .events-table th,
+    .events-table td {
+        padding: 10px 12px;
+    }
+
+    .file-upload-cell {
+        min-width: 140px;
+    }
+}
+

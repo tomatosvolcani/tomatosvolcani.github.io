@@ -1,5 +1,5 @@
 // js/experiment.js
-import { auth, db } from "./firebase-config.js";
+import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     doc,
@@ -13,6 +13,12 @@ import {
     query,
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+    ref,
+    uploadBytesResumable,
+    getDownloadURL,
+    deleteObject
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast } from "./toast.js";
 
 // =========================================
@@ -247,6 +253,8 @@ async function loadExperiment() {
             generateTreatmentTabs();
             // אתחל את ה-autocomplete של השותפים אחרי שהניסוי נטען
             initPartnersAutocomplete();
+            // אתחל את יומן האירועים
+            initEventsLog();
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -782,6 +790,7 @@ function collectFormData() {
                 notes: document.getElementById('drip-notes')?.value || ''
             }
         },
+        events: collectEventsData(),
         updatedAt: serverTimestamp()
     };
 }
@@ -1390,5 +1399,321 @@ function addPartnerFromSelection(user) {
     });
 
     showToast(`השותף/ה ${user.fullName} נוסף/ה בהצלחה`, 'success');
+}
+
+// =========================================
+// Events Log (יומן אירועים)
+// =========================================
+let eventsData = []; // מערך לשמירת אירועים
+
+function initEventsLog() {
+    const addEventBtn = document.getElementById('add-event-btn');
+    if (addEventBtn) {
+        addEventBtn.addEventListener('click', () => addEventRow());
+    }
+
+    // טען אירועים קיימים
+    loadEvents();
+}
+
+function loadEvents() {
+    eventsData = experimentData?.events || [];
+    renderEventsTable();
+}
+
+function renderEventsTable() {
+    const tableBody = document.getElementById('events-table-body');
+    const container = document.querySelector('.events-table-container');
+
+    if (!tableBody || !container) return;
+
+    tableBody.innerHTML = '';
+
+    if (eventsData.length === 0) {
+        container.classList.remove('has-events');
+        return;
+    }
+
+    container.classList.add('has-events');
+
+    eventsData.forEach((event, index) => {
+        const row = createEventRow(event, index);
+        tableBody.appendChild(row);
+    });
+}
+
+function createEventRow(event = {}, index) {
+    const row = document.createElement('tr');
+    row.dataset.eventIndex = index;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    row.innerHTML = `
+        <td>
+            <input type="date" class="event-date" value="${event.date || today}" data-index="${index}">
+        </td>
+        <td>
+            <textarea class="event-description" placeholder="תאר/י את האירוע..." data-index="${index}">${event.description || ''}</textarea>
+        </td>
+        <td>
+            <div class="file-upload-cell">
+                ${event.fileUrl ? `
+                    <div class="file-info">
+                        <i class="fas fa-file"></i>
+                        <span class="file-name" title="${event.fileName || 'קובץ'}">${truncateFileName(event.fileName || 'קובץ')}</span>
+                        <button type="button" class="btn-file-action btn-download" title="הורד קובץ" data-url="${event.fileUrl}">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button type="button" class="btn-file-action btn-delete-file" title="מחק קובץ" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                ` : `
+                    <div class="file-input-wrapper">
+                        <button type="button" class="btn-upload-file">
+                            <i class="fas fa-upload"></i>
+                            <span>בחר קובץ</span>
+                        </button>
+                        <input type="file" class="event-file-input" data-index="${index}" accept="*/*">
+                    </div>
+                `}
+                <div class="upload-progress" style="display: none;" data-index="${index}">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text">0%</span>
+                </div>
+            </div>
+        </td>
+        <td>
+            <div class="events-actions">
+                <button type="button" class="btn-delete-event" title="מחק אירוע" data-index="${index}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
+
+    // Event listeners
+    const fileInput = row.querySelector('.event-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => handleFileUpload(e, index));
+    }
+
+    const downloadBtn = row.querySelector('.btn-download');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const url = downloadBtn.dataset.url;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        });
+    }
+
+    const deleteFileBtn = row.querySelector('.btn-delete-file');
+    if (deleteFileBtn) {
+        deleteFileBtn.addEventListener('click', () => deleteEventFile(index));
+    }
+
+    const deleteEventBtn = row.querySelector('.btn-delete-event');
+    if (deleteEventBtn) {
+        deleteEventBtn.addEventListener('click', () => deleteEvent(index));
+    }
+
+    // Auto-save on change
+    const dateInput = row.querySelector('.event-date');
+    const descInput = row.querySelector('.event-description');
+
+    if (dateInput) {
+        dateInput.addEventListener('change', () => updateEventData(index));
+    }
+    if (descInput) {
+        descInput.addEventListener('blur', () => updateEventData(index));
+    }
+
+    return row;
+}
+
+function addEventRow() {
+    const today = new Date().toISOString().split('T')[0];
+
+    eventsData.push({
+        date: today,
+        description: '',
+        fileName: null,
+        fileUrl: null,
+        filePath: null,
+        createdAt: new Date().toISOString()
+    });
+
+    renderEventsTable();
+    showToast('שורת אירוע חדשה נוספה', 'info');
+}
+
+function updateEventData(index) {
+    const row = document.querySelector(`tr[data-event-index="${index}"]`);
+    if (!row) return;
+
+    const dateInput = row.querySelector('.event-date');
+    const descInput = row.querySelector('.event-description');
+
+    if (eventsData[index]) {
+        eventsData[index].date = dateInput?.value || '';
+        eventsData[index].description = descInput?.value || '';
+    }
+}
+
+async function handleFileUpload(e, eventIndex) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // בדיקת גודל קובץ (מקסימום 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
+        return;
+    }
+
+    // יצירת נתיב לקובץ ב-Storage
+    // מבנה: users/{userId}/experiments/{experimentId}/events/{timestamp}_{filename}
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `users/${experimentOwnerUid}/experiments/${currentExperimentId}/events/${timestamp}_${safeName}`;
+
+    const storageRef = ref(storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    // הצג את סרגל ההתקדמות
+    const progressContainer = document.querySelector(`.upload-progress[data-index="${eventIndex}"]`);
+    const progressBarFill = progressContainer?.querySelector('.progress-bar-fill');
+    const progressText = progressContainer?.querySelector('.progress-text');
+
+    if (progressContainer) {
+        progressContainer.style.display = 'flex';
+    }
+
+    // החבא את כפתור ההעלאה
+    const uploadWrapper = document.querySelector(`tr[data-event-index="${eventIndex}"] .file-input-wrapper`);
+    if (uploadWrapper) {
+        uploadWrapper.style.display = 'none';
+    }
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            // התקדמות
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if (progressBarFill) {
+                progressBarFill.style.width = progress + '%';
+            }
+            if (progressText) {
+                progressText.textContent = Math.round(progress) + '%';
+            }
+        },
+        (error) => {
+            // שגיאה
+            console.error('Upload error:', error);
+            showToast('שגיאה בהעלאת הקובץ: ' + error.message, 'error');
+
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+            if (uploadWrapper) {
+                uploadWrapper.style.display = 'block';
+            }
+        },
+        async () => {
+            // הצלחה
+            try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+                // עדכן את האירוע עם פרטי הקובץ
+                eventsData[eventIndex].fileName = file.name;
+                eventsData[eventIndex].fileUrl = downloadURL;
+                eventsData[eventIndex].filePath = filePath;
+
+                // רענן את הטבלה
+                renderEventsTable();
+
+                showToast('הקובץ הועלה בהצלחה!', 'success');
+            } catch (error) {
+                console.error('Error getting download URL:', error);
+                showToast('שגיאה בקבלת קישור לקובץ', 'error');
+            }
+        }
+    );
+}
+
+async function deleteEventFile(eventIndex) {
+    const event = eventsData[eventIndex];
+    if (!event || !event.filePath) return;
+
+    if (!confirm('האם למחוק את הקובץ?')) return;
+
+    try {
+        const storageRef = ref(storage, event.filePath);
+        await deleteObject(storageRef);
+
+        // עדכן את האירוע
+        eventsData[eventIndex].fileName = null;
+        eventsData[eventIndex].fileUrl = null;
+        eventsData[eventIndex].filePath = null;
+
+        renderEventsTable();
+        showToast('הקובץ נמחק בהצלחה', 'success');
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        // אם הקובץ לא קיים - נקה את הנתונים בכל מקרה
+        if (error.code === 'storage/object-not-found') {
+            eventsData[eventIndex].fileName = null;
+            eventsData[eventIndex].fileUrl = null;
+            eventsData[eventIndex].filePath = null;
+            renderEventsTable();
+        } else {
+            showToast('שגיאה במחיקת הקובץ: ' + error.message, 'error');
+        }
+    }
+}
+
+async function deleteEvent(eventIndex) {
+    if (!confirm('האם למחוק את האירוע?')) return;
+
+    const event = eventsData[eventIndex];
+
+    // מחק קובץ אם קיים
+    if (event?.filePath) {
+        try {
+            const storageRef = ref(storage, event.filePath);
+            await deleteObject(storageRef);
+        } catch (error) {
+            console.error('Error deleting event file:', error);
+            // המשך גם אם המחיקה נכשלה
+        }
+    }
+
+    // הסר מהמערך
+    eventsData.splice(eventIndex, 1);
+
+    renderEventsTable();
+    showToast('האירוע נמחק בהצלחה', 'success');
+}
+
+function truncateFileName(name, maxLength = 15) {
+    if (!name) return 'קובץ';
+    if (name.length <= maxLength) return name;
+
+    const ext = name.split('.').pop();
+    const baseName = name.substring(0, name.length - ext.length - 1);
+    const truncatedBase = baseName.substring(0, maxLength - ext.length - 4);
+
+    return `${truncatedBase}...${ext}`;
+}
+
+function collectEventsData() {
+    // עדכן את כל השדות לפני איסוף
+    eventsData.forEach((_, index) => {
+        updateEventData(index);
+    });
+
+    return eventsData;
 }
 

@@ -465,7 +465,33 @@
                 <!-- View: Events (יומן אירועים) -->
                 <div id="view-events" class="view-section">
                     <h3 class="section-title">יומן אירועים</h3>
-                    <p>חלק זה יפותח בהמשך...</p>
+
+                    <div class="events-toolbar">
+                        <button type="button" id="add-event-btn" class="btn-add-event">
+                            <i class="fas fa-plus"></i>
+                            <span>אירוע חדש +</span>
+                        </button>
+                    </div>
+
+                    <div class="events-table-container">
+                        <table class="events-table" id="events-table">
+                            <thead>
+                                <tr>
+                                    <th>תאריך</th>
+                                    <th>תיאור</th>
+                                    <th>קובץ</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="events-table-body">
+                                <!-- שורות אירועים יתווספו כאן דינמית -->
+                            </tbody>
+                        </table>
+                        <div id="no-events-message" class="no-events-message">
+                            <i class="fas fa-calendar-plus"></i>
+                            <p>אין אירועים עדיין. לחץ/י על "אירוע חדש +" כדי להוסיף אירוע ראשון.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Save Button -->
