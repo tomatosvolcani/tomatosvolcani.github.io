@@ -1449,13 +1449,13 @@ function createEventRow(event = {}, index) {
     const today = new Date().toISOString().split('T')[0];
 
     row.innerHTML = `
-        <td>
+        <td data-label="תאריך">
             <input type="date" class="event-date" value="${event.date || today}" data-index="${index}">
         </td>
-        <td>
+        <td data-label="תיאור">
             <textarea class="event-description" placeholder="תאר/י את האירוע..." data-index="${index}">${event.description || ''}</textarea>
         </td>
-        <td>
+        <td data-label="קובץ">
             <div class="file-upload-cell">
                 ${event.fileUrl ? `
                     <div class="file-info">
@@ -1485,7 +1485,7 @@ function createEventRow(event = {}, index) {
                 </div>
             </div>
         </td>
-        <td>
+        <td data-label="פעולות">
             <div class="events-actions">
                 <button type="button" class="btn-delete-event" title="מחק אירוע" data-index="${index}">
                     <i class="fas fa-trash"></i>

@@ -180,12 +180,12 @@ function displayUsers() {
         const createdDate = formatDate(user.createdAt);
 
         row.innerHTML = `
-            <td>${fullName}</td>
-            <td>${email}</td>
-            <td>${role}</td>
-            <td>${statusBadge}</td>
-            <td>${createdDate}</td>
-            <td>
+            <td data-label="שם">${fullName}</td>
+            <td data-label="אימייל">${email}</td>
+            <td data-label="תפקיד">${role}</td>
+            <td data-label="סטטוס">${statusBadge}</td>
+            <td data-label="תאריך הרשמה">${createdDate}</td>
+            <td data-label="פעולות">
                 ${getActionButtons(user)}
             </td>
         `;

@@ -321,6 +321,171 @@
             color: #111827;
             font-weight: 500;
         }
+
+        /* =========================================
+           Mobile Responsive Styles
+           ========================================= */
+        @media (max-width: 768px) {
+            .page-header {
+                margin-bottom: 24px;
+            }
+
+            .page-header h1 {
+                font-size: 22px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .stat-content h3 {
+                font-size: 26px;
+            }
+
+            .stat-content p {
+                font-size: 12px;
+            }
+
+            .search-box {
+                margin-bottom: 20px;
+            }
+
+            .search-input {
+                padding: 10px 14px 10px 40px;
+                font-size: 14px;
+            }
+
+            /* הפיכת טבלה לכרטיסים במובייל */
+            .experiments-table-container {
+                border: none;
+                background: transparent;
+            }
+
+            .experiments-table {
+                display: block;
+            }
+
+            .experiments-table thead {
+                display: none;
+            }
+
+            .experiments-table tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .experiments-table tbody tr {
+                display: flex;
+                flex-direction: column;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                padding: 16px;
+                gap: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+
+            .experiments-table tbody tr:hover {
+                background: #ffffff;
+                cursor: default;
+            }
+
+            .experiments-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0;
+                border: none;
+                font-size: 14px;
+            }
+
+            .experiments-table td::before {
+                content: attr(data-label);
+                font-size: 12px;
+                font-weight: 600;
+                color: #6b7280;
+                min-width: 80px;
+            }
+
+            /* שם הניסוי בולט */
+            .experiments-table td:first-child {
+                font-size: 16px;
+                font-weight: 600;
+                color: #111827;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #f3f4f6;
+                margin-bottom: 4px;
+            }
+
+            .experiments-table td:first-child::before {
+                display: none;
+            }
+
+            /* הסתרת תאריך יצירה במובייל */
+            .experiments-table td:nth-child(5) {
+                display: none;
+            }
+
+            /* התאמת כפתור צפייה */
+            .experiments-table td:last-child {
+                justify-content: stretch;
+                padding-top: 12px;
+                border-top: 1px solid #f3f4f6;
+                margin-top: 4px;
+            }
+
+            .experiments-table td:last-child::before {
+                display: none;
+            }
+
+            .view-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-card {
+                padding: 14px;
+                gap: 12px;
+            }
+
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            .stat-content h3 {
+                font-size: 22px;
+            }
+
+            .experiments-table tbody tr {
+                padding: 14px;
+            }
+
+            .page-header h1 {
+                font-size: 20px;
+            }
+
+            .search-input {
+                font-size: 16px; /* מונע zoom באייפון */
+            }
+        }
     </style>
 </head>
 <body>

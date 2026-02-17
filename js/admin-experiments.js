@@ -220,12 +220,12 @@ function displayExperiments() {
         const createdDate = formatDate(experiment.createdAt);
 
         row.innerHTML = `
-            <td><strong>${name}</strong></td>
-            <td>${researcher}</td>
-            <td>${site}</td>
-            <td>${year}</td>
-            <td>${createdDate}</td>
-            <td>
+            <td data-label="שם הניסוי"><strong>${name}</strong></td>
+            <td data-label="חוקר מוביל">${researcher}</td>
+            <td data-label="אתר">${site}</td>
+            <td data-label="שנה">${year}</td>
+            <td data-label="תאריך יצירה">${createdDate}</td>
+            <td data-label="פעולות">
                 <button class="view-btn" data-experiment-id="${experiment.id}" data-owner-uid="${experiment.ownerUid}">
                     <i class="fas fa-eye"></i> צפה
                 </button>
