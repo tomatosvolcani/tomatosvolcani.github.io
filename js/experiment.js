@@ -839,12 +839,7 @@ async function saveExperiment() {
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
 
-        // הודעת הצלחה עם מידע על שותפים
-        if (syncResult && syncResult.added > 0) {
-            showToast(`הניסוי נשמר! נוספו ${syncResult.added} שותפים חדשים.`, 'success');
-        } else {
-            showToast('הניסוי נשמר בהצלחה!', 'success');
-        }
+        showToast('נשמר בהצלחה!', 'success');
     } catch (error) {
         console.error("Error saving experiment:", error);
         showToast('שגיאה בשמירת הניסוי: ' + error.message, 'error');
@@ -1714,20 +1709,15 @@ async function deleteEventFile(eventIndex) {
 }
 
 async function deleteEvent(eventIndex) {
-    if (!confirm('האם למחוק את האירוע?')) return;
-
     const event = eventsData[eventIndex];
 
-    // מחק קובץ אם קיים
-    if (event?.filePath) {
-        try {
-            const storageRef = ref(storage, event.filePath);
-            await deleteObject(storageRef);
-        } catch (error) {
-            console.error('Error deleting event file:', error);
-            // המשך גם אם המחיקה נכשלה
-        }
+    // Block deletion if a file is still attached
+    if (event?.fileUrl) {
+        showToast('זוהה קובץ - יש למחוק את הקובץ המצורף לפני מחיקת האירוע', 'error');
+        return;
     }
+
+    if (!confirm('האם למחוק את האירוע?')) return;
 
     // הסר מהמערך
     eventsData.splice(eventIndex, 1);
@@ -1910,35 +1900,121 @@ function addProgressRow(tbody, fields, labels, data, options) {
     data = data || {};
     options = options || {};
     const tr = document.createElement('tr');
+
+    // Store file metadata on row if provided
+    if (data.fileUrl) tr.dataset.fileUrl = data.fileUrl;
+    if (data.filePath) tr.dataset.filePath = data.filePath;
+
     fields.forEach(field => {
         const td = document.createElement('td');
         td.dataset.label = labels[field] || field;
-        const isReadonly = options.readonlyFields && options.readonlyFields.includes(field) && data[field];
-        const inputType = (options.inputTypes && options.inputTypes[field]) || 'text';
-        const inp = document.createElement('input');
-        inp.type = inputType;
-        inp.className = 'soil-input';
-        inp.dataset.field = field;
-        inp.value = data[field] || '';
-        if (labels[field]) inp.placeholder = labels[field];
-        if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
-        td.appendChild(inp);
+
+        // For 'fileName' field with a file attached — show file-info widget
+        if (field === 'fileName' && data.fileUrl) {
+            td.innerHTML = `
+                <div class="progress-file-info">
+                    <i class="fas fa-file"></i>
+                    <span class="progress-file-name" title="${data.fileName || ''}">${data.fileName || ''}</span>
+                    <button type="button" class="btn-file-action btn-download" title="הורד/י קובץ" data-url="${data.fileUrl}">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-file-action btn-delete-progress-file" title="מחק/י קובץ">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            // hidden input to keep the value for collection
+            const hiddenInp = document.createElement('input');
+            hiddenInp.type = 'hidden';
+            hiddenInp.dataset.field = field;
+            hiddenInp.value = data.fileName || '';
+            td.appendChild(hiddenInp);
+
+            // Download handler
+            td.querySelector('.btn-download')?.addEventListener('click', (e) => {
+                const url = e.currentTarget.dataset.url;
+                if (url) window.open(url, '_blank');
+            });
+
+            // Delete file handler
+            td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
+                const filePath = tr.dataset.filePath;
+                if (!filePath) return;
+                if (!confirm('האם למחוק/לבטל את הקובץ?')) return;
+                try {
+                    const storageRef = ref(storage, filePath);
+                    await deleteObject(storageRef);
+                    showToast('הקובץ נמחק בהצלחה', 'success');
+                } catch (err) {
+                    if (err.code !== 'storage/object-not-found') {
+                        showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
+                        return;
+                    }
+                }
+                // Replace file widget with a plain text input
+                delete tr.dataset.fileUrl;
+                delete tr.dataset.filePath;
+                td.innerHTML = '';
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'soil-input';
+                inp.dataset.field = field;
+                inp.value = data.fileName || '';
+                inp.placeholder = labels[field] || '';
+                td.appendChild(inp);
+            });
+        } else {
+            // Normal input
+            const isReadonly = options.readonlyFields && options.readonlyFields.includes(field) && data[field];
+            const inputType = (options.inputTypes && options.inputTypes[field]) || 'text';
+            const inp = document.createElement('input');
+            inp.type = inputType;
+            inp.className = 'soil-input';
+            inp.dataset.field = field;
+            inp.value = data[field] || '';
+            if (labels[field]) inp.placeholder = labels[field];
+            if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
+            td.appendChild(inp);
+        }
         tr.appendChild(td);
     });
+
+    // Delete row button
     const tdDel = document.createElement('td');
     tdDel.dataset.label = '';
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-del-soil-row';
     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    delBtn.addEventListener('click', () => tr.remove());
+    delBtn.addEventListener('click', () => {
+        // Block deletion if a file is still attached
+        if (tr.dataset.fileUrl) {
+            showToast('זוהה קובץ - יש למחוק את הקובץ המצורף לפני מחיקת השורה', 'error');
+            return;
+        }
+        tr.remove();
+    });
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
     tbody.appendChild(tr);
 }
 
 function collectProgressRows(tbodyId, fields) {
-    return collectSoilTableRows(tbodyId, fields);
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return [];
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const obj = {};
+        fields.forEach(field => {
+            const inp = tr.querySelector(`[data-field="${field}"]`);
+            obj[field] = inp ? inp.value : '';
+        });
+        // Include file metadata if present
+        if (tr.dataset.fileUrl) obj.fileUrl = tr.dataset.fileUrl;
+        if (tr.dataset.filePath) obj.filePath = tr.dataset.filePath;
+        rows.push(obj);
+    });
+    return rows;
 }
 
 // =========================================
@@ -2131,7 +2207,13 @@ function initDropzone(dropzoneId, fileInputId, labelId) {
     const label = document.getElementById(labelId);
     if (!dropzone || !fileInput) return;
 
-    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('click', (e) => {
+        // Don't trigger again if the click came from the file input itself
+        if (e.target === fileInput) return;
+        fileInput.click();
+    });
+    // Prevent the file input's native click from bubbling to the dropzone
+    fileInput.addEventListener('click', (e) => e.stopPropagation());
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
     dropzone.addEventListener('drop', (e) => {
@@ -2199,13 +2281,10 @@ async function saveIrrigationFile() {
         fileName: fileName,
         uploadDate: today,
         measureDates: measureDates,
-        totalWater: totalWater
+        totalWater: totalWater,
+        fileUrl: fileUrl || '',
+        filePath: filePath || ''
     });
-    // Store file info on the last row
-    if (fileUrl) {
-        const lastRow = tbody.lastElementChild;
-        if (lastRow) { lastRow.dataset.fileUrl = fileUrl; lastRow.dataset.filePath = filePath; }
-    }
 
     closeModal('irrigation-file-modal');
     showToast('קובץ השקיה נוסף בהצלחה', 'success');
@@ -2267,12 +2346,10 @@ async function saveFertilizationFile() {
         measureDates: measureDates,
         fertType: fertType,
         company: company,
-        totalFert: totalFert
+        totalFert: totalFert,
+        fileUrl: fileUrl || '',
+        filePath: filePath || ''
     });
-    if (fileUrl) {
-        const lastRow = tbody.lastElementChild;
-        if (lastRow) { lastRow.dataset.fileUrl = fileUrl; lastRow.dataset.filePath = filePath; }
-    }
 
     closeModal('fertilization-file-modal');
     showToast('קובץ דישון נוסף בהצלחה', 'success');

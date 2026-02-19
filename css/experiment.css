@@ -1381,6 +1381,66 @@
     margin-bottom: 8px;
 }
 
+/* File info widget inside progress table rows */
+.progress-file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #166534;
+    direction: rtl;
+}
+
+.progress-file-info i.fa-file {
+    color: #10b981;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.progress-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+    font-weight: 500;
+}
+
+.progress-file-info .btn-file-action {
+    padding: 4px 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.progress-file-info .btn-file-action.btn-download:hover {
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+.progress-file-info .btn-file-action.btn-delete-progress-file:hover {
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+@media (max-width: 580px) {
+    .progress-file-info {
+        flex-wrap: wrap;
+    }
+    .progress-file-name {
+        max-width: 100%;
+    }
+}
+
 /* =========================================
    Progress Popup Modals
    ========================================= */
