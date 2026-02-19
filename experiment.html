@@ -68,7 +68,11 @@
                             <span>מהלך הניסוי</span>
                         </div>
                         <div class="sub-sub-menu" id="progress-submenu">
-                            <a href="#" class="sub-sub-item" data-view="progress-actions">תת קטגוריה 1</a>
+                            <a href="#" class="sub-sub-item" data-view="irrigation">השקיה ודשן</a>
+                            <a href="#" class="sub-sub-item" data-view="growth">צימוח</a>
+                            <a href="#" class="sub-sub-item" data-view="climate">נתוני אקלים וסנסורים</a>
+                            <a href="#" class="sub-sub-item" data-view="agrotechnics">אגרוטכניקה</a>
+                            <a href="#" class="sub-sub-item" data-view="plant-protection">הגנת הצומח</a>
                         </div>
 
                         <!-- נתוני יבול -->
@@ -440,26 +444,504 @@
 
                 <!-- View: Soil Treatment (טיפול בקרקע) -->
                 <div id="view-soil" class="view-section">
-                    <h3 class="section-title">טיפול בקרקע</h3>
-                    <p>להמשיך לפתח</p>
+                    <h3 class="section-title">דרישות הטיפול בקרקע</h3>
+
+                    <!-- מצע מנותק - grouped card (ללא כותרת כפולה) -->
+                    <div class="soil-detached-group">
+                        <div class="soil-group-fields">
+                            <div class="form-group soil-inline-field">
+                                <label>מצע מנותק:</label>
+                                <select id="detached-substrate">
+                                    <option value="לא">לא</option>
+                                    <option value="כן">כן</option>
+                                </select>
+                            </div>
+                            <div class="form-group soil-inline-field">
+                                <label>סוג החברה:</label>
+                                <input type="text" id="substrate-company" placeholder="שם החברה">
+                            </div>
+                            <div class="form-group soil-inline-field">
+                                <label>סוג המצע:</label>
+                                <input type="text" id="substrate-type" placeholder="סוג המצע">
+                            </div>
+                            <div class="form-group soil-inline-field">
+                                <label>נפח המצע:</label>
+                                <input type="text" id="substrate-volume" placeholder="נפח">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- חיפוי קרקע + חיטוי סולרי -->
+                    <div class="form-grid soil-main-grid">
+                        <div class="form-group">
+                            <label>חיפוי קרקע/כסף:</label>
+                            <select id="soil-mulch">
+                                <option value="">בחר</option>
+                                <option value="קיים">קיים</option>
+                                <option value="אין">אין</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>חיטוי סולרי:</label>
+                            <select id="soil-solarization">
+                                <option value="כן">כן</option>
+                                <option value="לא">לא</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- חיטוי בהמטרה אדיגן + כמות - grouped card -->
+                    <div class="soil-adigan-group">
+                        <div class="soil-group-fields">
+                            <div class="form-group soil-inline-field">
+                                <label>חיטוי בהמטרה אדיגן:</label>
+                                <select id="soil-disinfection-adigan">
+                                    <option value="לא">לא</option>
+                                    <option value="כן">כן</option>
+                                </select>
+                            </div>
+                            <div class="form-group soil-inline-field">
+                                <label>כמות:</label>
+                                <input type="text" id="soil-adigan-amount" placeholder="כמות">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- פיזור קומפוסט -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-compost-row">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <span class="soil-section-title">פיזור קומפוסט</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="compost-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך</th>
+                                        <th>כמות</th>
+                                        <th>אופן יישום</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="compost-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ריסוס מונע הצצה -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-spray-row">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <span class="soil-section-title">ריסוס מונע הצצה</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="spray-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך</th>
+                                        <th>כמות</th>
+                                        <th>אופן יישום</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="spray-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- חיטוי קרקע -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-disinfect-row">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <span class="soil-section-title">חיטוי קרקע</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="disinfect-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך</th>
+                                        <th>חומר החיטוי</th>
+                                        <th>כמות</th>
+                                        <th>אופן יישום</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="disinfect-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- View: Drip (סוג ופריסת הטפטוף) -->
                 <div id="view-drip" class="view-section">
-                    <h3 class="section-title">סוג ופריסת הטפטוף</h3>
-                    <p>להמשיך לפתח</p>
+                    <h3 class="section-title">דרישות סוג ופריסת הטפטוף</h3>
+
+                    <div class="drip-fields-list">
+
+                        <!-- שלוחה בודדת / כפולה -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">שלוחה בודדת/ כפולה:</label>
+                            <div class="drip-field-value">
+                                <select id="drip-single-double">
+                                    <option value="">בחר</option>
+                                    <option value="בודדת">בודדת</option>
+                                    <option value="כפולה">כפולה</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- קוטר צינור טפטוף -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">קוטר צינור טפטוף:</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-pipe-diameter" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-pipe-diameter" class="drip-number-input" placeholder="16" step="any">
+                            </div>
+                        </div>
+
+                        <!-- מרחק בין טפטפות -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">מרחק בין טפטפות (ס"מ):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-emitter-spacing" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-emitter-spacing" class="drip-number-input" placeholder="0.15" step="any">
+                            </div>
+                        </div>
+
+                        <!-- ספיקה -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">ספיקה (ליטר/שעה):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-flow-rate" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-flow-rate" class="drip-number-input" placeholder="1" step="any">
+                            </div>
+                        </div>
+
+                        <!-- מס' שלוחות -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">מס' שלוחות (יח'):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-lines-count" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-lines-count" class="drip-number-input" placeholder="6" step="1">
+                            </div>
+                        </div>
+
+                        <!-- מרחק בין שלוחות טפטוף -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">מרחק בין שלוחות טפטוף (ס"מ):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-lines-spacing" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-lines-spacing" class="drip-number-input" placeholder="1.8" step="any">
+                            </div>
+                        </div>
+
+                        <!-- מרחק בין מרכז ערוגות -->
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">מרחק בין מרכז ערוגות (מטר):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-bed-spacing" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-bed-spacing" class="drip-number-input" placeholder="1.8" step="any">
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
-                <!-- View: Progress (מהלך הניסוי) -->
-                <div id="view-progress-actions" class="view-section">
-                    <h3 class="section-title">מהלך הניסוי </h3>
-                    <p>חלק זה יפותח בהמשך...</p>
+                <!-- View: Irrigation & Fertilization (השקיה ודשן) -->
+                <div id="view-irrigation" class="view-section">
+                    <h3 class="section-title">השקיה ודשן</h3>
+
+                    <!-- השקיה -->
+                    <div class="soil-dynamic-section">
+                        <div class="progress-subsection-title-sm">השקיה</div>
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-irrigation-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">קובץ חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="irrigation-table">
+                                <thead>
+                                    <tr>
+                                        <th>שם הקובץ</th>
+                                        <th>תאריך העלאה</th>
+                                        <th>תאריכי מדידה</th>
+                                        <th>סה"כ כמות מים (ליטר)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="irrigation-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- דישון -->
+                    <div class="soil-dynamic-section">
+                        <div class="progress-subsection-title-sm">דישון</div>
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-fertilization-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">קובץ חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="fertilization-table">
+                                <thead>
+                                    <tr>
+                                        <th>שם הקובץ</th>
+                                        <th>תאריך העלאה</th>
+                                        <th>תאריכי מדידה</th>
+                                        <th>סוג הדשן</th>
+                                        <th>חברה</th>
+                                        <th>סה"כ כמות דשן</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fertilization-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Growth (צימוח) -->
+                <div id="view-growth" class="view-section">
+                    <h3 class="section-title">צימוח</h3>
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-growth-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">הוספת נתון חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="growth-table">
+                                <thead>
+                                    <tr>
+                                        <th>נתון</th>
+                                        <th>ערך</th>
+                                        <th>תאריך מדידה</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="growth-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Climate Data & Sensors (נתוני אקלים וסנסורים) -->
+                <div id="view-climate" class="view-section">
+                    <h3 class="section-title">נתוני אקלים וסנסורים</h3>
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-climate-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">הוספת נתון חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="climate-table">
+                                <thead>
+                                    <tr>
+                                        <th>נתון</th>
+                                        <th>מיקום מדידה</th>
+                                        <th>מיקום חיישן במרחב</th>
+                                        <th>גובה/עומק חיישן</th>
+                                        <th>תאריכי מדידה</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="climate-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Agrotechnics (אגרוטכניקה) -->
+                <div id="view-agrotechnics" class="view-section">
+                    <h3 class="section-title">אגרוטכניקה</h3>
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-agro-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">הוספת פעולה חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="agro-table">
+                                <thead>
+                                    <tr>
+                                        <th>פעולה</th>
+                                        <th>תאריך ביצוע הפעולה</th>
+                                        <th>כמות שעות לפעולה</th>
+                                        <th>כמות עובדים לפעולה</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agro-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Plant Protection (הגנת הצומח) -->
+                <div id="view-plant-protection" class="view-section">
+                    <h3 class="section-title">הגנת הצומח</h3>
+
+                    <!-- מזיקים -->
+                    <div class="soil-dynamic-section">
+                        <div class="progress-subsection-title-sm">מזיקים</div>
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-pest-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">מפגע חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="pest-table">
+                                <thead>
+                                    <tr>
+                                        <th>מפגע שאובחן</th>
+                                        <th>תאריך</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pest-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- מחלות -->
+                    <div class="soil-dynamic-section">
+                        <div class="progress-subsection-title-sm">מחלות</div>
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-disease-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">מפגע חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="disease-table">
+                                <thead>
+                                    <tr>
+                                        <th>מפגע שאובחן</th>
+                                        <th>תאריך</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="disease-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- הדברה -->
+                    <div class="progress-subsection-title">הדברה</div>
+
+                    <!-- ריסוסים -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-spray-prot-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">ריסוסים:</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="spray-prot-table">
+                                <thead>
+                                    <tr>
+                                        <th>חומר</th>
+                                        <th>תאריך</th>
+                                        <th>מינון לטיפול</th>
+                                        <th>משולב עם חומרים נוספים</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="spray-prot-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- הגמעות -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-drench-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">הגמעות:</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="drench-table">
+                                <thead>
+                                    <tr>
+                                        <th>חומר</th>
+                                        <th>תאריך</th>
+                                        <th>מינון לטיפול</th>
+                                        <th>משולב עם חומרים נוספים</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="drench-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- View: Yield (נתוני יבול) -->
                 <div id="view-yield" class="view-section">
                     <h3 class="section-title">נתוני יבול</h3>
-                    <p>חלק זה יפותח בהמשך...</p>
+
+                    <!-- מדידה חדשה -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-yield-measure-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">מדידה חדשה</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="yield-measure-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך מדידה</th>
+                                        <th>קומת הפרי</th>
+                                        <th>איכות (לק"ג)</th>
+                                        <th>כמות (ק"ג)</th>
+                                        <th>תיאור הפרי</th>
+                                        <th>הערות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="yield-measure-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- פגע חדש -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-yield-damage-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">פגע חדש</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="yield-damage-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך מדידה</th>
+                                        <th>הפגע הנמדד</th>
+                                        <th>מדד נזק (%/ס"מ/No.)</th>
+                                        <th>ערך הנזק</th>
+                                        <th>תיאור הנזק</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="yield-damage-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- View: Events (יומן אירועים) -->
@@ -496,11 +978,125 @@
 
                 <!-- Save Button -->
                 <div class="form-actions">
-                    <button type="submit" class="btn-save">שמור</button>
+                    <button type="submit" class="btn-save">שמור/י</button>
                 </div>
             </form>
             </div><!-- End experiment-content -->
         </main>
+    </div>
+
+    <!-- Modal: Irrigation File Upload -->
+    <div id="irrigation-file-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2>העלאת קובץ השקיה חדש</h2>
+            <div class="modal-form-grid">
+                <div class="modal-form-row">
+                    <label>שם הקובץ:</label>
+                    <input type="text" id="irr-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+                </div>
+                <div class="modal-form-row">
+                    <label>טווח מדידות:</label>
+                    <input type="text" id="irr-modal-dates" class="modal-input-sm" placeholder="תאריכי מדידה">
+                </div>
+            </div>
+            <div class="modal-form-row modal-form-row-single">
+                <label>סה"כ כמות מים (ליטר):</label>
+                <input type="number" id="irr-modal-total" class="modal-input-sm" placeholder="כמות" step="any">
+            </div>
+            <div class="modal-dropzone" id="irr-modal-dropzone">
+                <input type="file" id="irr-modal-file" class="modal-file-input">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p id="irr-modal-file-name">גרור/י קובץ לכאן או לחץ/י לבחירה</p>
+            </div>
+            <div class="modal-upload-progress hidden" id="irr-modal-progress">
+                <div class="progress-bar"><div class="progress-bar-fill" id="irr-modal-progress-fill"></div></div>
+                <span class="progress-text" id="irr-modal-progress-text">0%</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="irr-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
+                <button type="button" id="irr-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Fertilization File Upload -->
+    <div id="fertilization-file-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2>העלאת קובץ דישון חדש</h2>
+            <div class="modal-form-grid">
+                <div class="modal-form-row">
+                    <label>שם הקובץ:</label>
+                    <input type="text" id="fert-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+                </div>
+                <div class="modal-form-row">
+                    <label>טווח מדידות:</label>
+                    <input type="text" id="fert-modal-dates" class="modal-input-sm" placeholder="תאריכי מדידה">
+                </div>
+            </div>
+            <div class="modal-form-grid">
+                <div class="modal-form-row">
+                    <label>סוג הדשן:</label>
+                    <input type="text" id="fert-modal-type" class="modal-input-sm" placeholder="סוג הדשן">
+                </div>
+                <div class="modal-form-row">
+                    <label>חברה:</label>
+                    <input type="text" id="fert-modal-company" class="modal-input-sm" placeholder="חברה">
+                </div>
+            </div>
+            <div class="modal-form-row modal-form-row-single">
+                <label>סה"כ כמות דשן:</label>
+                <input type="number" id="fert-modal-total" class="modal-input-sm" placeholder="כמות" step="any">
+            </div>
+            <div class="modal-dropzone" id="fert-modal-dropzone">
+                <input type="file" id="fert-modal-file" class="modal-file-input">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p id="fert-modal-file-name">גרור/י קובץ לכאן או לחץ/י לבחירה</p>
+            </div>
+            <div class="modal-upload-progress hidden" id="fert-modal-progress">
+                <div class="progress-bar"><div class="progress-bar-fill" id="fert-modal-progress-fill"></div></div>
+                <span class="progress-text" id="fert-modal-progress-text">0%</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="fert-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
+                <button type="button" id="fert-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Growth Data (צימוח) -->
+    <div id="growth-data-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2>הוספת נתון חדש</h2>
+            <div class="modal-form-row modal-form-row-single">
+                <select id="growth-modal-name" class="modal-input-sm modal-select">
+                    <option value="">בחירת נתון</option>
+                    <option value="קצב צימוח (גובה)">קצב צימוח (גובה)</option>
+                    <option value="עובי הגבעול">עובי הגבעול</option>
+                    <option value="מספר פרחים בתפרחת">מספר פרחים בתפרחת</option>
+                    <option value="מספר חנטים">מספר חנטים</option>
+                    <option value="LAI">LAI</option>
+                    <option value="מוליכות פיוניות">מוליכות פיוניות</option>
+                    <option value="SPAD">SPAD</option>
+                    <option value="פוטוסינתזה">פוטוסינתזה</option>
+                    <option value="ביומסה - רטוב">ביומסה - רטוב</option>
+                    <option value="ביומסה - יבש">ביומסה - יבש</option>
+                </select>
+            </div>
+            <div class="modal-form-grid">
+                <div class="modal-form-row">
+                    <label>תאריך מדידה:</label>
+                    <input type="date" id="growth-modal-date" class="modal-input-sm">
+                </div>
+                <div class="modal-form-row">
+                    <label>ערך:</label>
+                    <input type="text" id="growth-modal-value" class="modal-input-sm" placeholder="ערך">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="growth-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
+                <button type="button" id="growth-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal for Location Picker -->

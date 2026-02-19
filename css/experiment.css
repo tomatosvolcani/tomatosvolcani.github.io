@@ -954,3 +954,589 @@
     }
 }
 
+/* =========================================
+   Soil Treatment Section
+   ========================================= */
+
+/* Detached substrate grouped card */
+.soil-detached-group {
+    background: #f0f4ff;
+    border: 1px solid #c7d7f5;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+/* Adigan + כמות grouped card */
+.soil-adigan-group {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.soil-group-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.soil-inline-field {
+    flex: 1 1 150px;
+    min-width: 120px;
+}
+
+.soil-inline-field label {
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.soil-inline-field select,
+.soil-inline-field input {
+    width: 100%;
+}
+
+/* Main soil grid (mulch / solarization) */
+.soil-main-grid {
+    margin-bottom: 20px;
+}
+
+/* Dynamic table sections */
+.soil-dynamic-section {
+    margin-bottom: 24px;
+}
+
+/* + button on the RIGHT, title flows after it (RTL: right = start) */
+.soil-section-header {
+    display: flex;
+    align-items: center;
+    /* align items to the right in RTL: use flex-start (right) instead of flex-end */
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    direction: rtl;
+}
+
+.soil-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.btn-add-soil-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-add-soil-row:hover {
+    background: #2563eb;
+}
+
+.soil-table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.soil-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    direction: rtl;
+}
+
+.soil-table thead {
+    background: #f3f4f6;
+}
+
+.soil-table th {
+    padding: 10px 12px;
+    text-align: right;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.soil-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.soil-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.soil-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.soil-input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #1f2937;
+    background: #fff;
+    transition: border-color 0.2s;
+    min-width: 80px;
+    box-sizing: border-box;
+}
+
+.soil-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.soil-input[type="date"] {
+    min-width: 120px;
+}
+
+.btn-del-soil-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+    font-size: 13px;
+}
+
+.btn-del-soil-row:hover {
+    background: #fee2e2;
+}
+
+/* ---- Responsive: tablet ---- */
+@media (max-width: 768px) {
+    .soil-group-fields {
+        gap: 12px;
+    }
+
+    .soil-inline-field {
+        flex: 1 1 calc(50% - 6px);
+    }
+
+    .soil-table th,
+    .soil-table td {
+        padding: 8px;
+    }
+}
+
+/* ---- Responsive: mobile ---- */
+@media (max-width: 580px) {
+    .soil-detached-group {
+        background: #eef2ff;
+        padding: 14px;
+    }
+
+    .soil-adigan-group {
+        padding: 14px;
+    }
+
+    .soil-group-fields {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .soil-inline-field {
+        flex: 1 1 100%;
+    }
+
+    /* Collapse tables to card layout on mobile */
+    .soil-table,
+    .soil-table thead,
+    .soil-table tbody,
+    .soil-table th,
+    .soil-table td,
+    .soil-table tr {
+        display: block;
+    }
+
+    .soil-table thead {
+        display: none;
+    }
+
+    .soil-table tbody tr {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 10px 12px;
+    }
+
+    .soil-table td {
+        border: none;
+        padding: 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .soil-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 12px;
+        color: #6b7280;
+        min-width: 90px;
+        flex-shrink: 0;
+    }
+
+    .soil-table td:last-child {
+        justify-content: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid #f3f4f6;
+        margin-top: 4px;
+    }
+
+    .soil-input {
+        flex: 1;
+    }
+}
+
+/* =========================================
+   Drip Layout (סוג ופריסת הטפטוף)
+   ========================================= */
+
+.drip-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+}
+
+.drip-field-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 12px;
+    direction: rtl;
+}
+
+.drip-field-row:last-child {
+    border-bottom: none;
+}
+
+.drip-field-label {
+    font-size: 14px;
+    color: #374151;
+    text-align: right;
+    width: 240px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.drip-field-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.drip-field-value select {
+    min-width: 120px;
+    padding: 7px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #1f2937;
+    background: #fff;
+    cursor: pointer;
+}
+
+.drip-field-value select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* Editable number field */
+.drip-editable {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 4px 8px 4px 4px;
+    min-width: 120px;
+    justify-content: space-between;
+}
+
+.drip-number-input {
+    width: 70px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #1f2937;
+    text-align: left;
+    direction: ltr;
+    padding: 4px 2px;
+}
+
+.drip-number-input:focus {
+    outline: none;
+}
+
+/* pencil icon button */
+.drip-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+
+.drip-edit-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* ---- Drip Mobile ---- */
+@media (max-width: 580px) {
+    .drip-field-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .drip-field-label {
+        width: auto;
+        flex: 1 1 100%;
+        white-space: normal;
+    }
+
+    .drip-field-value {
+        flex: 1;
+    }
+
+    .drip-editable {
+        width: 100%;
+    }
+
+    .drip-number-input {
+        flex: 1;
+        width: 100%;
+    }
+}
+
+/* =========================================
+   Progress Views (מהלך הניסוי)
+   ========================================= */
+
+/* Label shown above file upload tables */
+.progress-file-label {
+    text-align: right;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 6px;
+    font-style: italic;
+}
+
+/* Sub-section title (e.g. "הדברה") */
+.progress-subsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    text-align: right;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Small sub-section title (e.g. "השקיה", "דישון" above table) */
+.progress-subsection-title-sm {
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    text-align: right;
+    margin-bottom: 8px;
+}
+
+/* =========================================
+   Progress Popup Modals
+   ========================================= */
+.modal-progress {
+    max-width: 580px;
+    width: 92%;
+    direction: rtl;
+    text-align: right;
+}
+
+.modal-progress h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-form-grid {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.modal-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.modal-form-row label {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.modal-form-row-single {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.modal-form-row-single label {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.modal-input-sm {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #1f2937;
+    background: #fff;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-input-sm:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.modal-select {
+    appearance: auto;
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+/* Dropzone */
+.modal-dropzone {
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f9fafb;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.modal-dropzone:hover,
+.modal-dropzone.drag-over {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.modal-dropzone i {
+    font-size: 32px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.modal-dropzone p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.modal-file-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Upload progress inside modal */
+.modal-upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.modal-upload-progress .progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.modal-upload-progress .progress-bar-fill {
+    height: 100%;
+    background: #3b82f6;
+    transition: width 0.3s ease;
+    width: 0;
+}
+
+.modal-upload-progress .progress-text {
+    font-size: 13px;
+    color: #374151;
+    min-width: 36px;
+    text-align: left;
+}
+
+/* Responsive */
+@media (max-width: 580px) {
+    .modal-progress {
+        width: 96%;
+        padding: 20px;
+    }
+
+    .modal-form-grid {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+

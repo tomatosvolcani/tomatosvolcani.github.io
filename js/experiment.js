@@ -417,22 +417,34 @@ function populateForm() {
     // Soil details
     if (data.soilDetails && data.soilDetails.data) {
         const soil = data.soilDetails.data;
-        setFieldValue('soil-type', soil.type);
-        setFieldValue('soil-disinfection', soil.disinfection);
-        setFieldValue('disinfection-type', soil.disinfectionType);
-        setFieldValue('basic-fertilization', soil.basicFertilization);
-        setFieldValue('soil-notes', soil.notes);
+        setFieldValue('detached-substrate', soil.detachedSubstrate);
+        setFieldValue('substrate-company', soil.substrateCompany);
+        setFieldValue('substrate-type', soil.substrateType);
+        setFieldValue('substrate-volume', soil.substrateVolume);
+        setFieldValue('soil-mulch', soil.mulch);
+        setFieldValue('soil-disinfection-adigan', soil.disinfectionAdigan);
+        setFieldValue('soil-adigan-amount', soil.adiganAmount);
+        setFieldValue('soil-solarization', soil.solarization);
+        // Dynamic tables
+        renderSoilTable('compost-tbody', soil.compostRows || [], ['date','amount','method']);
+        renderSoilTable('spray-tbody', soil.sprayRows || [], ['date','amount','method']);
+        renderSoilDisinfectTable('disinfect-tbody', soil.disinfectRows || []);
     }
 
     // Drip details
     if (data.dripDetails && data.dripDetails.data) {
         const drip = data.dripDetails.data;
-        setFieldValue('drip-type', drip.type);
-        setFieldValue('drip-flow', drip.flow);
-        setFieldValue('drip-spacing', drip.spacing);
-        setFieldValue('drip-rows', drip.rows);
-        setFieldValue('drip-notes', drip.notes);
+        setFieldValue('drip-single-double', drip.singleDouble);
+        setFieldValue('drip-pipe-diameter', drip.pipeDiameter);
+        setFieldValue('drip-emitter-spacing', drip.emitterSpacing);
+        setFieldValue('drip-flow-rate', drip.flowRate);
+        setFieldValue('drip-lines-count', drip.linesCount);
+        setFieldValue('drip-lines-spacing', drip.linesSpacing);
+        setFieldValue('drip-bed-spacing', drip.bedSpacing);
     }
+
+    // Progress views (מהלך הניסוי + נתוני יבול)
+    populateProgressViews(data);
 
     // עדכון כפתור Google Maps אחרי שהנתונים נטענו
     updateGoogleMapsButtonVisibility();
@@ -525,7 +537,7 @@ function switchView(viewName) {
     // Show/hide tabs and toggle
     const tabsContainer = document.getElementById('treatments-tabs');
     const toggleContainer = document.getElementById('shared-toggle-container');
-    const viewsWithTabs = ['crop', 'structure', 'soil', 'drip'];
+    const viewsWithTabs = ['crop', 'structure', 'soil', 'drip', 'irrigation', 'growth', 'climate', 'agrotechnics', 'plant-protection'];
 
     if (viewsWithTabs.includes(viewName)) {
         if (tabsContainer) tabsContainer.style.display = 'block';
@@ -542,7 +554,11 @@ function switchView(viewName) {
         'structure': 'דרישות המבנה',
         'soil': 'טיפול בקרקע',
         'drip': 'סוג ופריסת הטפטוף',
-        'progress-actions': 'פעולות שוטפות',
+        'irrigation': 'השקיה ודשן',
+        'growth': 'צימוח',
+        'climate': 'נתוני אקלים וסנסורים',
+        'agrotechnics': 'אגרוטכניקה',
+        'plant-protection': 'הגנת הצומח',
         'yield': 'נתוני יבול',
         'events': 'יומן אירועים'
     };
@@ -550,7 +566,7 @@ function switchView(viewName) {
     // Views that belong to "הכנות לניסוי"
     const prepViews = ['crop', 'structure', 'soil', 'drip'];
     // Views that belong to "מהלך הניסוי"
-    const progressViews = ['progress-actions'];
+    const progressViews = ['irrigation', 'growth', 'climate', 'agrotechnics', 'plant-protection'];
 
     const expName = experimentData?.experimentName || 'ניסוי';
     const breadcrumb = document.getElementById('breadcrumb-text');
@@ -773,23 +789,32 @@ function collectFormData() {
         soilDetails: {
             shared: isShared,
             data: {
-                type: document.getElementById('soil-type')?.value || '',
-                disinfection: document.getElementById('soil-disinfection')?.value || '',
-                disinfectionType: document.getElementById('disinfection-type')?.value || '',
-                basicFertilization: document.getElementById('basic-fertilization')?.value || '',
-                notes: document.getElementById('soil-notes')?.value || ''
+                detachedSubstrate: document.getElementById('detached-substrate')?.value || '',
+                substrateCompany: document.getElementById('substrate-company')?.value || '',
+                substrateType: document.getElementById('substrate-type')?.value || '',
+                substrateVolume: document.getElementById('substrate-volume')?.value || '',
+                mulch: document.getElementById('soil-mulch')?.value || '',
+                disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
+                adiganAmount: document.getElementById('soil-adigan-amount')?.value || '',
+                solarization: document.getElementById('soil-solarization')?.value || '',
+                compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
+                sprayRows: collectSoilTableRows('spray-tbody', ['date','amount','method']),
+                disinfectRows: collectSoilDisinfectRows('disinfect-tbody')
             }
         },
         dripDetails: {
             shared: isShared,
             data: {
-                type: document.getElementById('drip-type')?.value || '',
-                flow: document.getElementById('drip-flow')?.value || '',
-                spacing: document.getElementById('drip-spacing')?.value || '',
-                rows: document.getElementById('drip-rows')?.value || '',
-                notes: document.getElementById('drip-notes')?.value || ''
+                singleDouble: document.getElementById('drip-single-double')?.value || '',
+                pipeDiameter: document.getElementById('drip-pipe-diameter')?.value || '',
+                emitterSpacing: document.getElementById('drip-emitter-spacing')?.value || '',
+                flowRate: document.getElementById('drip-flow-rate')?.value || '',
+                linesCount: document.getElementById('drip-lines-count')?.value || '',
+                linesSpacing: document.getElementById('drip-lines-spacing')?.value || '',
+                bedSpacing: document.getElementById('drip-bed-spacing')?.value || ''
             }
         },
+        ...collectProgressData(),
         events: collectEventsData(),
         updatedAt: serverTimestamp()
     };
@@ -1060,6 +1085,20 @@ function initEventListeners() {
 
     // Location Picker
     initLocationPicker();
+
+    // Soil dynamic tables
+    initSoilTableListeners();
+
+    // Progress views (מהלך הניסוי) dynamic tables
+    initProgressListeners();
+
+    // Drip edit buttons – focus the paired input
+    document.querySelectorAll('.drip-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            if (target) target.focus();
+        });
+    });
 
     // Partners Autocomplete - נקרא אחרי טעינת הניסוי ב-loadExperiment
     // initPartnersAutocomplete();
@@ -1716,4 +1755,595 @@ function collectEventsData() {
 
     return eventsData;
 }
+
+// =========================================
+// Soil Treatment – Dynamic Tables
+// =========================================
+
+function renderSoilTable(tbodyId, rows, fields) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    rows.forEach(row => addSoilTableRow(tbody, fields, row));
+}
+
+function addSoilTableRow(tbody, fields, data = {}) {
+    const labels = { date: 'תאריך', amount: 'כמות', method: 'אופן יישום' };
+    const tr = document.createElement('tr');
+    fields.forEach(field => {
+        const td = document.createElement('td');
+        td.dataset.label = labels[field] || field;
+        if (field === 'date') {
+            const inp = document.createElement('input');
+            inp.type = 'date';
+            inp.className = 'soil-input';
+            inp.dataset.field = field;
+            inp.value = data[field] || '';
+            td.appendChild(inp);
+        } else {
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'soil-input';
+            inp.dataset.field = field;
+            inp.value = data[field] || '';
+            inp.placeholder = field === 'amount' ? 'כמות' : 'אופן יישום';
+            td.appendChild(inp);
+        }
+        tr.appendChild(td);
+    });
+    // Delete button cell
+    const tdDel = document.createElement('td');
+    tdDel.dataset.label = '';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-del-soil-row';
+    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    delBtn.addEventListener('click', () => tr.remove());
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+}
+
+function renderSoilDisinfectTable(tbodyId, rows) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    rows.forEach(row => addSoilDisinfectRow(tbody, row));
+}
+
+function addSoilDisinfectRow(tbody, data = {}) {
+    const fields = ['date','material','amount','method'];
+    const labels = { date: 'תאריך', material: 'חומר החיטוי', amount: 'כמות', method: 'אופן יישום' };
+    const placeholders = { date: '', material: 'חומר החיטוי', amount: 'כמות', method: 'אופן יישום' };
+    const tr = document.createElement('tr');
+    fields.forEach(field => {
+        const td = document.createElement('td');
+        td.dataset.label = labels[field] || field;
+        const inp = document.createElement('input');
+        inp.type = field === 'date' ? 'date' : 'text';
+        inp.className = 'soil-input';
+        inp.dataset.field = field;
+        inp.value = data[field] || '';
+        if (placeholders[field]) inp.placeholder = placeholders[field];
+        td.appendChild(inp);
+        tr.appendChild(td);
+    });
+    const tdDel = document.createElement('td');
+    tdDel.dataset.label = '';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-del-soil-row';
+    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    delBtn.addEventListener('click', () => tr.remove());
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+}
+
+function collectSoilTableRows(tbodyId, fields) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return [];
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const obj = {};
+        fields.forEach(field => {
+            const inp = tr.querySelector(`[data-field="${field}"]`);
+            obj[field] = inp ? inp.value : '';
+        });
+        rows.push(obj);
+    });
+    return rows;
+}
+
+function collectSoilDisinfectRows(tbodyId) {
+    return collectSoilTableRows(tbodyId, ['date','material','amount','method']);
+}
+
+function initSoilTableListeners() {
+    const compostTbody = document.getElementById('compost-tbody');
+    const sprayTbody = document.getElementById('spray-tbody');
+    const disinfectTbody = document.getElementById('disinfect-tbody');
+
+    document.getElementById('add-compost-row')?.addEventListener('click', () =>
+        addSoilTableRow(compostTbody, ['date','amount','method']));
+
+    document.getElementById('add-spray-row')?.addEventListener('click', () =>
+        addSoilTableRow(sprayTbody, ['date','amount','method']));
+
+    document.getElementById('add-disinfect-row')?.addEventListener('click', () =>
+        addSoilDisinfectRow(disinfectTbody));
+}
+
+// =========================================
+// Progress Views – Default Row Data
+// =========================================
+const DEFAULT_GROWTH_ROWS = [
+    'קצב צימוח (גובה)', 'עובי הגבעול', 'מספר פרחים בתפרחת', 'מספר חנטים',
+    'LAI', 'מוליכות פיוניות', 'SPAD', 'פוטוסינתזה', 'ביומסה - רטוב', 'ביומסה - יבש'
+];
+
+const DEFAULT_CLIMATE_ROWS = [
+    { name: 'טמפרטורה', location: 'חממה' },
+    { name: 'לחות יחסית', location: 'חממה' },
+    { name: 'לחץ אדים', location: 'חממה' },
+    { name: 'מהירות רוח', location: 'חממה' },
+    { name: 'כיוון רוח', location: 'חממה' },
+    { name: 'מהירות רוח רגעית', location: '' },
+    { name: 'קרינה PAR', location: 'חממה' },
+    { name: 'קרינה נטו', location: 'חממה' },
+    { name: 'רטיבות נפחית', location: 'קרקע' },
+    { name: 'טמפרטורה', location: 'קרקע' },
+    { name: 'מוליכות חשמלית', location: 'קרקע' },
+    { name: 'טנסיומטרים', location: 'קרקע' },
+    { name: 'פוטנציאל מים בקרקע', location: 'קרקע' },
+    { name: 'EC', location: 'קרקע' },
+    { name: 'PH', location: 'קרקע' }
+];
+
+const DEFAULT_AGRO_ROWS = ['שוצים', 'הדליות', 'עישוב', 'גיזום', 'עקירה'];
+
+// =========================================
+// Progress Views – Generic Row Builder
+// =========================================
+function addProgressRow(tbody, fields, labels, data, options) {
+    if (!tbody) return;
+    data = data || {};
+    options = options || {};
+    const tr = document.createElement('tr');
+    fields.forEach(field => {
+        const td = document.createElement('td');
+        td.dataset.label = labels[field] || field;
+        const isReadonly = options.readonlyFields && options.readonlyFields.includes(field) && data[field];
+        const inputType = (options.inputTypes && options.inputTypes[field]) || 'text';
+        const inp = document.createElement('input');
+        inp.type = inputType;
+        inp.className = 'soil-input';
+        inp.dataset.field = field;
+        inp.value = data[field] || '';
+        if (labels[field]) inp.placeholder = labels[field];
+        if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
+        td.appendChild(inp);
+        tr.appendChild(td);
+    });
+    const tdDel = document.createElement('td');
+    tdDel.dataset.label = '';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-del-soil-row';
+    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    delBtn.addEventListener('click', () => tr.remove());
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+}
+
+function collectProgressRows(tbodyId, fields) {
+    return collectSoilTableRows(tbodyId, fields);
+}
+
+// =========================================
+// Irrigation & Fertilization
+// =========================================
+const IRRIGATION_FIELDS = ['fileName','uploadDate','measureDates','totalWater'];
+const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', totalWater:'סה"כ כמות מים (ליטר)' };
+const FERTILIZATION_FIELDS = ['fileName','uploadDate','measureDates','fertType','company','totalFert'];
+const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
+
+// =========================================
+// Growth
+// =========================================
+const GROWTH_FIELDS = ['name','value','measureDate'];
+const GROWTH_LABELS = { name:'נתון', value:'ערך', measureDate:'תאריך מדידה' };
+
+function renderGrowthTable(rows) {
+    const tbody = document.getElementById('growth-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (rows && rows.length > 0) {
+        rows.forEach(row => addProgressRow(tbody, GROWTH_FIELDS, GROWTH_LABELS, row, { readonlyFields: ['name'] }));
+    }
+}
+
+// =========================================
+// Climate
+// =========================================
+const CLIMATE_FIELDS = ['name','location','sensorPosition','sensorDepth','measureDates','notes'];
+const CLIMATE_LABELS = { name:'נתון', location:'מיקום מדידה', sensorPosition:'מיקום חיישן במרחב', sensorDepth:'גובה/עומק חיישן', measureDates:'תאריכי מדידה', notes:'הערות' };
+
+function renderClimateTable(rows) {
+    const tbody = document.getElementById('climate-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!rows || rows.length === 0) {
+        DEFAULT_CLIMATE_ROWS.forEach(def => {
+            addProgressRow(tbody, CLIMATE_FIELDS, CLIMATE_LABELS, { name: def.name, location: def.location }, { readonlyFields: ['name'] });
+        });
+    } else {
+        rows.forEach(row => addProgressRow(tbody, CLIMATE_FIELDS, CLIMATE_LABELS, row, { readonlyFields: ['name'] }));
+    }
+}
+
+// =========================================
+// Agrotechnics
+// =========================================
+const AGRO_FIELDS = ['action','actionDate','hours','workers'];
+const AGRO_LABELS = { action:'פעולה', actionDate:'תאריך ביצוע הפעולה', hours:'כמות שעות לפעולה', workers:'כמות עובדים לפעולה' };
+
+function renderAgroTable(rows) {
+    const tbody = document.getElementById('agro-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!rows || rows.length === 0) {
+        DEFAULT_AGRO_ROWS.forEach(action => {
+            addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, { action }, { readonlyFields: ['action'] });
+        });
+    } else {
+        rows.forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { readonlyFields: ['action'] }));
+    }
+}
+
+// =========================================
+// Plant Protection
+// =========================================
+const PEST_FIELDS = ['pest','date','notes'];
+const PEST_LABELS = { pest:'מפגע שאובחן', date:'תאריך', notes:'הערות' };
+const PROTECTION_FIELDS = ['material','date','dosage','combined','notes'];
+const PROTECTION_LABELS = { material:'חומר', date:'תאריך', dosage:'מינון לטיפול', combined:'משולב עם חומרים נוספים', notes:'הערות' };
+
+function addPestRow(tbodyId, data) {
+    addProgressRow(document.getElementById(tbodyId), PEST_FIELDS, PEST_LABELS, data || {});
+}
+function addProtectionRow(tbodyId, data) {
+    addProgressRow(document.getElementById(tbodyId), PROTECTION_FIELDS, PROTECTION_LABELS, data || {});
+}
+
+// =========================================
+// Yield
+// =========================================
+const YIELD_MEASURE_FIELDS = ['measureDate','fruitFloor','quality','quantity','fruitDesc','notes'];
+const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', fruitFloor:'קומת הפרי', quality:'איכות (לק"ג)', quantity:'כמות (ק"ג)', fruitDesc:'תיאור הפרי', notes:'הערות' };
+const YIELD_DAMAGE_FIELDS = ['measureDate','damage','damageIndex','damageValue','damageDesc'];
+const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
+
+function addYieldMeasureRow(data) { addProgressRow(document.getElementById('yield-measure-tbody'), YIELD_MEASURE_FIELDS, YIELD_MEASURE_LABELS, data || {}); }
+function addYieldDamageRow(data) { addProgressRow(document.getElementById('yield-damage-tbody'), YIELD_DAMAGE_FIELDS, YIELD_DAMAGE_LABELS, data || {}); }
+
+// =========================================
+// Progress Views – Populate
+// =========================================
+function populateProgressViews(data) {
+    // Irrigation
+    const irrigTbody = document.getElementById('irrigation-tbody');
+    if (irrigTbody) { irrigTbody.innerHTML = ''; (data.irrigationData || []).forEach(r => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, r)); }
+    // Fertilization
+    const fertTbody = document.getElementById('fertilization-tbody');
+    if (fertTbody) { fertTbody.innerHTML = ''; (data.fertilizationData || []).forEach(r => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, r)); }
+    // Growth, Climate, Agro – use their render functions (handle defaults)
+    renderGrowthTable(data.growthData);
+    renderClimateTable(data.climateData);
+    renderAgroTable(data.agrotechnicsData);
+    // Plant Protection
+    const pp = data.plantProtectionData || {};
+    const pestTbody = document.getElementById('pest-tbody');
+    if (pestTbody) { pestTbody.innerHTML = ''; (pp.pests || []).forEach(r => addPestRow('pest-tbody', r)); }
+    const diseaseTbody = document.getElementById('disease-tbody');
+    if (diseaseTbody) { diseaseTbody.innerHTML = ''; (pp.diseases || []).forEach(r => addPestRow('disease-tbody', r)); }
+    const sprayProtTbody = document.getElementById('spray-prot-tbody');
+    if (sprayProtTbody) { sprayProtTbody.innerHTML = ''; (pp.sprays || []).forEach(r => addProtectionRow('spray-prot-tbody', r)); }
+    const drenchTbody = document.getElementById('drench-tbody');
+    if (drenchTbody) { drenchTbody.innerHTML = ''; (pp.drenches || []).forEach(r => addProtectionRow('drench-tbody', r)); }
+    // Yield
+    const yd = data.yieldData || {};
+    const ymTbody = document.getElementById('yield-measure-tbody');
+    if (ymTbody) { ymTbody.innerHTML = ''; (yd.measures || []).forEach(r => addYieldMeasureRow(r)); }
+    const ydTbody = document.getElementById('yield-damage-tbody');
+    if (ydTbody) { ydTbody.innerHTML = ''; (yd.damages || []).forEach(r => addYieldDamageRow(r)); }
+}
+
+// =========================================
+// Progress Views – Collect
+// =========================================
+function collectProgressData() {
+    return {
+        irrigationData: collectProgressRows('irrigation-tbody', IRRIGATION_FIELDS),
+        fertilizationData: collectProgressRows('fertilization-tbody', FERTILIZATION_FIELDS),
+        growthData: collectProgressRows('growth-tbody', GROWTH_FIELDS),
+        climateData: collectProgressRows('climate-tbody', CLIMATE_FIELDS),
+        agrotechnicsData: collectProgressRows('agro-tbody', AGRO_FIELDS),
+        plantProtectionData: {
+            pests: collectProgressRows('pest-tbody', PEST_FIELDS),
+            diseases: collectProgressRows('disease-tbody', PEST_FIELDS),
+            sprays: collectProgressRows('spray-prot-tbody', PROTECTION_FIELDS),
+            drenches: collectProgressRows('drench-tbody', PROTECTION_FIELDS)
+        },
+        yieldData: {
+            measures: collectProgressRows('yield-measure-tbody', YIELD_MEASURE_FIELDS),
+            damages: collectProgressRows('yield-damage-tbody', YIELD_DAMAGE_FIELDS)
+        }
+    };
+}
+
+// =========================================
+// Progress Views – Init Listeners
+// =========================================
+function initProgressListeners() {
+    // Irrigation & Fertilization – open modals
+    document.getElementById('add-irrigation-row')?.addEventListener('click', () => openIrrigationModal());
+    document.getElementById('add-fertilization-row')?.addEventListener('click', () => openFertilizationModal());
+    // Growth – open modal
+    document.getElementById('add-growth-row')?.addEventListener('click', () => openGrowthModal());
+    // Rest – direct add
+    document.getElementById('add-climate-row')?.addEventListener('click', () => addProgressRow(document.getElementById('climate-tbody'), CLIMATE_FIELDS, CLIMATE_LABELS));
+    document.getElementById('add-agro-row')?.addEventListener('click', () => addProgressRow(document.getElementById('agro-tbody'), AGRO_FIELDS, AGRO_LABELS));
+    document.getElementById('add-pest-row')?.addEventListener('click', () => addPestRow('pest-tbody'));
+    document.getElementById('add-disease-row')?.addEventListener('click', () => addPestRow('disease-tbody'));
+    document.getElementById('add-spray-prot-row')?.addEventListener('click', () => addProtectionRow('spray-prot-tbody'));
+    document.getElementById('add-drench-row')?.addEventListener('click', () => addProtectionRow('drench-tbody'));
+    document.getElementById('add-yield-measure-row')?.addEventListener('click', () => addYieldMeasureRow());
+    document.getElementById('add-yield-damage-row')?.addEventListener('click', () => addYieldDamageRow());
+
+    // Modal buttons
+    document.getElementById('irr-modal-cancel')?.addEventListener('click', () => closeModal('irrigation-file-modal'));
+    document.getElementById('irr-modal-save')?.addEventListener('click', () => saveIrrigationFile());
+    document.getElementById('fert-modal-cancel')?.addEventListener('click', () => closeModal('fertilization-file-modal'));
+    document.getElementById('fert-modal-save')?.addEventListener('click', () => saveFertilizationFile());
+    document.getElementById('growth-modal-cancel')?.addEventListener('click', () => closeModal('growth-data-modal'));
+    document.getElementById('growth-modal-save')?.addEventListener('click', () => saveGrowthData());
+
+    // Dropzone visual
+    initDropzone('irr-modal-dropzone', 'irr-modal-file', 'irr-modal-file-name');
+    initDropzone('fert-modal-dropzone', 'fert-modal-file', 'fert-modal-file-name');
+}
+
+// =========================================
+// Modal Helpers
+// =========================================
+function openModal(id) {
+    document.getElementById(id)?.classList.remove('hidden');
+}
+function closeModal(id) {
+    document.getElementById(id)?.classList.add('hidden');
+}
+
+function initDropzone(dropzoneId, fileInputId, labelId) {
+    const dropzone = document.getElementById(dropzoneId);
+    const fileInput = document.getElementById(fileInputId);
+    const label = document.getElementById(labelId);
+    if (!dropzone || !fileInput) return;
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            if (label) label.textContent = e.dataTransfer.files[0].name;
+        }
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length && label) {
+            label.textContent = fileInput.files[0].name;
+        }
+    });
+}
+
+// =========================================
+// Irrigation Modal
+// =========================================
+function openIrrigationModal() {
+    document.getElementById('irr-modal-filename').value = '';
+    document.getElementById('irr-modal-dates').value = '';
+    document.getElementById('irr-modal-total').value = '';
+    document.getElementById('irr-modal-file').value = '';
+    document.getElementById('irr-modal-file-name').textContent = 'גרור/י קובץ לכאן או לחץ/י לבחירה';
+    document.getElementById('irr-modal-progress')?.classList.add('hidden');
+    openModal('irrigation-file-modal');
+}
+
+async function saveIrrigationFile() {
+    const fileName = document.getElementById('irr-modal-filename').value.trim();
+    const measureDates = document.getElementById('irr-modal-dates').value.trim();
+    const totalWater = document.getElementById('irr-modal-total').value.trim();
+    const fileInput = document.getElementById('irr-modal-file');
+    const file = fileInput?.files[0];
+
+    if (!fileName) {
+        showToast('יש להזין שם קובץ', 'error');
+        return;
+    }
+
+    let fileUrl = '';
+    let filePath = '';
+    const today = new Date().toLocaleDateString('he-IL');
+
+    if (file) {
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
+            return;
+        }
+        try {
+            const result = await uploadProgressFile(file, 'irrigation', 'irr-modal-progress', 'irr-modal-progress-fill', 'irr-modal-progress-text');
+            fileUrl = result.url;
+            filePath = result.path;
+        } catch (err) {
+            showToast('שגיאה בהעלאת הקובץ: ' + err.message, 'error');
+            return;
+        }
+    }
+
+    const tbody = document.getElementById('irrigation-tbody');
+    addProgressRow(tbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, {
+        fileName: fileName,
+        uploadDate: today,
+        measureDates: measureDates,
+        totalWater: totalWater
+    });
+    // Store file info on the last row
+    if (fileUrl) {
+        const lastRow = tbody.lastElementChild;
+        if (lastRow) { lastRow.dataset.fileUrl = fileUrl; lastRow.dataset.filePath = filePath; }
+    }
+
+    closeModal('irrigation-file-modal');
+    showToast('קובץ השקיה נוסף בהצלחה', 'success');
+}
+
+// =========================================
+// Fertilization Modal
+// =========================================
+function openFertilizationModal() {
+    document.getElementById('fert-modal-filename').value = '';
+    document.getElementById('fert-modal-dates').value = '';
+    document.getElementById('fert-modal-type').value = '';
+    document.getElementById('fert-modal-company').value = '';
+    document.getElementById('fert-modal-total').value = '';
+    document.getElementById('fert-modal-file').value = '';
+    document.getElementById('fert-modal-file-name').textContent = 'גרור/י קובץ לכאן או לחץ/י לבחירה';
+    document.getElementById('fert-modal-progress')?.classList.add('hidden');
+    openModal('fertilization-file-modal');
+}
+
+async function saveFertilizationFile() {
+    const fileName = document.getElementById('fert-modal-filename').value.trim();
+    const measureDates = document.getElementById('fert-modal-dates').value.trim();
+    const fertType = document.getElementById('fert-modal-type').value.trim();
+    const company = document.getElementById('fert-modal-company').value.trim();
+    const totalFert = document.getElementById('fert-modal-total').value.trim();
+    const fileInput = document.getElementById('fert-modal-file');
+    const file = fileInput?.files[0];
+
+    if (!fileName) {
+        showToast('יש להזין שם קובץ', 'error');
+        return;
+    }
+
+    let fileUrl = '';
+    let filePath = '';
+    const today = new Date().toLocaleDateString('he-IL');
+
+    if (file) {
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
+            return;
+        }
+        try {
+            const result = await uploadProgressFile(file, 'fertilization', 'fert-modal-progress', 'fert-modal-progress-fill', 'fert-modal-progress-text');
+            fileUrl = result.url;
+            filePath = result.path;
+        } catch (err) {
+            showToast('שגיאה בהעלאת הקובץ: ' + err.message, 'error');
+            return;
+        }
+    }
+
+    const tbody = document.getElementById('fertilization-tbody');
+    addProgressRow(tbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, {
+        fileName: fileName,
+        uploadDate: today,
+        measureDates: measureDates,
+        fertType: fertType,
+        company: company,
+        totalFert: totalFert
+    });
+    if (fileUrl) {
+        const lastRow = tbody.lastElementChild;
+        if (lastRow) { lastRow.dataset.fileUrl = fileUrl; lastRow.dataset.filePath = filePath; }
+    }
+
+    closeModal('fertilization-file-modal');
+    showToast('קובץ דישון נוסף בהצלחה', 'success');
+}
+
+// =========================================
+// Growth Modal
+// =========================================
+function openGrowthModal() {
+    document.getElementById('growth-modal-name').value = '';
+    document.getElementById('growth-modal-date').value = '';
+    document.getElementById('growth-modal-value').value = '';
+    openModal('growth-data-modal');
+}
+
+function saveGrowthData() {
+    const name = document.getElementById('growth-modal-name').value;
+    const measureDate = document.getElementById('growth-modal-date').value;
+    const value = document.getElementById('growth-modal-value').value.trim();
+
+    if (!name) {
+        showToast('יש לבחור נתון', 'error');
+        return;
+    }
+
+    const tbody = document.getElementById('growth-tbody');
+    addProgressRow(tbody, GROWTH_FIELDS, GROWTH_LABELS, {
+        name: name,
+        value: value,
+        measureDate: measureDate
+    }, { readonlyFields: ['name'] });
+
+    closeModal('growth-data-modal');
+    showToast('נתון צימוח נוסף בהצלחה', 'success');
+}
+
+// =========================================
+// Upload File to Firebase Storage (shared)
+// =========================================
+async function uploadProgressFile(file, folder, progressId, fillId, textId) {
+    return new Promise((resolve, reject) => {
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `users/${experimentOwnerUid}/experiments/${currentExperimentId}/${folder}/${timestamp}_${safeName}`;
+        const storageRef = ref(storage, path);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        const progressEl = document.getElementById(progressId);
+        const fillEl = document.getElementById(fillId);
+        const textEl = document.getElementById(textId);
+        if (progressEl) progressEl.classList.remove('hidden');
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                if (fillEl) fillEl.style.width = pct + '%';
+                if (textEl) textEl.textContent = Math.round(pct) + '%';
+            },
+            (error) => {
+                if (progressEl) progressEl.classList.add('hidden');
+                reject(error);
+            },
+            async () => {
+                try {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    if (progressEl) progressEl.classList.add('hidden');
+                    resolve({ url, path });
+                } catch (err) { reject(err); }
+            }
+        );
+    });
+}
+
 
