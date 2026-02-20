@@ -1020,12 +1020,52 @@ function initEventListeners() {
     // Add keyword
     const addKeyword = document.getElementById('add-keyword');
     const keywordsSelect = document.getElementById('keywords-select');
+    const customKeywordContainer = document.getElementById('custom-keyword-container');
+    const customKeywordInput = document.getElementById('custom-keyword-input');
+    const addCustomKeyword = document.getElementById('add-custom-keyword');
+    const cancelCustomKeyword = document.getElementById('cancel-custom-keyword');
+
     if (addKeyword && keywordsSelect) {
         addKeyword.addEventListener('click', () => {
-            if (keywordsSelect.value) {
+            if (keywordsSelect.value === '__custom__') {
+                // Show custom input field
+                if (customKeywordContainer) {
+                    customKeywordContainer.style.display = 'flex';
+                    if (customKeywordInput) customKeywordInput.focus();
+                }
+                keywordsSelect.value = '';
+            } else if (keywordsSelect.value) {
                 addKeywordTag(keywordsSelect.value);
                 keywordsSelect.value = '';
             }
+        });
+    }
+
+    // Add custom keyword from free text input
+    if (addCustomKeyword && customKeywordInput) {
+        addCustomKeyword.addEventListener('click', () => {
+            const val = customKeywordInput.value.trim();
+            if (val) {
+                addKeywordTag(val);
+                customKeywordInput.value = '';
+                if (customKeywordContainer) customKeywordContainer.style.display = 'none';
+            }
+        });
+
+        // Also support Enter key
+        customKeywordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomKeyword.click();
+            }
+        });
+    }
+
+    // Cancel custom keyword input
+    if (cancelCustomKeyword && customKeywordContainer) {
+        cancelCustomKeyword.addEventListener('click', () => {
+            if (customKeywordInput) customKeywordInput.value = '';
+            customKeywordContainer.style.display = 'none';
         });
     }
 

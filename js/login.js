@@ -39,14 +39,29 @@ function getHebrewErrorMessage(errorCode) {
     return errorMessages[errorCode] || 'שגיאה בהתחברות. יש לנסות שוב';
 }
 
+// Helper: Toggle button loading state
+function setButtonLoading(btn, isLoading) {
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner"></span><span class="btn-text">מאמת...</span>';
+    } else {
+        btn.disabled = false;
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    }
+}
+
 document.getElementById('btn-login').addEventListener('click', async () => {
     const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-pass').value;
+    const loginBtn = document.getElementById('btn-login');
 
     if (!email || !pass) {
         showToast('נא למלא/י אימייל וסיסמה', 'warning');
         return;
     }
+
+    setButtonLoading(loginBtn, true);
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, pass);
@@ -72,5 +87,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     } catch (error) {
         console.error("Login error:", error.code);
         showToast(getHebrewErrorMessage(error.code), 'error');
+    } finally {
+        setButtonLoading(loginBtn, false);
     }
 });

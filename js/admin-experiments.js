@@ -227,7 +227,7 @@ function displayExperiments() {
             <td data-label="תאריך יצירה">${createdDate}</td>
             <td data-label="פעולות">
                 <button class="view-btn" data-experiment-id="${experiment.id}" data-owner-uid="${experiment.ownerUid}">
-                    <i class="fas fa-eye"></i> צפה
+                    <i class="fas fa-eye"></i> צפייה
                 </button>
             </td>
         `;

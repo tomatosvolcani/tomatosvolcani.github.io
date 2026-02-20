@@ -15,6 +15,18 @@ function getHebrewErrorMessage(errorCode) {
     return errorMessages[errorCode] || 'שגיאה בהרשמה. יש לנסות שוב';
 }
 
+// Helper: Toggle button loading state
+function setButtonLoading(btn, isLoading) {
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner"></span><span class="btn-text">נרשם...</span>';
+    } else {
+        btn.disabled = false;
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    }
+}
+
 document.getElementById('btn-register').addEventListener('click', async () => {
     const email = document.getElementById('reg-email').value.trim();
     const pass = document.getElementById('reg-pass').value;
@@ -22,6 +34,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     const lname = document.getElementById('reg-lname').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
     const role = document.getElementById('reg-role').value;
+    const registerBtn = document.getElementById('btn-register');
 
     if(!email || !pass || !fname || !role) {
         showToast("נא למלא/י שדות חובה: שם פרטי, אימייל, סיסמה ותפקיד", "warning");
@@ -32,6 +45,8 @@ document.getElementById('btn-register').addEventListener('click', async () => {
         showToast("הסיסמה חייבת להכיל לפחות 6 תווים", "warning");
         return;
     }
+
+    setButtonLoading(registerBtn, true);
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -71,5 +86,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     } catch (error) {
         console.error("Registration error:", error.code);
         showToast(getHebrewErrorMessage(error.code), "error");
+    } finally {
+        setButtonLoading(registerBtn, false);
     }
 });

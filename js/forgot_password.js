@@ -24,6 +24,18 @@ function getHebrewErrorMessageFirebase(error) {
     return map[code] || (error.message ? error.message : 'שגיאה בשליחת המייל. יש לנסות שוב.');
 }
 
+// Helper: Toggle button loading state
+function setButtonLoading(btn, isLoading) {
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-spinner"></span><span class="btn-text">שולח...</span>';
+    } else {
+        btn.disabled = false;
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    }
+}
+
 resetBtn.addEventListener('click', async () => {
     const emailEl = document.getElementById('forgot-email');
     const email = emailEl?.value?.trim();
@@ -40,6 +52,8 @@ resetBtn.addEventListener('click', async () => {
         return;
     }
 
+    setButtonLoading(resetBtn, true);
+
     try {
         await sendPasswordResetEmail(auth, email);
         showToast("מייל נשלח לכתובת: " + email + '. בדוק/י תיבת דואר ספאם אם לא הגיע.', "success", 5000);
@@ -52,5 +66,7 @@ resetBtn.addEventListener('click', async () => {
         console.error('Password reset error:', error);
         const message = getHebrewErrorMessageFirebase(error);
         showToast('שגיאה: ' + message, 'error');
+    } finally {
+        setButtonLoading(resetBtn, false);
     }
 });

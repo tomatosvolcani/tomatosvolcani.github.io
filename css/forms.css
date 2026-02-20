@@ -100,13 +100,13 @@
 }
 
 .btn-primary {
-    background: #4CAF50;
+    background: #0a2f72;
     color: white;
     border: none;
 }
 
 .btn-primary:hover {
-    background: #45a049;
+    background: #082354;
 }
 
 .btn-secondary {
@@ -211,16 +211,19 @@
 /* Save Button */
 .btn-save {
     padding: 12px 40px;
-    background: #4CAF50;
+    background: #0a2f72;
     color: white;
     border: none;
     border-radius: 6px;
     font-size: 15px;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
 .btn-save:hover {
-    background: #45a049;
+    background: #082354;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(10, 47, 114, 0.3);
 }
 
 /* =========================================

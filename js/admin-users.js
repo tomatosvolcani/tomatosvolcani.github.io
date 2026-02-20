@@ -238,7 +238,7 @@ function getActionButtons(user) {
 
     return `
         <button class="action-btn view" data-user-id="${user.id}">
-            <i class="fas fa-eye"></i> צפה
+            <i class="fas fa-eye"></i> צפייה
         </button>
     `;
 }

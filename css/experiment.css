@@ -85,7 +85,7 @@
     align-items: center;
     gap: 8px;
     padding: 12px 28px;
-    background: #3b82f6;
+    background: #0a2f72;
     color: #ffffff;
     border: none;
     border-radius: 8px;
@@ -96,8 +96,8 @@
 }
 
 .btn-back-home:hover {
-    background: #2563eb;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    background: #082354;
+    box-shadow: 0 4px 12px rgba(10, 47, 114, 0.3);
 }
 
 .btn-back-home i {
@@ -187,8 +187,8 @@
 
 .tab-item.active {
     background: #fff;
-    border-bottom-color: #333;
-    color: #333;
+    border-bottom-color: #0a2f72;
+    color: #0a2f72;
     font-weight: 500;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .toggle-switch input:checked + .toggle-slider {
-    background-color: #333;
+    background-color: #0a2f72;
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
@@ -449,7 +449,7 @@
 
 .btn-add {
     padding: 10px 20px;
-    background: #333;
+    background: #0a2f72;
     color: white;
     border: none;
     border-radius: 6px;
@@ -460,7 +460,7 @@
 }
 
 .btn-add:hover {
-    background: #555;
+    background: #082354;
 }
 
 /* =========================================
@@ -535,7 +535,7 @@
 
 .input-with-btn .btn-icon {
     padding: 10px 14px;
-    background: #333;
+    background: #0a2f72;
     color: white;
     border: none;
     border-radius: 6px;
@@ -545,15 +545,15 @@
 }
 
 .input-with-btn .btn-icon:hover {
-    background: #555;
+    background: #082354;
 }
 
 .input-with-btn .btn-icon.btn-secondary {
-    background: #4285f4;
+    background: #2d4aaa;
 }
 
 .input-with-btn .btn-icon.btn-secondary:hover {
-    background: #3367d6;
+    background: #0a2f72;
 }
 
 /* =========================================
@@ -570,7 +570,7 @@
     align-items: center;
     gap: 8px;
     padding: 12px 24px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #0a2f72;
     color: white;
     border: none;
     border-radius: 8px;
@@ -578,12 +578,12 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 2px 8px rgba(10, 47, 114, 0.3);
 }
 
 .btn-add-event:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    background: #082354;
+    box-shadow: 0 4px 12px rgba(10, 47, 114, 0.4);
     transform: translateY(-1px);
 }
 
@@ -1032,7 +1032,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: #3b82f6;
+    background: #0a2f72;
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -1043,7 +1043,7 @@
 }
 
 .btn-add-soil-row:hover {
-    background: #2563eb;
+    background: #082354;
 }
 
 .soil-table-wrapper {
