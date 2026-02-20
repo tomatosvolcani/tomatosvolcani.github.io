@@ -145,7 +145,7 @@ body > .dev-notice {
 /* Info Content */
 .info-content {
     flex: 1;
-    margin-bottom: 32px;
+    margin-bottom: 12px;
 }
 
 .info-content h1 {
@@ -474,6 +474,33 @@ body > .dev-notice {
 
 .auth-divider::before { margin-left: 15px; }
 .auth-divider::after { margin-right: 15px; }
+
+/* Security note in info panel */
+.security-note {
+    display: inline-flex;
+    flex-direction: row;          /* icon first (right) then text (left) in RTL */
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--auth-neutral-600);
+    background: rgba(10, 47, 114, 0.05);
+    border: 1px solid var(--auth-primary-200);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 18px;
+    width: 100%;
+    box-sizing: border-box;
+    direction: rtl;
+    text-align: right;
+}
+
+.security-note i {
+    font-size: 15px;
+    color: var(--auth-primary-700);
+    margin-top: 2px;   /* align icon with first line of text */
+    flex-shrink: 0;
+}
 
 /* =========================================
    Responsive Design

@@ -164,6 +164,23 @@
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
     text-align: right;
     font-family: inherit;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    direction: rtl;
+}
+
+/* Minimal monochromatic lock icon on FAQ items */
+.faq-icon-lock {
+    font-size: 13px;
+    color: #374151;   /* neutral dark-gray, not colored */
+    flex-shrink: 0;
+    margin-top: 1px;
+    opacity: 0.6;
+}
+
+.faq-item:hover .faq-icon-lock {
+    opacity: 1;
 }
 
 .faq-item:hover {
