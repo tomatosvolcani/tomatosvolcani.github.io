@@ -6,7 +6,7 @@ import {
     doc, getDoc, collection, getDocs, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
-    ref, listAll, getDownloadURL, getBlob
+    ref, listAll, getBlob
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast } from "./toast.js";
 
@@ -200,8 +200,6 @@ async function handleExport(e, exp, type) {
             setProgress('מוריד קבצים מ-Storage...');
             await addStorageFilesToZip(zip, exp, setProgress);
 
-            setProgress('מוריד קבצים מקושרים...');
-            await addReferencedFilesToZip(zip, data, setProgress);
 
             setProgress('יוצר קובץ ZIP...');
             const zipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
@@ -439,7 +437,21 @@ function buildExcelWorkbook(data) {
 // ══════════════════════════════════════════════════════════════
 // Fetch ALL files from Firebase Storage into ZIP (recursive)
 // Uses Firebase SDK getBlob() — authenticated, no CORS issues
+// Maps English Storage folder names to Hebrew for the ZIP
 // ══════════════════════════════════════════════════════════════
+
+// Map Storage folder names (English) to Hebrew display names
+const FOLDER_NAME_MAP = {
+    'events': 'אירועים',
+    'irrigation': 'השקיה',
+    'fertilization': 'דישון',
+    'growth': 'צימוח',
+    'climate': 'אקלים',
+    'agrotechnics': 'אגרוטכניקה',
+    'protection': 'הגנת_הצומח',
+    'yield': 'יבול'
+};
+
 async function addStorageFilesToZip(zip, exp, setProgress) {
     const filesFolder = zip.folder('קבצים_מצורפים');
     let fileCount = 0;
@@ -458,7 +470,6 @@ async function addStorageFilesToZip(zip, exp, setProgress) {
             try {
                 fileCount++;
                 setProgress(`מוריד קובץ ${fileCount}: ${itemRef.name}`);
-                // Use Firebase SDK getBlob — authenticated, bypasses CORS
                 const blob = await getBlob(itemRef);
                 zipFolder.file(itemRef.name, blob);
             } catch (fileErr) {
@@ -468,7 +479,9 @@ async function addStorageFilesToZip(zip, exp, setProgress) {
         }
 
         for (const prefixRef of result.prefixes) {
-            const subFolder = zipFolder.folder(prefixRef.name);
+            // Use Hebrew folder name if mapped, otherwise keep original
+            const hebrewName = FOLDER_NAME_MAP[prefixRef.name] || prefixRef.name;
+            const subFolder = zipFolder.folder(hebrewName);
             await scanFolder(prefixRef, subFolder);
         }
     }
@@ -487,85 +500,6 @@ async function addStorageFilesToZip(zip, exp, setProgress) {
     }
 }
 
-// ══════════════════════════════════════════════════════════════
-// Download files referenced in experiment data (fileUrl/filePath)
-// Uses Firebase SDK getBlob when filePath is available (best),
-// falls back to XHR download from URL
-// ══════════════════════════════════════════════════════════════
-async function addReferencedFilesToZip(zip, data, setProgress) {
-    const rootFolder = zip.folder('קבצים_מצורפים');
-    const downloaded = new Set(); // track by filePath or URL to avoid duplicates
-    let count = 0;
-    let errorCount = 0;
-
-    async function dl(record, subfolder) {
-        const filePath = record.filePath;
-        const fileUrl = record.fileUrl;
-        const fileName = record.fileName;
-        const key = filePath || fileUrl;
-        if (!key || downloaded.has(key)) return;
-        downloaded.add(key);
-
-        count++;
-        const displayName = fileName || filePath?.split('/').pop() || 'קובץ';
-        setProgress(`מוריד קובץ מקושר ${count}: ${displayName}`);
-
-        try {
-            let blob;
-            if (filePath) {
-                // Best approach — use Firebase SDK with auth
-                const fileRef = ref(storage, filePath);
-                blob = await getBlob(fileRef);
-            } else if (fileUrl) {
-                // Fallback — XHR download (the URL has a token in it)
-                blob = await fetchBlobXHR(fileUrl);
-            }
-
-            if (blob && blob.size > 0) {
-                const folder = subfolder ? rootFolder.folder(subfolder) : rootFolder;
-                folder.file(displayName, blob);
-            } else {
-                errorCount++;
-                console.warn(`Empty blob for: ${displayName}`);
-            }
-        } catch (err) {
-            errorCount++;
-            console.error(`Failed to download ${displayName}:`, err.message);
-        }
-    }
-
-    for (const r of (data.irrigationData || [])) {
-        if (r.fileUrl || r.filePath) await dl(r, 'השקיה');
-    }
-    for (const r of (data.fertilizationData || [])) {
-        if (r.fileUrl || r.filePath) await dl(r, 'דישון');
-    }
-    for (const e of (data.events || [])) {
-        if (e.fileUrl || e.filePath) await dl(e, 'אירועים');
-    }
-
-    if (errorCount > 0) {
-        showToast(`${errorCount} קבצים מקושרים לא הורדו`, 'warning');
-    }
-}
-
-// XHR fallback for downloading blobs (avoids some CORS issues with fetch)
-function fetchBlobXHR(url) {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.responseType = 'blob';
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                resolve(xhr.response);
-            } else {
-                reject(new Error(`HTTP ${xhr.status}`));
-            }
-        };
-        xhr.onerror = () => reject(new Error('Network error'));
-        xhr.send();
-    });
-}
 
 // ── Helpers ──
 function sanitizeFileName(name) {
