@@ -3,7 +3,7 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-    doc, getDoc, collection, getDocs, query, orderBy, limit
+    doc, getDoc, collection, collectionGroup, getDocs, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref, listAll, getBlob
@@ -12,6 +12,7 @@ import { showToast } from "./toast.js";
 
 let currentUser = null;
 let userData = null;
+let isAdmin = false;
 
 // ── DOM Ready ──
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,6 +65,7 @@ async function checkAndDisplayAdminMenu() {
         const usersQuery = query(collection(db, "users"), limit(2));
         const snapshot = await getDocs(usersQuery);
         if (snapshot.size > 1) {
+            isAdmin = true;
             const sidebar = document.querySelector('.sidebar-nav');
             if (!sidebar) return;
             sidebar.insertAdjacentHTML('beforeend', `
@@ -87,19 +89,40 @@ async function loadExperimentsForExport() {
     const experiments = [];
 
     try {
-        const myRef = collection(db, "users", currentUser.uid, "experiments");
-        const mySnap = await getDocs(query(myRef, orderBy("createdAt", "desc")));
-        mySnap.forEach(d => experiments.push({ id: d.id, ownerUid: currentUser.uid, data: d.data(), shared: false }));
+        if (isAdmin) {
+            // ── אדמין: טען את כל הניסויים במערכת דרך collectionGroup ──
+            const allQuery = query(collectionGroup(db, 'experiments'));
+            const allSnap = await getDocs(allQuery);
 
-        const sharedRef = collection(db, "users", currentUser.uid, "sharedExperiments");
-        const sharedSnap = await getDocs(sharedRef);
-        for (const sd of sharedSnap.docs) {
-            const s = sd.data();
-            if (s.ownerUid && s.experimentId) {
-                try {
-                    const origSnap = await getDoc(doc(db, "users", s.ownerUid, "experiments", s.experimentId));
-                    if (origSnap.exists()) experiments.push({ id: s.experimentId, ownerUid: s.ownerUid, data: origSnap.data(), shared: true });
-                } catch (_) {}
+            allSnap.forEach(docSnap => {
+                // חילוץ ownerUid מה-path: users/{ownerUid}/experiments/{id}
+                const pathParts = docSnap.ref.path.split('/');
+                const ownerUid = pathParts[1];
+                const isOwn = ownerUid === currentUser.uid;
+
+                experiments.push({
+                    id: docSnap.id,
+                    ownerUid: ownerUid,
+                    data: docSnap.data(),
+                    shared: !isOwn
+                });
+            });
+        } else {
+            // ── משתמש רגיל: הניסויים שלי + משותפים ──
+            const myRef = collection(db, "users", currentUser.uid, "experiments");
+            const mySnap = await getDocs(query(myRef, orderBy("createdAt", "desc")));
+            mySnap.forEach(d => experiments.push({ id: d.id, ownerUid: currentUser.uid, data: d.data(), shared: false }));
+
+            const sharedRef = collection(db, "users", currentUser.uid, "sharedExperiments");
+            const sharedSnap = await getDocs(sharedRef);
+            for (const sd of sharedSnap.docs) {
+                const s = sd.data();
+                if (s.ownerUid && s.experimentId) {
+                    try {
+                        const origSnap = await getDoc(doc(db, "users", s.ownerUid, "experiments", s.experimentId));
+                        if (origSnap.exists()) experiments.push({ id: s.experimentId, ownerUid: s.ownerUid, data: origSnap.data(), shared: true });
+                    } catch (_) {}
+                }
             }
         }
     } catch (err) {
@@ -115,6 +138,13 @@ async function loadExperimentsForExport() {
         return;
     }
 
+    // מיון לפי תאריך יצירה (חדשים קודם)
+    experiments.sort((a, b) => {
+        const dateA = a.data.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.data.createdAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
+    });
+
     experiments.forEach(exp => grid.appendChild(createExportCard(exp)));
 }
 
@@ -129,7 +159,9 @@ function createExportCard(exp) {
     const site = exp.data.experimentSite || '';
     const dateStr = formatDate(exp.data.createdAt);
     const badge = exp.shared
-        ? '<span class="export-badge shared"><i class="fas fa-users"></i> שותף</span>'
+        ? (isAdmin && exp.ownerUid !== currentUser.uid
+            ? '<span class="export-badge shared"><i class="fas fa-user"></i> של משתמש אחר</span>'
+            : '<span class="export-badge shared"><i class="fas fa-users"></i> שותף</span>')
         : '<span class="export-badge owner"><i class="fas fa-user-check"></i> שלי</span>';
 
     card.innerHTML = `
