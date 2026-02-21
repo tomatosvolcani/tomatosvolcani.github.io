@@ -166,6 +166,9 @@ async function loadUserData() {
                 userDisplayName.textContent = fullName || currentUser.email || 'משתמש';
             }
 
+            // Add export menu item for all users
+            addExportMenuItem();
+
             // בדיקת הרשאות ניהול - מנסים לגשת לנתונים מוגבלים
             // אם Firestore Rules מאפשרים - יש הרשאות ניהול
             await checkAndDisplayAdminMenu();
@@ -196,6 +199,24 @@ async function checkAndDisplayAdminMenu() {
         }
     } catch (error) {
         // אין הרשאות - זה בסדר, לא מציגים תפריט ניהול
+    }
+}
+
+// הצגת אפשרות שליפת ניסוי בסיידבר (לכל משתמש)
+function addExportMenuItem() {
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (!sidebar) return;
+    // Avoid duplicates
+    if (sidebar.querySelector('a[href="export.html"]')) return;
+
+    const homeLink = sidebar.querySelector('a[href="dashboard.html"]');
+    if (homeLink) {
+        homeLink.insertAdjacentHTML('afterend', `
+            <a href="export.html" class="nav-item">
+                <i class="fas fa-file-export"></i>
+                <span>שליפת ניסוי</span>
+            </a>
+        `);
     }
 }
 
