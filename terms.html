@@ -10,9 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        /* =========================================
-           Design System & Variables
-           ========================================= */
         :root {
             --primary-color: #0a2f72;
             --primary-light: #eff6ff;
@@ -22,6 +19,12 @@
             --border-color: #e5e7eb;
             --bg-body: #f3f4f6;
             --bg-card: #ffffff;
+        }
+
+        /* FIX סופי ל-RTL ולשטח המת */
+        html, body {
+            width: 100%;
+            overflow-x: hidden;
         }
 
         * {
@@ -35,27 +38,19 @@
             color: var(--text-main);
             font-family: 'Heebo', system-ui, -apple-system, sans-serif;
             line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Main Container ── */
         main {
             max-width: 850px;
             margin: 60px auto;
             background: var(--bg-card);
             border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+                        0 8px 10px -6px rgba(0, 0, 0, 0.01);
             border: 1px solid var(--border-color);
             overflow: hidden;
-            animation: fadeIn 0.4s ease-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ── Header ── */
         .terms-header {
             display: flex;
             align-items: flex-start;
@@ -83,15 +78,12 @@
             justify-content: center;
             font-size: 24px;
             color: var(--primary-color);
-            box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);
             flex-shrink: 0;
         }
 
         .terms-title h1 {
-            margin: 0;
             font-size: 24px;
             font-weight: 800;
-            color: var(--text-main);
         }
 
         .terms-brand {
@@ -107,7 +99,6 @@
             margin-top: 4px;
         }
 
-        /* ── Actions / Buttons ── */
         .header-actions {
             display: flex;
             gap: 10px;
@@ -122,35 +113,21 @@
             background: var(--bg-body);
             color: var(--text-muted);
             border: 1px solid var(--border-color);
-            cursor: pointer;
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-            background: var(--border-color);
-            color: var(--text-main);
         }
 
         .btn-primary {
             background: var(--primary-color);
-            color: white;
+            color: #fff;
             border-color: var(--primary-color);
         }
 
-        .btn-primary:hover {
-            background: #082354;
-            color: white;
-        }
-
-        /* ── Content Area ── */
         .terms-body {
             padding: 40px;
         }
 
-        /* ── Table of Contents ── */
         .toc {
             background: #f8fafc;
             border: 1px solid var(--border-color);
@@ -164,7 +141,6 @@
             align-items: center;
             gap: 8px;
             font-size: 16px;
-            color: var(--text-main);
             margin-bottom: 12px;
         }
 
@@ -175,29 +151,11 @@
         }
 
         .toc a {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             color: var(--primary-color);
             text-decoration: none;
             font-size: 14px;
-            transition: color 0.2s;
         }
 
-        .toc a::before {
-            content: '\f104'; /* FontAwesome angle-left */
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            font-size: 10px;
-            opacity: 0.5;
-        }
-
-        .toc a:hover {
-            color: #2563eb;
-            text-decoration: underline;
-        }
-
-        /* ── Sections ── */
         section {
             margin-bottom: 32px;
         }
@@ -206,9 +164,6 @@
             font-size: 18px;
             color: var(--primary-color);
             margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
             padding-bottom: 8px;
             border-bottom: 1px solid var(--border-color);
         }
@@ -231,14 +186,12 @@
             margin-bottom: 6px;
         }
 
-        /* ── Footer ── */
         .terms-footer {
             padding: 24px 40px;
             background: #f9fafb;
             border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
-            align-items: center;
             flex-wrap: wrap;
             gap: 16px;
         }
@@ -251,137 +204,121 @@
             gap: 6px;
         }
 
-        /* ── Responsive ── */
         @media (max-width: 768px) {
             main {
                 margin: 20px 16px;
                 border-radius: 12px;
             }
-            .terms-header, .terms-body, .terms-footer {
+            .terms-header,
+            .terms-body,
+            .terms-footer {
                 padding: 24px;
-            }
-            .terms-header {
-                flex-direction: column;
             }
             .toc-list {
                 grid-template-columns: 1fr;
             }
-            .header-actions {
-                width: 100%;
-                justify-content: stretch;
-            }
-            .header-actions .back-btn {
-                flex: 1;
-                justify-content: center;
-            }
         }
     </style>
 </head>
+
 <body>
-    <a class="sr-only" href="#content" style="position:absolute; left:-9999px;">דלג לתוכן</a>
 
-    <main id="content" aria-labelledby="terms-heading">
-        <header class="terms-header">
-            <div class="terms-title">
-                <div class="terms-icon">
-                    <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
-                </div>
-                <div>
-                    <h1 id="terms-heading">תנאי שימוש והצהרת פרטיות</h1>
-                    <div class="terms-brand">מיזם ח"ץ — איגום נתונים חקלאיים</div>
-                    <div class="terms-meta">תאריך עדכון אחרון: 22 בפברואר, 2026</div>
-                </div>
+<main id="content">
+    <header class="terms-header">
+        <div class="terms-title">
+            <div class="terms-icon">
+                <i class="fa-solid fa-scale-balanced"></i>
             </div>
-            <div class="header-actions">
-                <a href="index.html" class="back-btn btn-primary" aria-label="מעבר לדף ההתחברות">
-                    <i class="fa-solid fa-right-to-bracket"></i>
-                    <span>התחברות</span>
-                </a>
-                <a href="javascript:history.back()" class="back-btn" aria-label="חזור לעמוד הקודם">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </a>
+            <div>
+                <h1>תנאי שימוש והצהרת פרטיות</h1>
+                <div class="terms-brand">מיזם ח"ץ — איגום נתונים חקלאיים</div>
+                <div class="terms-meta">תאריך עדכון אחרון: 22 בפברואר, 2026</div>
             </div>
-        </header>
-
-        <div class="terms-body">
-            <nav class="toc" aria-label="תוכן עניינים">
-                <strong><i class="fa-solid fa-list-ul"></i> תוכן עניינים</strong>
-                <div class="toc-list">
-                    <a href="#general">הצהרה כללית ומטרת המערכת</a>
-                    <a href="#ip">זכויות יוצרים וקניין רוחני</a>
-                    <a href="#liability">הגבלת אחריות (AS-IS)</a>
-                    <a href="#privacy">הגנת הפרטיות וניהול מידע</a>
-                    <a href="#security">אבטחת מידע ובקרת גישה</a>
-                    <a href="#usage">התחייבויות המשתמש</a>
-                    <a href="#updates">שינויים ועדכונים</a>
-                    <a href="#contact">יצירת קשר ותמיכה</a>
-                </div>
-            </nav>
-
-            <section id="general">
-                <h2><i class="fa-solid fa-circle-info"></i> 1. הצהרה כללית ומטרת המערכת</h2>
-                <p>מערכת "מיזם ח"ץ" (להלן: "המערכת") הינה פלטפורמה ממלכתית-מחקרית שנועדה לתיעוד, ניהול ואיגום נתוני ניסויי שדה בחקלאות. המערכת מופעלת במסגרת שיתוף פעולה בין משרד החקלאות, מנהלת תקומה ומכון וולקני.</p>
-                <p>הגישה למערכת והשימוש בה מותנים בהסכמה מוחלטת לתנאים המפורטים במסמך זה. עצם ההתחברות למערכת והזנת נתונים לתוכה מהווים הצהרה כי המשתמש קרא, הבין והסכים לתנאים אלו.</p>
-            </section>
-
-            <section id="ip">
-                <h2><i class="fa-solid fa-copyright"></i> 2. זכויות יוצרים וקניין רוחני</h2>
-                <p>זכויות היוצרים והקניין הרוחני במערכת עצמה, לרבות קוד המקור, העיצוב, ומסדי הנתונים הכלליים, שייכים לבעלי המיזם. </p>
-                <p>נתונים מחקריים (Data) המוזנים למערכת על ידי החוקרים ישמשו לקידום מטרות המיזם, תוך שמירה על כללי האתיקה המחקרית וההסכמים הפרטניים מול מוסדות המחקר והחוקרים הראשיים. אין להעתיק, לשכפל או להפיץ מידע מתוך המערכת ללא אישור מפורש מראש ובכתב.</p>
-            </section>
-
-            <section id="liability">
-                <h2><i class="fa-solid fa-shield-virus"></i> 3. הגבלת אחריות</h2>
-                <p>השירותים והמידע במערכת ניתנים לשימוש כמות שהם (<strong>"AS-IS"</strong>). הנהלת המיזם עושה מאמצים רבים להבטיח את זמינות המערכת ושלמות הנתונים, אך אינה מתחייבת לחסינות מוחלטת מפני תקלות, השבתות או טעויות.</p>
-                <p>מדינת ישראל, מכון וולקני והגופים השותפים לא יישאו באחריות לכל נזק עקיף, תוצאתי או מיוחד, לרבות אובדן נתונים מחקריים, שייגרם כתוצאה משימוש או מאי-יכולת להשתמש במערכת. באחריות המשתמשים לשמור גיבויים מקומיים של נתוני הגלם שלהם בטרם העלאתם.</p>
-            </section>
-
-            <section id="privacy">
-                <h2><i class="fa-solid fa-user-lock"></i> 4. הגנת הפרטיות וניהול מידע</h2>
-                <p>אנו מכבדים את פרטיות המשתמשים ופועלים בהתאם להוראות <strong>חוק הגנת הפרטיות, התשמ"א-1981</strong>. פרטים אישיים הנמסרים בעת ההרשמה (כגון שם, דוא"ל, תפקיד ומספר טלפון) נשמרים באופן מאובטח ומשמשים אך ורק לצורך ניהול ההרשאות ויצירת קשר מקצועי הנוגע למיזם.</p>
-                <p>המערכת מבצעת ניטור ותיעוד אוטומטי של פעולות (Logs) – לרבות זמני התחברות, שינויים בתוכן והעלאת קבצים. ניטור זה נועד לצרכי אבטחת מידע, חקירת אירועים חריגים ושמירה על תקינות המערכת, ולא יועבר לצד שלישי אלא על פי צו שיפוטי.</p>
-            </section>
-
-            <section id="security">
-                <h2><i class="fa-solid fa-lock"></i> 5. אבטחת מידע ובקרת גישה</h2>
-                <p>המערכת מיישמת סטנדרטים מחמירים של אבטחת מידע הנסמכים על תשתיות ענן מתקדמות. כל ניסיון גישה לנתונים נאכף בזמן אמת, והרשאות הקריאה/כתיבה ניתנות פרטנית לבעל הניסוי ולשותפיו המוגדרים.</p>
-                <p>הנהלת המערכת שומרת לעצמה את הזכות המלאה לסרב לאשר הרשמה, וכן להשעות או לחסום לאלתר כל משתמש אשר יפר את נהלי האבטחה, יעשה שימוש בלתי מורשה במידע, או יעורר חשד לפעילות זדונית.</p>
-            </section>
-
-            <section id="usage">
-                <h2><i class="fa-solid fa-clipboard-check"></i> 6. התחייבויות המשתמש</h2>
-                <p>המשתמש מתחייב בזאת:</p>
-                <ul>
-                    <li>להזין נתונים אמינים, מדויקים ומקצועיים בלבד.</li>
-                    <li>לשמור בסודיות את פרטי ההתחברות (סיסמה) ולא להעבירם לאדם אחר.</li>
-                    <li>שלא להעלות קבצים המכילים וירוסים, סוסים טרויאניים או כל קוד זדוני אחר (גודל קובץ מקסימלי נתמך: 10MB).</li>
-                    <li>שלא לנסות לעקוף את מנגנוני האבטחה של המערכת, לבצע הנדסה לאחור (Reverse Engineering) או לאסוף נתונים באמצעים אוטומטיים (Scraping).</li>
-                </ul>
-            </section>
-
-            <section id="updates">
-                <h2><i class="fa-solid fa-pen-to-square"></i> 7. שינויים ועדכונים</h2>
-                <p>הנהלת המיזם רשאית לעדכן תנאים אלו מעת לעת ללא הודעה מוקדמת. תנאי השימוש המעודכנים יפורסמו בדף זה, ומומלץ למשתמשים להתעדכן בהם. המשך שימוש במערכת לאחר פרסום השינויים מהווה את הסכמת המשתמש לתנאים החדשים.</p>
-            </section>
-
-            <section id="contact">
-                <h2><i class="fa-solid fa-envelope"></i> 8. יצירת קשר ותמיכה</h2>
-                <p>לכל שאלה, בקשת תמיכה טכנית, או דיווח על אירוע אבטחת מידע, יש לפנות בהקדם האפשרי למנהל המערכת בכתובת הדוא"ל: <strong>yehudah@volcani.agri.gov.il</strong>.</p>
-            </section>
         </div>
+        <div class="header-actions">
+            <a href="index.html" class="back-btn btn-primary">
+                <i class="fa-solid fa-right-to-bracket"></i> התחברות
+            </a>
+            <a href="javascript:history.back()" class="back-btn">
+                <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </header>
 
-        <footer class="terms-footer">
-            <div class="print-note">
-                <i class="fa-solid fa-print"></i>
-                המסמך מנוסח בלשון זכר מטעמי נוחות בלבד, אך מתייחס לנשים וגברים כאחד.
+    <div class="terms-body">
+        <nav class="toc">
+            <strong><i class="fa-solid fa-list-ul"></i> תוכן עניינים</strong>
+            <div class="toc-list">
+                <a href="#general">הצהרה כללית ומטרת המערכת</a>
+                <a href="#ip">זכויות יוצרים וקניין רוחני</a>
+                <a href="#liability">הגבלת אחריות (AS-IS)</a>
+                <a href="#privacy">הגנת הפרטיות וניהול מידע</a>
+                <a href="#security">אבטחת מידע ובקרת גישה</a>
+                <a href="#usage">התחייבויות המשתמש</a>
+                <a href="#updates">שינויים ועדכונים</a>
+                <a href="#contact">יצירת קשר ותמיכה</a>
             </div>
-            <div class="header-actions">
-                <a href="javascript:history.back()" class="back-btn" aria-label="חזרה">
-                    <i class="fa-solid fa-arrow-right"></i> חזרה למערכת
-                </a>
-            </div>
-        </footer>
-    </main>
+        </nav>
+
+        <section id="general">
+            <h2>1. הצהרה כללית ומטרת המערכת</h2>
+            <p>מערכת "מיזם ח"ץ" (להלן: "המערכת") הינה פלטפורמה מחקרית שנועדה לתיעוד, ניהול ואיגום נתוני ניסויי שדה בחקלאות. המערכת מופעלת במסגרת שיתוף פעולה בין משרדים ומכונים.</p>
+            <p>הגישה למערכת והשימוש בה מותנים בהסכמה מוחלטת לתנאים המפורטים במסמך זה. עצם ההתחברות למערכת והזנת נתונים לתוכה מהווים הצהרה כי המשתמש קרא, הבין והסכים לתנאים אלו.</p>
+        </section>
+
+        <section id="ip">
+            <h2>2. זכויות יוצרים וקניין רוחני</h2>
+            <p>זכויות היוצרים והקניין הרוחני במערכת עצמה, לרבות קוד המקור, העיצוב, ומסדי הנתונים הכלליים, שייכים לבעלי המיזם.</p>
+        </section>
+
+        <section id="liability">
+            <h2>3. הגבלת אחריות</h2>
+            <p>השירותים והמידע במערכת ניתנים לשימוש כמות שהם ("AS-IS"). הנהלת המיזם עושה מאמצים רבים להבטיח את זמינות המערכת ושלמות הנתונים, אך אינה מתחייבת לחסינות מוחלטת מפני תקלות, השבתות או טעויות.</p>
+            <p> צוות המיזם לא יישא באחריות לכל נזק עקיף ולא עקיף, לרבות אובדן נתונים מחקריים, שייגרם כתוצאה משימוש או מאי-יכולת להשתמש במערכת. באחריות המשתמשים לשמור גיבויים מקומיים של נתוני הגלם שלהם בטרם העלאתם.</p>
+        </section>
+
+        <section id="privacy">
+            <h2>4. הגנת הפרטיות וניהול מידע</h2>
+            <p>המערכת מבצעת ניטור ותיעוד אוטומטי ואנושי של פעולות (Logs) לצורכי אבטחת מידע ותחזוקת המערכת, ולא יועברו לצד שלישי אלא על פי דין.</p>
+        </section>
+
+        <section id="security">
+            <h2>5. אבטחת מידע ובקרת גישה</h2>
+            <p>המערכת מיישמת סטנדרטים מחמירים של אבטחת מידע. כל ניסיון גישה לנתונים נאכף בזמן אמת, והרשאות ניתנות פרטנית.</p>
+            <p>הנהלת המערכת רשאית לחסום משתמשים אשר יפרו נהלי אבטחה או יעשו שימוש בלתי מורשה במידע.</p>
+        </section>
+
+        <section id="usage">
+            <h2>6. התחייבויות המשתמש</h2>
+            <ul>
+                <li>להזין נתונים אמינים ומדויקים ככל שידוע למשתמש.</li>
+                <li>לשמור בסודיות את פרטי ההתחברות.</li>
+                <li>לא להעלות קבצים זדוניים.</li>
+                <li>לא לנסות לעקוף מנגנוני אבטחה - כל מקרה כזה מתועד במערכת.</li>
+            </ul>
+        </section>
+
+        <section id="updates">
+            <h2>7. שינויים ועדכונים</h2>
+            <p>הנהלת המיזם רשאית לעדכן תנאים אלו מעת לעת. המשך שימוש במערכת מהווה הסכמה לתנאים המעודכנים.</p>
+        </section>
+
+        <section id="contact">
+            <h2>8. יצירת קשר ותמיכה</h2>
+            <p>לשאלות ותמיכה: <strong>yehudah@volcani.agri.gov.il</strong></p>
+        </section>
+    </div>
+
+    <footer class="terms-footer">
+        <div class="print-note">
+            <i class="fa-solid fa-print"></i>
+            המסמך מנוסח בלשון זכר מטעמי נוחות בלבד, אך מתייחס לנשים וגברים כאחד.
+        </div>
+        <a href="javascript:history.back()" class="back-btn">
+            <i class="fa-solid fa-arrow-right"></i> חזרה למערכת
+        </a>
+    </footer>
+</main>
 
 </body>
 </html>
