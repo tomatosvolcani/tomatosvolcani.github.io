@@ -29,7 +29,8 @@
                 { id: 'q2', text: 'אילו סוגי נתונים ניתן להזין למערכת?', answer: 'המערכת תומכת בניהול מחקר הוליסטי: החל מפרטי הגידול והמבנה, דרך טיפולי קרקע (חיטוי, קומפוסט), סוג ופריסת הטפטוף (השקיה ודישון), אגרוטכניקה (הדליות, גיזום), ועד קליטת נתוני יבול ויומן אירועים למעקב, כולל אפשרות צירוף קבצים ומיקומי GPS.' },
                 { id: 'q3', text: 'איך מצטרפים?', answer: "להצטרפות יש למלא את פרטיך בעמוד ההרשמה: לאחר מכן, הנהלת המיזם תבחן את הבקשה. יש להמתין לאישור המנהל/ת, במידת הצורך ניתן לפנות בדוא״ל: yehudah@volcani.agri.gov.il ." },
                 { id: 'q4', text: 'יש הסבר על השימוש במערכת?', answer: 'כן, לאחר ההתחברות יוצגו כאן שאלות ותשובות מותאמות.' },
-                { id: 'q5', icon: 'lock', text: '🔒 האם המערכת מאובטחת?', answer: 'יישמנו ארכיטקטורת אבטחה רב-שכבתית: מעבר למנגנון אישור הרשמה ידני, הטמענו מנגנוני הגנה אקטיביים מפני זיוף זהות, הסלמת הרשאות וניסיונות גישה עוקפים. כל בקשת קריאה וכתיבה לכל נתון, קובץ או משאב במערכת עוברת אכיפה בזמן אמת מול קוד צד-שרת המוטמע ישירות בשכבת התשתית, ללא תלות בקוד צד-לקוח. המערכת פועלת על בסיס עיקרון ה-Zero-Trust: גישה של חסימה הרמטית כברירת מחדל, המונעת כל גישה למידע אלא אם ניתנה הרשאה פרטנית, כירורגית ומבוקרת לזהות מאומתת בלבד.' }
+                { id: 'q5', text: 'האם יש תנאי שימוש?', answer: 'כן, עליך לקרוא את <a href="terms.html" style="color:#0a2f72; font-weight:700; text-decoration:underline;">תנאי השימוש</a>. בהרשמה או בהתחברות למערכת הנך מסכים לתנאים אלו.' },
+                { id: 'q6', icon: 'lock', text: '🔒 האם המערכת מאובטחת?', answer: 'יישמנו ארכיטקטורת אבטחה רב-שכבתית: מעבר למנגנון אישור הרשמה ידני, הטמענו מנגנוני הגנה אקטיביים מפני זיוף זהות, הסלמת הרשאות וניסיונות גישה עוקפים. כל בקשת קריאה וכתיבה לכל נתון, קובץ או משאב במערכת עוברת אכיפה בזמן אמת מול קוד צד-שרת המוטמע ישירות בשכבת התשתית, ללא תלות בקוד צד-לקוח. המערכת פועלת על בסיס עיקרון ה-Zero-Trust: גישה של חסימה הרמטית כברירת מחדל, המונעת כל גישה למידע אלא אם ניתנה הרשאה פרטנית, כירורגית ומבוקרת לזהות מאומתת בלבד.' }
             ]
         },
         dashboard: {
@@ -164,24 +165,38 @@
 
     // ── Typewriter Effect ──
     function simulateLLMTyping(fullText) {
-        let index = 0;
+        // Check if the answer contains HTML (like links)
+        const hasHTML = /<[^>]+>/.test(fullText);
 
-        function typeNextChar() {
-            if (index < fullText.length) {
-                botAnswerEl.innerHTML += fullText.charAt(index);
-                index++;
-                const delay = Math.floor(Math.random() * 20) + 15;
-                typeWriterTimeout = setTimeout(typeNextChar, delay);
-
-                // Auto scroll
+        if (hasHTML) {
+            // If HTML detected, render directly without typewriter effect
+            if (botAnswerEl) {
+                botAnswerEl.innerHTML = fullText;
                 const chatBody = document.getElementById('chat-body');
                 if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
-            } else {
-                if (btnBackChat) btnBackChat.style.display = 'flex';
             }
-        }
+            if (btnBackChat) btnBackChat.style.display = 'flex';
+        } else {
+            // Original typewriter effect for plain text
+            let index = 0;
 
-        typeNextChar();
+            function typeNextChar() {
+                if (index < fullText.length) {
+                    botAnswerEl.innerHTML += fullText.charAt(index);
+                    index++;
+                    const delay = Math.floor(Math.random() * 20) + 15;
+                    typeWriterTimeout = setTimeout(typeNextChar, delay);
+
+                    // Auto scroll
+                    const chatBody = document.getElementById('chat-body');
+                    if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+                } else {
+                    if (btnBackChat) btnBackChat.style.display = 'flex';
+                }
+            }
+
+            typeNextChar();
+        }
     }
 
     // ── Back to Questions ──
