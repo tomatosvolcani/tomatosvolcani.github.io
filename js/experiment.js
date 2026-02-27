@@ -1487,8 +1487,13 @@ let eventsData = []; // מערך לשמירת אירועים
 function initEventsLog() {
     const addEventBtn = document.getElementById('add-event-btn');
     if (addEventBtn) {
-        addEventBtn.addEventListener('click', () => addEventRow());
+        addEventBtn.addEventListener('click', () => openEventModal());
     }
+
+    // Event modal buttons
+    document.getElementById('event-modal-cancel')?.addEventListener('click', () => closeModal('event-modal'));
+    document.getElementById('event-modal-save')?.addEventListener('click', () => saveEventFromModal());
+    initDropzone('event-modal-dropzone', 'event-modal-file', 'event-modal-file-name');
 
     // טען אירועים קיימים
     loadEvents();
@@ -1612,20 +1617,62 @@ function createEventRow(event = {}, index) {
     return row;
 }
 
-function addEventRow() {
+function openEventModal() {
     const today = new Date().toISOString().split('T')[0];
+    document.getElementById('event-modal-date').value = today;
+    document.getElementById('event-modal-description').value = '';
+    document.getElementById('event-modal-file').value = '';
+    document.getElementById('event-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה (עד 10MB)';
+    document.getElementById('event-modal-progress')?.classList.add('hidden');
+    openModal('event-modal');
+}
+
+async function saveEventFromModal() {
+    const date = document.getElementById('event-modal-date').value;
+    const description = document.getElementById('event-modal-description').value.trim();
+    const fileInput = document.getElementById('event-modal-file');
+    const file = fileInput?.files[0];
+
+    if (!date && !description) {
+        showToast('יש להזין תאריך או תיאור', 'error');
+        return;
+    }
+
+    // Check file size
+    if (file) {
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        if (file.size > MAX_FILE_SIZE) {
+            showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
+            return;
+        }
+    }
+
+    let fileName = null, fileUrl = null, filePath = null;
+
+    if (file) {
+        try {
+            const result = await uploadProgressFile(file, 'events', 'event-modal-progress', 'event-modal-progress-fill', 'event-modal-progress-text');
+            fileName = file.name;
+            fileUrl = result.url;
+            filePath = result.path;
+        } catch (err) {
+            showToast('שגיאה בהעלאת הקובץ: ' + err.message, 'error');
+            return;
+        }
+    }
 
     eventsData.push({
-        date: today,
-        description: '',
-        fileName: null,
-        fileUrl: null,
-        filePath: null,
+        date: date,
+        description: description,
+        fileName: fileName,
+        fileUrl: fileUrl,
+        filePath: filePath,
         createdAt: new Date().toISOString()
     });
 
     renderEventsTable();
-    showToast('שורת אירוע חדשה נוספה', 'info');
+    closeModal('event-modal');
+    showToast('אירוע חדש נוסף בהצלחה', 'success');
 }
 
 function updateEventData(index) {
@@ -1644,6 +1691,14 @@ function updateEventData(index) {
 async function handleFileUpload(e, eventIndex) {
     const file = e.target.files[0];
     if (!file) return;
+
+    // בדיקת גודל קובץ – מקסימום 10MB (בהתאם ל-Storage Rules)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+        showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
+        e.target.value = '';
+        return;
+    }
 
     // יצירת נתיב לקובץ ב-Storage
     // מבנה: users/{userId}/experiments/{experimentId}/events/{timestamp}_{filename}
@@ -2129,6 +2184,14 @@ function renderProgressFileCell(td, tr, data, labels, field, uploadFolder) {
         fileInput.addEventListener('change', async () => {
             const selectedFile = fileInput.files && fileInput.files[0];
             if (!selectedFile) return;
+
+            // בדיקת גודל קובץ – מקסימום 10MB
+            const MAX_FILE_SIZE = 10 * 1024 * 1024;
+            if (selectedFile.size > MAX_FILE_SIZE) {
+                showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
+                fileInput.value = '';
+                return;
+            }
 
             uploadBtn.disabled = true;
             uploadBtn.querySelector('span').textContent = 'העלאה...';
@@ -2826,6 +2889,11 @@ function saveGrowthData() {
 // Upload File to Firebase Storage (shared)
 // =========================================
 async function uploadProgressFile(file, folder, progressId, fillId, textId) {
+    // בדיקת גודל קובץ – מקסימום 10MB (בהתאם ל-Storage Rules)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+        throw new Error('גודל הקובץ חורג מהמגבלה (10MB מקסימום)');
+    }
     return new Promise((resolve, reject) => {
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');

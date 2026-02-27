@@ -157,7 +157,7 @@
                                     <input type="text" id="partner-search" placeholder="חיפוש שותף (שם או אימייל)..." autocomplete="off">
                                     <div id="partner-suggestions" class="autocomplete-suggestions"></div>
                                 </div>
-                                <button type="button" id="add-partner" class="btn-add">+</button>
+                                <button type="button" id="add-partner" class="btn-add"><i class="fas fa-plus"></i></button>
                             </div>
                             <div class="partners-container" id="partners-container"></div>
                         </div>
@@ -282,7 +282,7 @@
                             <div class="variables-list" id="independent-vars-container"></div>
                             <div class="input-with-btn" style="margin-top: 10px;">
                                 <input type="text" id="new-independent-var" placeholder="הוספת משתנה...">
-                                <button type="button" id="add-independent-var" class="btn-add">+</button>
+                                <button type="button" id="add-independent-var" class="btn-add"><i class="fas fa-plus"></i></button>
                             </div>
                         </div>
                     </div>
@@ -305,7 +305,7 @@
                             <div class="variables-list" id="dependent-vars-container"></div>
                             <div class="input-with-btn" style="margin-top: 10px;">
                                 <input type="text" id="new-dependent-var" placeholder="הוספת משתנה...">
-                                <button type="button" id="add-dependent-var" class="btn-add">+</button>
+                                <button type="button" id="add-dependent-var" class="btn-add"><i class="fas fa-plus"></i></button>
                             </div>
                         </div>
                     </div>
@@ -322,12 +322,12 @@
                                     <option value="חממה">חממה</option>
                                     <option value="__custom__">אחר (הזנה חופשית)...</option>
                                 </select>
-                                <button type="button" id="add-keyword" class="btn-add">+</button>
+                                <button type="button" id="add-keyword" class="btn-add"><i class="fas fa-plus"></i></button>
                             </div>
                             <div id="custom-keyword-container" class="keywords-container" style="display: none; margin-top: 10px;">
                                 <input type="text" id="custom-keyword-input" placeholder="הזנת מילת מפתח חופשית...">
-                                <button type="button" id="add-custom-keyword" class="btn-add">+</button>
-                                <button type="button" id="cancel-custom-keyword" class="btn-add" style="background: #6b7280;" title="ביטול">✕</button>
+                                <button type="button" id="add-custom-keyword" class="btn-add"><i class="fas fa-plus"></i></button>
+                                <button type="button" id="cancel-custom-keyword" class="btn-add btn-cancel" title="ביטול"><i class="fas fa-times"></i></button>
                             </div>
                             <div id="keywords-list" class="keywords-list"></div>
                         </div>
@@ -1117,6 +1117,34 @@
             <div class="modal-actions">
                 <button type="button" id="growth-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
                 <button type="button" id="growth-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: New Event (אירוע חדש) -->
+    <div id="event-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2>הוספת אירוע חדש</h2>
+            <div class="modal-form-row modal-form-row-single">
+                <label>תאריך:</label>
+                <input type="date" id="event-modal-date" class="modal-input-sm">
+            </div>
+            <div class="modal-form-row modal-form-row-single">
+                <label>תיאור האירוע:</label>
+                <textarea id="event-modal-description" class="modal-input-sm" placeholder="תיאור האירוע..." rows="3" style="resize:vertical;min-height:60px;"></textarea>
+            </div>
+            <div class="modal-dropzone" id="event-modal-dropzone">
+                <input type="file" id="event-modal-file" class="modal-file-input" accept="*/*">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p id="event-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה (עד 10MB)</p>
+            </div>
+            <div class="modal-upload-progress hidden" id="event-modal-progress">
+                <div class="progress-bar"><div class="progress-bar-fill" id="event-modal-progress-fill"></div></div>
+                <span class="progress-text" id="event-modal-progress-text">0%</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="event-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="event-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
             </div>
         </div>
     </div>

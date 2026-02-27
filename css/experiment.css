@@ -448,19 +448,43 @@
 }
 
 .btn-add {
-    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     background: #0a2f72;
-    color: white;
+    color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 50%;
     cursor: pointer;
     font-size: 14px;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(10, 47, 114, 0.25);
 }
 
 .btn-add:hover {
     background: #082354;
+    box-shadow: 0 3px 10px rgba(10, 47, 114, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-add:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(10, 47, 114, 0.2);
+}
+
+.btn-add.btn-cancel {
+    background: #6b7280;
+    box-shadow: 0 2px 6px rgba(107, 114, 128, 0.25);
+}
+
+.btn-add.btn-cancel:hover {
+    background: #4b5563;
+    box-shadow: 0 3px 10px rgba(107, 114, 128, 0.35);
 }
 
 /* =========================================
@@ -602,6 +626,7 @@
     width: 100%;
     border-collapse: collapse;
     direction: rtl;
+    table-layout: fixed;
 }
 
 .events-table thead {
@@ -615,6 +640,29 @@
     font-weight: 600;
     font-size: 14px;
     color: #374151;
+}
+
+/* Column widths */
+.events-table th:nth-child(1),
+.events-table td:nth-child(1) {
+    width: 160px;
+}
+
+.events-table td input[type="date"] {
+    padding-left: 4px;
+    font-size: 13px;
+}
+.events-table th:nth-child(2),
+.events-table td:nth-child(2) {
+    width: auto;
+}
+.events-table th:nth-child(3),
+.events-table td:nth-child(3) {
+    width: 190px;
+}
+.events-table th:nth-child(4),
+.events-table td:nth-child(4) {
+    width: 80px;
 }
 
 .events-table tbody tr {
@@ -631,7 +679,7 @@
 }
 
 .events-table td {
-    padding: 14px 16px;
+    padding: 12px 14px;
     font-size: 14px;
     color: #4b5563;
     vertical-align: middle;
@@ -646,6 +694,7 @@
     border-radius: 6px;
     font-size: 14px;
     background: #fff;
+    box-sizing: border-box;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -657,7 +706,8 @@
 }
 
 .events-table td textarea {
-    min-height: 60px;
+    min-height: 50px;
+    max-height: 120px;
     resize: vertical;
 }
 
@@ -1030,20 +1080,28 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     background: #0a2f72;
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 50%;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
     flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(10, 47, 114, 0.25);
 }
 
 .btn-add-soil-row:hover {
     background: #082354;
+    box-shadow: 0 3px 10px rgba(10, 47, 114, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-add-soil-row:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(10, 47, 114, 0.2);
 }
 
 .soil-table-wrapper {

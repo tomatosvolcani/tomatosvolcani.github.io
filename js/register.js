@@ -27,25 +27,8 @@ function setButtonLoading(btn, isLoading) {
     }
 }
 
-function isValidIsraeliMobile(phoneValue) {
-    const normalized = phoneValue.replace(/[\s-]/g, '');
-    return /^05\d{8}$/.test(normalized) || /^\+9725\d{8}$/.test(normalized);
-}
-
 function isValidName(nameValue) {
-    return /^[A-Za-z\u0590-\u05FF\s'"-]+$/.test(nameValue);
-}
-
-function isOrganizationalEmail(emailValue) {
-    const domain = emailValue.split('@')[1]?.toLowerCase() || '';
-    if (!domain) return false;
-
-    const blockedPublicDomains = new Set([
-        'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.il', 'hotmail.com', 'outlook.com',
-        'live.com', 'walla.co.il', 'icloud.com', 'proton.me', 'protonmail.com'
-    ]);
-
-    return !blockedPublicDomains.has(domain);
+    return /^[A-Za-z\u0590-\u05FF\s'"\-]+$/.test(nameValue);
 }
 
 document.getElementById('btn-register').addEventListener('click', async () => {
@@ -64,16 +47,6 @@ document.getElementById('btn-register').addEventListener('click', async () => {
 
     if(!isValidName(fname) || !isValidName(lname)) {
         showToast("שמות פרטיים ומשפחה חייבים להכיל אותיות בעברית או באנגלית בלבד", "warning");
-        return;
-    }
-
-    if(!isValidIsraeliMobile(phone)) {
-        showToast("נא להזין מספר טלפון נייד תקין בישראל", "warning");
-        return;
-    }
-
-    if(!isOrganizationalEmail(email)) {
-        showToast("נא להזין כתובת אימייל ארגונית (אוניברסיטה/גוף מחקר/מו\"פ)", "warning");
         return;
     }
 
