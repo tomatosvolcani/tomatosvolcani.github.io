@@ -36,17 +36,17 @@
         dashboard: {
             intro: 'שלום! אני העוזר הווירטואלי. אשמח לעזור בניווט במערכת.',
             questions: [
-                { id: 'dq1', text: 'איך יוצרים ניסוי חדש?', answer: 'ליצירת ניסוי חדש יש ללחוץ על כפתור "הוספת ניסוי חדש" בעמוד הראשי (כאן). יש למלא את שם הניסוי ולאחר מכן ללחוץ "צור/י ניסוי". לאחר היצירה, הניסוי יופיע ברשימת הניסויים שלך ותוכל/י להתחיל להזין נתונים.' },
+                { id: 'dq1', text: 'איך יוצרים ניסוי חדש?', answer: 'ליצירת ניסוי חדש יש ללחוץ על כפתור "הוספת ניסוי חדש" בעמוד הראשי (כאן). יש למלא את שם הניסוי ולאחר מכן לבחור "יצירת ניסוי". לאחר היצירה, הניסוי יופיע ברשימת הניסויים וניתן להתחיל להזין נתונים.' },
                 { id: 'dq2', text: 'איך משתפים ניסוי עם חוקר/ת חקלאי/ת אחר/ת?', answer: 'שיתוף ניסוי מתבצע מתוך עמוד הניסוי עצמו. יש ללחוץ על השדה "שותפים", לבצע חיפוש ע"פ שם או מייל ולאחר מכן לבחור את המשתמש הרצוי מהרשימה, השותף יראה את הניסוי בדשבורד שלו.' },
-                { id: 'dq3', text: 'איך מזינים נתונים לניסוי?', answer: 'הזנת נתונים מתבצעת בתוך עמוד הניסוי, ניתן למלא את השדות המתאימים וכן לבצע העלאת קבצים במידת הצורך, לאחר לחיצה על "שמור/י - כל הנתונים נשמרים אוטומטית בענן.' },
-                { id: 'dq4', text: 'איך מתנתקים מהמערכת?', answer: 'להתנתקות מהמערכת יש ללחוץ על כפתור "התנתק/י" שנמצא בתחתית הסרגל הצדדי (sidebar). ההתנתקות תעביר אותך חזרה למסך ההתחברות. חשוב להתנתק בסיום העבודה לשמירה על אבטחת המידע.' }
+                { id: 'dq3', text: 'איך מזינים נתונים לניסוי?', answer: 'הזנת נתונים מתבצעת בתוך עמוד הניסוי, ניתן למלא את השדות המתאימים וכן לבצע העלאת קבצים במידת הצורך. לאחר לחיצה על "שמירה" כל הנתונים נשמרים אוטומטית בענן.' },
+                { id: 'dq4', text: 'איך מתנתקים מהמערכת?', answer: 'להתנתקות מהמערכת יש ללחוץ על כפתור "התנתקות" שנמצא בתחתית הסרגל הצדדי (sidebar). ההתנתקות תעביר למסך ההתחברות. חשוב לבצע התנתקות בסיום העבודה לשמירה על אבטחת המידע.' }
             ]
         },
         admin: {
             intro: 'שלום מנהל/ת! אני העוזר הווירטואלי. במה אוכל לעזור?',
             questions: [
-                { id: 'aq1', text: 'איך מאשרים משתמש חדש?', answer: 'לאישור משתמש חדש יש לעבור לעמוד "ניהול משתמשים". תראה/י רשימת משתמשים ממתינים לאישור. לחץ/י על כפתור "אשר" ליד המשתמש הרצוי. לאחר האישור, המשתמש יוכל להתחבר ולגשת למערכת.' },
-                { id: 'aq2', text: 'איך משנים תפקיד למשתמש?', answer: 'שינוי תפקיד מתבצע מעמוד "ניהול משתמשים". לחץ/י על המשתמש הרצוי, ותוכל/י לשנות את התפקיד בין חוקר, חקלאי ומנהל. שים/י לב: הענקת הרשאת מנהל מאפשרת גישה מלאה למערכת.' },
+                { id: 'aq1', text: 'איך מאשרים משתמש חדש?', answer: 'לאישור משתמש חדש יש לעבור לעמוד "ניהול משתמשים". תוצג רשימת משתמשים ממתינים לאישור. יש לבחור בכפתור "אשר" ליד המשתמש הרצוי. לאחר האישור, המשתמש יוכל להתחבר ולגשת למערכת.' },
+                { id: 'aq2', text: 'איך משנים תפקיד למשתמש?', answer: 'שינוי תפקיד מתבצע מעמוד "ניהול משתמשים". יש לבחור את המשתמש הרצוי ולאחר מכן לשנות את התפקיד בין חוקר, חקלאי ומנהל. חשוב לשים לב: הענקת הרשאת מנהל מאפשרת גישה מלאה למערכת.' },
                 { id: 'aq3', text: 'איך צופים בכל הניסויים במערכת?', answer: 'מנהלי המערכת יכולים לצפות בכל הניסויים דרך עמוד "ניהול ניסויים". כאן מוצגת רשימה מלאה של כל הניסויים במערכת, כולל פרטי יוצר הניסוי, תאריכי יצירה ומצב הניסוי.' },
                 { id: 'aq4', text: 'מה קורה כשחוסמים משתמש?', answer: 'כשחוסמים משתמש, הוא לא יוכל להתחבר יותר למערכת. הנתונים שהזין נשמרים אך אינם נגישים לו. ניתן לבטל את החסימה בכל עת מעמוד ניהול המשתמשים על ידי לחיצה על "בטל חסימה".' }
             ]
@@ -55,8 +55,8 @@
             intro: 'שלום! אני העוזר הווירטואלי. יש לך שאלות לגבי ניהול הניסוי?',
             questions: [
                 { id: 'eq1', text: 'איך מוסיפים טיפול חדש לניסוי?', answer: 'להוספת טיפול חדש יש ללחוץ על כפתור "הוספת טיפול" בתוך עמוד הניסוי. יש למלא את שם הטיפול, סוג הטיפול (השקיה, דישון, הדברה וכו\'), פרטים נוספים ולשמור. הטיפול יופיע ברשימת הטיפולים של הניסוי.' },
-                { id: 'eq2', text: 'איך מעלים קובץ נתונים?', answer: 'העלאת קבצים מתבצעת מתוך עמוד הניסוי. לחץ/י על "העלאת קובץ" או על אייקון הצירוף, בחר/י את הקובץ מהמכשיר שלך (תמונות, אקסל, PDF). הקובץ יועלה לענן ויהיה זמין לכל שותפי הניסוי.' },
-                { id: 'eq3', text: 'איך מתעדים אירוע ביומן?', answer: 'תיעוד אירוע ביומן מתבצע בטאב "יומן אירועים". לחץ/י על "אירוע חדש", בחר/י תאריך, תיאור ויש אפשרות להעלאת קובץ.' },
+                { id: 'eq2', text: 'איך מעלים קובץ נתונים?', answer: 'העלאת קבצים מתבצעת מתוך עמוד הניסוי. יש לבחור "העלאת קובץ" או את אייקון הצירוף, ולאחר מכן לבצע בחירת קובץ מהמכשיר (תמונות, אקסל, PDF). הקובץ יועלה לענן ויהיה זמין לכל שותפי הניסוי.' },
+                { id: 'eq3', text: 'איך מתעדים אירוע ביומן?', answer: 'תיעוד אירוע ביומן מתבצע בטאב "יומן אירועים". יש לבחור "אירוע חדש", להזין תאריך ותיאור, ובמידת הצורך לבצע העלאת קובץ.' },
                 { id: 'eq4', text: 'האם ניתן לייצא נתונים מהניסוי?', answer: 'כרגע עובדים על זה :) יהיה בהמשך' }
             ]
         }
@@ -206,5 +206,91 @@
             if (activeView) activeView.classList.remove('show');
             faqListEl.style.display = 'flex';
         });
+    }
+
+    // ── Drag to Move (via chat-header or toggle button) ──
+    initDrag();
+
+    function initDrag() {
+        const container = document.querySelector('.chat-container');
+        const header = document.querySelector('.chat-header');
+        if (!container) return;
+
+        let isDragging = false;
+        let hasMoved = false;
+        let startX, startY, origLeft, origBottom;
+        const DRAG_THRESHOLD = 5; // pixels before treating as drag
+
+        function beginDrag(e) {
+            const rect = container.getBoundingClientRect();
+            origLeft = rect.left;
+            origBottom = window.innerHeight - rect.bottom;
+            startX = e.clientX;
+            startY = e.clientY;
+            isDragging = true;
+            hasMoved = false;
+
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            // Start visual drag only after threshold
+            if (!hasMoved && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+            hasMoved = true;
+            container.classList.add('dragging');
+
+            let newLeft = origLeft + dx;
+            let newBottom = origBottom - dy;
+
+            // Clamp within viewport
+            const rect = container.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - w));
+            newBottom = Math.max(0, Math.min(newBottom, window.innerHeight - h));
+
+            container.style.left = newLeft + 'px';
+            container.style.bottom = newBottom + 'px';
+            container.style.right = 'auto';
+            container.style.top = 'auto';
+        }
+
+        function onPointerUp() {
+            isDragging = false;
+            container.classList.remove('dragging');
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+        }
+
+        // Drag from header (when panel is open)
+        if (header) {
+            header.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('button')) return;
+                beginDrag(e);
+                e.preventDefault();
+            });
+        }
+
+        // Drag from toggle button — drag on move, click on tap
+        if (chatToggleBtn) {
+            chatToggleBtn.addEventListener('pointerdown', (e) => {
+                beginDrag(e);
+                // Don't preventDefault — let click still fire if no drag
+            });
+
+            // Suppress click if user dragged
+            chatToggleBtn.addEventListener('click', (e) => {
+                if (hasMoved) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    hasMoved = false;
+                }
+            }, true);
+        }
     }
 })();

@@ -321,7 +321,7 @@ function createAddButton() {
     btn.id = 'add-experiment-btn';
     btn.innerHTML = `
         <div class="plus-icon">+</div>
-        <span>הוסף ניסוי חדש</span>
+        <span>הוספת ניסוי חדש</span>
     `;
     btn.addEventListener('click', openNewExperimentModal);
     return btn;

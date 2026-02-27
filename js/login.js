@@ -57,7 +57,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     const loginBtn = document.getElementById('btn-login');
 
     if (!email || !pass) {
-        showToast('נא למלא/י אימייל וסיסמה', 'warning');
+        showToast('נא למלא אימייל וסיסמה', 'warning');
         return;
     }
 

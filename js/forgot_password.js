@@ -14,9 +14,9 @@ function getHebrewErrorMessageFirebase(error) {
     const code = error.code;
     const map = {
         'auth/invalid-email': 'כתובת האימייל אינה תקינה. יש לבדוק ולנסות שוב.',
-        'auth/user-not-found': 'לא נמצא משתמש עם כתובת אימייל זו. ודא/י שהאימייל רשום במערכת.',
+        'auth/user-not-found': 'לא נמצא משתמש עם כתובת אימייל זו. יש לוודא שהאימייל רשום במערכת.',
         'auth/too-many-requests': 'יותר מדי בקשות לאיפוס סיסמה. יש להמתין רגע ולנסות שנית.',
-        'auth/network-request-failed': 'שגיאת תקשורת. בדוק/י חיבור אינטרנט ונסה שוב.',
+        'auth/network-request-failed': 'שגיאת תקשורת. יש לבדוק חיבור אינטרנט ולנסות שוב.',
         'auth/missing-android-pkg-name': 'שגיאת קונפיגורציה של הפרויקט (מכשיר אנדרואיד).',
         'auth/invalid-action-code': 'קוד פעולה לא תקין.',
         'auth/invalid-message-payload': 'הודעת הדוא"ל לא פונטה כראוי (קונפיגורציה).'
@@ -41,7 +41,7 @@ resetBtn.addEventListener('click', async () => {
     const email = emailEl?.value?.trim();
 
     if(!email) {
-        showToast("נא להזין/י אימייל", "warning");
+        showToast("נא להזין אימייל", "warning");
         return;
     }
 
@@ -56,7 +56,7 @@ resetBtn.addEventListener('click', async () => {
 
     try {
         await sendPasswordResetEmail(auth, email);
-        showToast("מייל נשלח לכתובת: " + email + '. בדוק/י תיבת דואר ספאם אם לא הגיע.', "success", 5000);
+        showToast("מייל נשלח לכתובת: " + email + '. יש לבדוק תיבת דואר ספאם אם לא הגיע.', "success", 5000);
 
         // Start 3-minute (180 seconds) countdown and persist it
         startButtonCountdown(resetBtn, 180, originalBtnText, COUNTDOWN_STORAGE_KEY);

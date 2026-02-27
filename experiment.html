@@ -144,7 +144,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>חוקר מוביל:</label>
-                            <input type="text" id="lead-researcher" readonly>
+                            <input type="text" id="lead-researcher">
                         </div>
                     </div>
 
@@ -154,7 +154,7 @@
                             <label>שותפים:</label>
                             <div class="partners-add-container">
                                 <div class="autocomplete-wrapper">
-                                    <input type="text" id="partner-search" placeholder="חפש/י שותף (שם או אימייל)..." autocomplete="off">
+                                    <input type="text" id="partner-search" placeholder="חיפוש שותף (שם או אימייל)..." autocomplete="off">
                                     <div id="partner-suggestions" class="autocomplete-suggestions"></div>
                                 </div>
                                 <button type="button" id="add-partner" class="btn-add">+</button>
@@ -172,7 +172,7 @@
                         <div class="form-group">
                             <label>חודש הניסוי:</label>
                             <select id="experiment-month">
-                                <option value="">בחר חודש</option>
+                                <option value="">בחירת חודש</option>
                                 <option value="1">ינואר</option>
                                 <option value="2">פברואר</option>
                                 <option value="3">מרץ</option>
@@ -189,19 +189,27 @@
                         </div>
                     </div>
 
-                    <!-- Start Date & Work Package -->
+                    <!-- Research Period & Work Package -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label>תאריך תחילת הניסוי:</label>
-                            <input type="date" id="start-date">
+                            <label>תקופת המחקר:</label>
+                            <select id="research-period">
+                                <option value="">בחירת תקופה</option>
+                                <option value="תקופה ראשונה">תקופה ראשונה</option>
+                                <option value="תקופה שניה">תקופה שניה</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>חבילת עבודה:</label>
                             <select id="work-package">
-                                <option value="">בחר חבילה</option>
+                                <option value="">בחירת חבילה</option>
                                 <option value="wp1">חבילה 1</option>
                                 <option value="wp2">חבילה 2</option>
                                 <option value="wp3">חבילה 3</option>
+                                <option value="wp4">חבילה 4</option>
+                                <option value="wp5">חבילה 5</option>
+                                <option value="wp6">חבילה 6</option>
+                                <option value="not-related">לא שייך למיזם ח"ץ</option>
                             </select>
                         </div>
                     </div>
@@ -211,7 +219,7 @@
                         <div class="form-group">
                             <label>אתר הניסוי:</label>
                             <select id="experiment-site">
-                                <option value="">בחר אתר</option>
+                                <option value="">בחירת אתר</option>
                                 <option value="volcani">מכון וולקני</option>
                                 <option value="newe-yaar">נווה יער</option>
                                 <option value="gilat">גילת</option>
@@ -220,11 +228,11 @@
                         <div class="form-group">
                             <label>קורדינטות אתר הניסוי:</label>
                             <div class="input-with-btn">
-                                <input type="text" id="site-coordinates" placeholder="לחץ/י על הכפתור או הזן/י ידנית (לדוגמה: 31.5, 34.75)">
-                                <button type="button" id="pick-location-btn" class="btn-icon" title="בחר/י מיקום ממפה">
+                                <input type="text" id="site-coordinates" placeholder="בחירת מיקום מהכפתור או הזנה ידנית (לדוגמה: 31.5, 34.75)">
+                                <button type="button" id="pick-location-btn" class="btn-icon" title="בחירת מיקום ממפה">
                                     <i class="fas fa-map-marker-alt"></i>
                                 </button>
-                                <button type="button" id="open-google-maps-btn" class="btn-icon btn-google-maps" title="פתח/י בגוגל מפות" style="display: none;">
+                                <button type="button" id="open-google-maps-btn" class="btn-icon btn-google-maps" title="פתיחה בגוגל מפות" style="display: none;">
                                     <i class="fab fa-google"></i>
                                 </button>
                             </div>
@@ -273,7 +281,7 @@
                             <label>משתנה בלתי תלוי:</label>
                             <div class="variables-list" id="independent-vars-container"></div>
                             <div class="input-with-btn" style="margin-top: 10px;">
-                                <input type="text" id="new-independent-var" placeholder="הוסף משתנה...">
+                                <input type="text" id="new-independent-var" placeholder="הוספת משתנה...">
                                 <button type="button" id="add-independent-var" class="btn-add">+</button>
                             </div>
                         </div>
@@ -296,7 +304,7 @@
                             <label>משתנה תלוי:</label>
                             <div class="variables-list" id="dependent-vars-container"></div>
                             <div class="input-with-btn" style="margin-top: 10px;">
-                                <input type="text" id="new-dependent-var" placeholder="הוסף משתנה...">
+                                <input type="text" id="new-dependent-var" placeholder="הוספת משתנה...">
                                 <button type="button" id="add-dependent-var" class="btn-add">+</button>
                             </div>
                         </div>
@@ -308,7 +316,7 @@
                             <label>מילות מפתח:</label>
                             <div class="keywords-container">
                                 <select id="keywords-select">
-                                    <option value="">בחר מילת מפתח</option>
+                                    <option value="">בחירת מילת מפתח</option>
                                     <option value="עגבניות">עגבניות</option>
                                     <option value="הדברה">הדברה</option>
                                     <option value="חממה">חממה</option>
@@ -317,7 +325,7 @@
                                 <button type="button" id="add-keyword" class="btn-add">+</button>
                             </div>
                             <div id="custom-keyword-container" class="keywords-container" style="display: none; margin-top: 10px;">
-                                <input type="text" id="custom-keyword-input" placeholder="הזן/י מילת מפתח חופשית...">
+                                <input type="text" id="custom-keyword-input" placeholder="הזנת מילת מפתח חופשית...">
                                 <button type="button" id="add-custom-keyword" class="btn-add">+</button>
                                 <button type="button" id="cancel-custom-keyword" class="btn-add" style="background: #6b7280;" title="ביטול">✕</button>
                             </div>
@@ -421,7 +429,7 @@
                         <div class="form-group">
                             <label>חיפוי גג:</label>
                             <select id="roof-covering">
-                                <option value="">בחר</option>
+                                <option value="">בחירת ערך</option>
                                 <option value="nylon">ניילון</option>
                                 <option value="glass">זכוכית</option>
                                 <option value="net">רשת</option>
@@ -430,7 +438,7 @@
                         <div class="form-group">
                             <label>שטיפת רשתות:</label>
                             <select id="net-washing">
-                                <option value="">בחר</option>
+                                <option value="">בחירת ערך</option>
                                 <option value="nylon">ניילון</option>
                                 <option value="net">רשת</option>
                             </select>
@@ -438,7 +446,7 @@
                         <div class="form-group">
                             <label>מפנה המבנה:</label>
                             <select id="structure-direction">
-                                <option value="">בחר</option>
+                                <option value="">בחירת ערך</option>
                                 <option value="north">צפון</option>
                                 <option value="south">דרום</option>
                                 <option value="east">מזרח</option>
@@ -486,11 +494,12 @@
                     <!-- חיפוי קרקע + חיטוי סולרי -->
                     <div class="form-grid soil-main-grid">
                         <div class="form-group">
-                            <label>חיפוי קרקע/כסף:</label>
+                            <label>חיפוי קרקע:</label>
                             <select id="soil-mulch">
-                                <option value="">בחר</option>
-                                <option value="קיים">קיים</option>
-                                <option value="אין">אין</option>
+                                <option value="">בחירת ערך</option>
+                                <option value="כסף">כסף</option>
+                                <option value="שחור">שחור</option>
+                                <option value="ללא">ללא</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -601,7 +610,7 @@
                             <label class="drip-field-label">שלוחה בודדת/ כפולה:</label>
                             <div class="drip-field-value">
                                 <select id="drip-single-double">
-                                    <option value="">בחר</option>
+                                    <option value="">בחירת ערך</option>
                                     <option value="בודדת">בודדת</option>
                                     <option value="כפולה">כפולה</option>
                                 </select>
@@ -771,6 +780,7 @@
                                         <th>מיקום חיישן במרחב</th>
                                         <th>גובה/עומק חיישן</th>
                                         <th>תאריכי מדידה</th>
+                                        <th>קובץ מצורף</th>
                                         <th>הערות</th>
                                         <th></th>
                                     </tr>
@@ -787,7 +797,7 @@
                     <div class="soil-dynamic-section">
                         <div class="soil-section-header">
                             <button type="button" class="btn-add-soil-row" id="add-agro-row"><i class="fas fa-plus"></i></button>
-                            <span class="soil-section-title">הוספת פעולה חדש</span>
+                            <span class="soil-section-title">הוספת פעולה חדשה</span>
                         </div>
                         <div class="soil-table-wrapper">
                             <table class="soil-table" id="agro-table">
@@ -983,14 +993,14 @@
                         </table>
                         <div id="no-events-message" class="no-events-message">
                             <i class="fas fa-calendar-plus"></i>
-                            <p>אין אירועים עדיין. לחץ/י על "אירוע חדש +" כדי להוסיף אירוע ראשון.</p>
+                            <p>אין אירועים עדיין. בחירה ב-"אירוע חדש +" תוסיף אירוע ראשון.</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Save Button -->
                 <div class="form-actions">
-                    <button type="submit" class="btn-save">שמור/י</button>
+                    <button type="submit" class="btn-save">שמירה</button>
                 </div>
             </form>
             </div><!-- End experiment-content -->
@@ -1018,15 +1028,15 @@
             <div class="modal-dropzone" id="irr-modal-dropzone">
                 <input type="file" id="irr-modal-file" class="modal-file-input">
                 <i class="fas fa-cloud-upload-alt"></i>
-                <p id="irr-modal-file-name">גרור/י קובץ לכאן או לחץ/י לבחירה</p>
+                <p id="irr-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
             </div>
             <div class="modal-upload-progress hidden" id="irr-modal-progress">
                 <div class="progress-bar"><div class="progress-bar-fill" id="irr-modal-progress-fill"></div></div>
                 <span class="progress-text" id="irr-modal-progress-text">0%</span>
             </div>
             <div class="modal-actions">
-                <button type="button" id="irr-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
-                <button type="button" id="irr-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+                <button type="button" id="irr-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="irr-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
             </div>
         </div>
     </div>
@@ -1062,15 +1072,15 @@
             <div class="modal-dropzone" id="fert-modal-dropzone">
                 <input type="file" id="fert-modal-file" class="modal-file-input">
                 <i class="fas fa-cloud-upload-alt"></i>
-                <p id="fert-modal-file-name">גרור/י קובץ לכאן או לחץ/י לבחירה</p>
+                <p id="fert-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
             </div>
             <div class="modal-upload-progress hidden" id="fert-modal-progress">
                 <div class="progress-bar"><div class="progress-bar-fill" id="fert-modal-progress-fill"></div></div>
                 <span class="progress-text" id="fert-modal-progress-text">0%</span>
             </div>
             <div class="modal-actions">
-                <button type="button" id="fert-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
-                <button type="button" id="fert-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+                <button type="button" id="fert-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="fert-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
             </div>
         </div>
     </div>
@@ -1105,8 +1115,20 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="button" id="growth-modal-cancel" class="modal-btn modal-btn-secondary">בטל/י</button>
-                <button type="button" id="growth-modal-save" class="modal-btn modal-btn-primary">שמור/י</button>
+                <button type="button" id="growth-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="growth-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Add Row Modal -->
+    <div id="generic-row-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2 id="generic-modal-title">הוספת שורה חדשה</h2>
+            <div id="generic-modal-body"></div>
+            <div class="modal-actions">
+                <button type="button" id="generic-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="generic-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
             </div>
         </div>
     </div>
@@ -1115,7 +1137,7 @@
     <div id="location-picker-modal" class="modal-overlay hidden">
         <div class="modal modal-large">
             <div class="modal-header">
-                <h2>בחר/י מיקום מהמפה (OpenStreetMap)</h2>
+                <h2>בחירת מיקום מהמפה (OpenStreetMap)</h2>
                 <button type="button" id="close-location-modal" class="btn-close-modal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -1182,7 +1204,7 @@
                 </div>
             </div>
         </div>
-        <button class="btn-chat-toggle" id="btn-chat-toggle" aria-label="פתח עוזר וירטואלי">
+        <button class="btn-chat-toggle" id="btn-chat-toggle" aria-label="פתיחת עוזר וירטואלי">
             <i class="fa-solid fa-comment-dots"></i>
         </button>
     </div>

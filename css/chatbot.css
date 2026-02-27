@@ -2,7 +2,7 @@
    Chatbot / FAQ Widget - Shared Across All Pages
    ========================================= */
 
-/* ── Container ── */
+/* ── Container (draggable) ── */
 .chat-container {
     position: fixed;
     bottom: 30px;
@@ -11,6 +11,11 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+}
+
+.chat-container.dragging {
+    transition: none !important;
+    user-select: none;
 }
 
 /* ── Toggle Button ── */
@@ -86,7 +91,7 @@
     pointer-events: auto;
 }
 
-/* ── Chat Header ── */
+/* ── Chat Header (drag handle) ── */
 .chat-header {
     background: #0a2f72;
     color: white;
@@ -95,6 +100,11 @@
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    cursor: grab;
+}
+
+.chat-header:active {
+    cursor: grabbing;
 }
 
 .chat-header h4 {

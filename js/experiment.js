@@ -350,7 +350,7 @@ function populateForm() {
     // Basic fields
     setFieldValue('experiment-year', data.experimentYear);
     setFieldValue('experiment-month', data.experimentMonth);
-    setFieldValue('start-date', data.startDate);
+    setFieldValue('research-period', data.researchPeriod || data.startDate || '');
     setFieldValue('work-package', data.workPackage);
     setFieldValue('experiment-site', data.experimentSite);
     setFieldValue('site-coordinates', data.siteCoordinates);
@@ -421,7 +421,11 @@ function populateForm() {
         setFieldValue('substrate-company', soil.substrateCompany);
         setFieldValue('substrate-type', soil.substrateType);
         setFieldValue('substrate-volume', soil.substrateVolume);
-        setFieldValue('soil-mulch', soil.mulch);
+        // Backward compatibility: map old mulch values to new options
+        let mulchVal = soil.mulch || '';
+        if (mulchVal === 'אין') mulchVal = 'ללא';
+        if (mulchVal === 'קיים') mulchVal = 'כסף'; // ערך ישן – ממופה לכסף כברירת מחדל
+        setFieldValue('soil-mulch', mulchVal);
         setFieldValue('soil-disinfection-adigan', soil.disinfectionAdigan);
         setFieldValue('soil-adigan-amount', soil.adiganAmount);
         setFieldValue('soil-solarization', soil.solarization);
@@ -740,7 +744,7 @@ function collectFormData() {
         partners,
         experimentYear: document.getElementById('experiment-year')?.value || '',
         experimentMonth: document.getElementById('experiment-month')?.value || '',
-        startDate: document.getElementById('start-date')?.value || '',
+        researchPeriod: document.getElementById('research-period')?.value || '',
         workPackage: document.getElementById('work-package')?.value || '',
         experimentSite: document.getElementById('experiment-site')?.value || '',
         siteCoordinates: document.getElementById('site-coordinates')?.value || '',
@@ -1270,7 +1274,7 @@ function initMap() {
         icon: customIcon
     }).addTo(map);
 
-    marker.bindPopup('גרור/י אותי או לחץ/י על המפה').openPopup();
+    marker.bindPopup('גרירה או לחיצה על המפה').openPopup();
 
     selectedLocation = { lat: initialCenter[0], lng: initialCenter[1] };
     updateSelectedCoordinates(selectedLocation);
@@ -1389,7 +1393,7 @@ function initPartnersAutocomplete() {
                 selectedPartner = null;
                 suggestionsContainer.classList.remove('active');
             } else if (searchInput.value.trim()) {
-                showToast('נא לבחור/י שותף מהרשימה', 'warning');
+                showToast('נא לבצע בחירת שותף מהרשימה', 'warning');
             }
         });
     }
@@ -1527,7 +1531,7 @@ function createEventRow(event = {}, index) {
             <input type="date" class="event-date" value="${event.date || today}" data-index="${index}">
         </td>
         <td data-label="תיאור">
-            <textarea class="event-description" placeholder="תאר/י את האירוע..." data-index="${index}">${event.description || ''}</textarea>
+            <textarea class="event-description" placeholder="תיאור האירוע..." data-index="${index}">${event.description || ''}</textarea>
         </td>
         <td data-label="קובץ">
             <div class="file-upload-cell">
@@ -1640,13 +1644,6 @@ function updateEventData(index) {
 async function handleFileUpload(e, eventIndex) {
     const file = e.target.files[0];
     if (!file) return;
-
-    // בדיקת גודל קובץ (מקסימום 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-        showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
-        return;
-    }
 
     // יצירת נתיב לקובץ ב-Storage
     // מבנה: users/{userId}/experiments/{experimentId}/events/{timestamp}_{filename}
@@ -1893,15 +1890,37 @@ function initSoilTableListeners() {
     const compostTbody = document.getElementById('compost-tbody');
     const sprayTbody = document.getElementById('spray-tbody');
     const disinfectTbody = document.getElementById('disinfect-tbody');
+    const SOIL_LABELS = { date: 'תאריך', amount: 'כמות', method: 'אופן יישום', material: 'חומר החיטוי' };
 
+    // Compost – popup modal (spec: פופ אפ)
     document.getElementById('add-compost-row')?.addEventListener('click', () =>
-        addSoilTableRow(compostTbody, ['date','amount','method']));
+        openGenericRowModal({
+            title: 'הוספת פיזור קומפוסט',
+            fields: ['date', 'amount', 'method'],
+            labels: SOIL_LABELS,
+            onSave: (data) => addSoilTableRow(compostTbody, ['date', 'amount', 'method'], data)
+        })
+    );
 
+    // Spray pre-emergence – popup modal (spec: פופ אפ)
     document.getElementById('add-spray-row')?.addEventListener('click', () =>
-        addSoilTableRow(sprayTbody, ['date','amount','method']));
+        openGenericRowModal({
+            title: 'הוספת ריסוס מונע הצצה',
+            fields: ['date', 'amount', 'method'],
+            labels: SOIL_LABELS,
+            onSave: (data) => addSoilTableRow(sprayTbody, ['date', 'amount', 'method'], data)
+        })
+    );
 
+    // Soil disinfection – popup modal (spec: פופ אפ)
     document.getElementById('add-disinfect-row')?.addEventListener('click', () =>
-        addSoilDisinfectRow(disinfectTbody));
+        openGenericRowModal({
+            title: 'הוספת חיטוי קרקע',
+            fields: ['date', 'material', 'amount', 'method'],
+            labels: SOIL_LABELS,
+            onSave: (data) => addSoilDisinfectRow(disinfectTbody, data)
+        })
+    );
 }
 
 // =========================================
@@ -1949,72 +1968,116 @@ function addProgressRow(tbody, fields, labels, data, options) {
         const td = document.createElement('td');
         td.dataset.label = labels[field] || field;
 
-        // For 'fileName' field with a file attached — show file-info widget
-        if (field === 'fileName' && data.fileUrl) {
-            td.innerHTML = `
-                <div class="progress-file-info">
-                    <i class="fas fa-file"></i>
-                    <span class="progress-file-name" title="${data.fileName || ''}">${data.fileName || ''}</span>
-                    <button type="button" class="btn-file-action btn-download" title="הורד/י קובץ" data-url="${data.fileUrl}">
-                        <i class="fas fa-download"></i>
-                    </button>
-                    <button type="button" class="btn-file-action btn-delete-progress-file" title="מחק/י קובץ">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-            // hidden input to keep the value for collection
-            const hiddenInp = document.createElement('input');
-            hiddenInp.type = 'hidden';
-            hiddenInp.dataset.field = field;
-            hiddenInp.value = data.fileName || '';
-            td.appendChild(hiddenInp);
+        // For 'fileName' field
+        if (field === 'fileName') {
+            if (options.enableFileUpload) {
+                renderProgressFileCell(td, tr, data, labels, field, options.uploadFolder || 'files');
+            } else if (data.fileUrl) {
+                td.innerHTML = `
+                    <div class="progress-file-info">
+                        <i class="fas fa-file"></i>
+                        <span class="progress-file-name" title="${data.fileName || ''}">${data.fileName || ''}</span>
+                        <button type="button" class="btn-file-action btn-download" title="הורדת קובץ" data-url="${data.fileUrl}">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button type="button" class="btn-file-action btn-delete-progress-file" title="מחיקת קובץ">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                const hiddenInp = document.createElement('input');
+                hiddenInp.type = 'hidden';
+                hiddenInp.dataset.field = field;
+                hiddenInp.value = data.fileName || '';
+                td.appendChild(hiddenInp);
 
-            // Download handler
-            td.querySelector('.btn-download')?.addEventListener('click', (e) => {
-                const url = e.currentTarget.dataset.url;
-                if (url) window.open(url, '_blank');
-            });
+                td.querySelector('.btn-download')?.addEventListener('click', (e) => {
+                    const url = e.currentTarget.dataset.url;
+                    if (url) window.open(url, '_blank');
+                });
 
-            // Delete file handler
-            td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
-                const filePath = tr.dataset.filePath;
-                if (!filePath) return;
-                if (!confirm('האם למחוק/לבטל את הקובץ?')) return;
-                try {
-                    const storageRef = ref(storage, filePath);
-                    await deleteObject(storageRef);
-                    showToast('הקובץ נמחק בהצלחה', 'success');
-                } catch (err) {
-                    if (err.code !== 'storage/object-not-found') {
-                        showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
-                        return;
+                td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
+                    const filePath = tr.dataset.filePath;
+                    if (!filePath) return;
+                    if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+                    try {
+                        const storageRef = ref(storage, filePath);
+                        await deleteObject(storageRef);
+                        showToast('הקובץ נמחק בהצלחה', 'success');
+                    } catch (err) {
+                        if (err.code !== 'storage/object-not-found') {
+                            showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
+                            return;
+                        }
                     }
-                }
-                // Replace file widget with a plain text input
-                delete tr.dataset.fileUrl;
-                delete tr.dataset.filePath;
-                td.innerHTML = '';
+                    delete tr.dataset.fileUrl;
+                    delete tr.dataset.filePath;
+                    td.innerHTML = '';
+                    const inp = document.createElement('input');
+                    inp.type = 'text';
+                    inp.className = 'soil-input';
+                    inp.dataset.field = field;
+                    inp.value = data.fileName || '';
+                    inp.placeholder = labels[field] || '';
+                    td.appendChild(inp);
+                });
+            } else {
                 const inp = document.createElement('input');
                 inp.type = 'text';
                 inp.className = 'soil-input';
                 inp.dataset.field = field;
-                inp.value = data.fileName || '';
-                inp.placeholder = labels[field] || '';
+                inp.value = data[field] || '';
+                if (labels[field]) inp.placeholder = labels[field];
                 td.appendChild(inp);
-            });
+            }
         } else {
             // Normal input
             const isReadonly = options.readonlyFields && options.readonlyFields.includes(field) && data[field];
-            const inputType = (options.inputTypes && options.inputTypes[field]) || 'text';
-            const inp = document.createElement('input');
-            inp.type = inputType;
-            inp.className = 'soil-input';
-            inp.dataset.field = field;
-            inp.value = data[field] || '';
-            if (labels[field]) inp.placeholder = labels[field];
-            if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
-            td.appendChild(inp);
+            const fieldOptions = options.fieldOptions && options.fieldOptions[field];
+
+            if (fieldOptions && Array.isArray(fieldOptions)) {
+                const select = document.createElement('select');
+                select.className = 'soil-input';
+                select.dataset.field = field;
+
+                const emptyOpt = document.createElement('option');
+                emptyOpt.value = '';
+                emptyOpt.textContent = `בחירת ${labels[field] || field}`;
+                select.appendChild(emptyOpt);
+
+                fieldOptions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    select.appendChild(option);
+                });
+
+                select.value = data[field] || '';
+                if (isReadonly) {
+                    select.disabled = true;
+                    select.style.fontWeight = '600';
+                }
+                td.appendChild(select);
+            } else {
+                // Auto-detect input type: date fields → calendar, number fields → numeric
+                let inputType = 'text';
+                if (options.inputTypes && options.inputTypes[field]) {
+                    inputType = options.inputTypes[field];
+                } else if (field === 'date' || (field.endsWith('Date') && field !== 'measureDates')) {
+                    inputType = 'date';
+                } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert'].includes(field)) {
+                    inputType = 'number';
+                }
+                const inp = document.createElement('input');
+                inp.type = inputType;
+                if (inputType === 'number') inp.step = 'any';
+                inp.className = 'soil-input';
+                inp.dataset.field = field;
+                inp.value = data[field] || '';
+                if (labels[field]) inp.placeholder = labels[field];
+                if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
+                td.appendChild(inp);
+            }
         }
         tr.appendChild(td);
     });
@@ -2037,6 +2100,112 @@ function addProgressRow(tbody, fields, labels, data, options) {
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
     tbody.appendChild(tr);
+}
+
+function renderProgressFileCell(td, tr, data, labels, field, uploadFolder) {
+    const renderEmptyState = () => {
+        td.innerHTML = '';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'file-input-wrapper';
+
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.className = 'btn-upload-file';
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i><span>בחירת קובץ</span>';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '*/*';
+        fileInput.className = 'event-file-input';
+        fileInput.style.display = 'none';
+
+        const hiddenInp = document.createElement('input');
+        hiddenInp.type = 'hidden';
+        hiddenInp.dataset.field = field;
+        hiddenInp.value = '';
+
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async () => {
+            const selectedFile = fileInput.files && fileInput.files[0];
+            if (!selectedFile) return;
+
+            uploadBtn.disabled = true;
+            uploadBtn.querySelector('span').textContent = 'העלאה...';
+            try {
+                const result = await uploadProgressFile(selectedFile, uploadFolder);
+                tr.dataset.fileUrl = result.url;
+                tr.dataset.filePath = result.path;
+                hiddenInp.value = selectedFile.name;
+                data.fileName = selectedFile.name;
+                renderFileState(selectedFile.name);
+                showToast('הקובץ הועלה בהצלחה', 'success');
+            } catch (err) {
+                showToast('שגיאה בהעלאת הקובץ: ' + err.message, 'error');
+                uploadBtn.disabled = false;
+                uploadBtn.querySelector('span').textContent = 'בחירת קובץ';
+            }
+        });
+
+        wrapper.appendChild(uploadBtn);
+        wrapper.appendChild(fileInput);
+        td.appendChild(wrapper);
+        td.appendChild(hiddenInp);
+    };
+
+    const renderFileState = (fileDisplayName) => {
+        td.innerHTML = `
+            <div class="progress-file-info">
+                <i class="fas fa-file"></i>
+                <span class="progress-file-name" title="${fileDisplayName || ''}">${fileDisplayName || ''}</span>
+                <button type="button" class="btn-file-action btn-download" title="הורדת קובץ" data-url="${tr.dataset.fileUrl || ''}">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button type="button" class="btn-file-action btn-delete-progress-file" title="מחיקת קובץ">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        const hiddenInp = document.createElement('input');
+        hiddenInp.type = 'hidden';
+        hiddenInp.dataset.field = field;
+        hiddenInp.value = fileDisplayName || '';
+        td.appendChild(hiddenInp);
+
+        td.querySelector('.btn-download')?.addEventListener('click', (e) => {
+            const url = e.currentTarget.dataset.url;
+            if (url) window.open(url, '_blank');
+        });
+
+        td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
+            const filePath = tr.dataset.filePath;
+            if (!filePath) return;
+            if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+            try {
+                await deleteObject(ref(storage, filePath));
+                showToast('הקובץ נמחק בהצלחה', 'success');
+            } catch (err) {
+                if (err.code !== 'storage/object-not-found') {
+                    showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
+                    return;
+                }
+            }
+
+            delete tr.dataset.fileUrl;
+            delete tr.dataset.filePath;
+            data.fileName = '';
+            renderEmptyState();
+        });
+    };
+
+    if (data.fileUrl && data.fileName) {
+        tr.dataset.fileUrl = data.fileUrl;
+        if (data.filePath) tr.dataset.filePath = data.filePath;
+        renderFileState(data.fileName);
+    } else {
+        renderEmptyState();
+    }
 }
 
 function collectProgressRows(tbodyId, fields) {
@@ -2083,8 +2252,10 @@ function renderGrowthTable(rows) {
 // =========================================
 // Climate
 // =========================================
-const CLIMATE_FIELDS = ['name','location','sensorPosition','sensorDepth','measureDates','notes'];
-const CLIMATE_LABELS = { name:'נתון', location:'מיקום מדידה', sensorPosition:'מיקום חיישן במרחב', sensorDepth:'גובה/עומק חיישן', measureDates:'תאריכי מדידה', notes:'הערות' };
+const CLIMATE_FIELDS = ['name','location','sensorPosition','sensorDepth','measureDates','fileName','notes'];
+const CLIMATE_LABELS = { name:'נתון', location:'מיקום מדידה', sensorPosition:'מיקום חיישן במרחב', sensorDepth:'גובה/עומק חיישן', measureDates:'תאריכי מדידה', fileName:'קובץ מצורף', notes:'הערות' };
+const CLIMATE_NAME_OPTIONS = [...new Set(DEFAULT_CLIMATE_ROWS.map(item => item.name))];
+const CLIMATE_LOCATION_OPTIONS = ['חממה', 'קרקע'];
 
 function renderClimateTable(rows) {
     const tbody = document.getElementById('climate-tbody');
@@ -2092,10 +2263,36 @@ function renderClimateTable(rows) {
     tbody.innerHTML = '';
     if (!rows || rows.length === 0) {
         DEFAULT_CLIMATE_ROWS.forEach(def => {
-            addProgressRow(tbody, CLIMATE_FIELDS, CLIMATE_LABELS, { name: def.name, location: def.location }, { readonlyFields: ['name'] });
+            addProgressRow(
+                tbody,
+                CLIMATE_FIELDS,
+                CLIMATE_LABELS,
+                { name: def.name, location: def.location },
+                {
+                    fieldOptions: {
+                        name: CLIMATE_NAME_OPTIONS,
+                        location: CLIMATE_LOCATION_OPTIONS
+                    },
+                    enableFileUpload: true,
+                    uploadFolder: 'climate'
+                }
+            );
         });
     } else {
-        rows.forEach(row => addProgressRow(tbody, CLIMATE_FIELDS, CLIMATE_LABELS, row, { readonlyFields: ['name'] }));
+        rows.forEach(row => addProgressRow(
+            tbody,
+            CLIMATE_FIELDS,
+            CLIMATE_LABELS,
+            row,
+            {
+                fieldOptions: {
+                    name: CLIMATE_NAME_OPTIONS,
+                    location: CLIMATE_LOCATION_OPTIONS
+                },
+                enableFileUpload: true,
+                uploadFolder: 'climate'
+            }
+        ));
     }
 }
 
@@ -2104,6 +2301,7 @@ function renderClimateTable(rows) {
 // =========================================
 const AGRO_FIELDS = ['action','actionDate','hours','workers'];
 const AGRO_LABELS = { action:'פעולה', actionDate:'תאריך ביצוע הפעולה', hours:'כמות שעות לפעולה', workers:'כמות עובדים לפעולה' };
+const AGRO_ACTION_OPTIONS = ['שוצים', 'הדליות', 'עישוב', 'גיזום', 'עקירה'];
 
 function renderAgroTable(rows) {
     const tbody = document.getElementById('agro-tbody');
@@ -2111,10 +2309,10 @@ function renderAgroTable(rows) {
     tbody.innerHTML = '';
     if (!rows || rows.length === 0) {
         DEFAULT_AGRO_ROWS.forEach(action => {
-            addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, { action }, { readonlyFields: ['action'] });
+            addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, { action }, { fieldOptions: { action: AGRO_ACTION_OPTIONS } });
         });
     } else {
-        rows.forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { readonlyFields: ['action'] }));
+        rows.forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { fieldOptions: { action: AGRO_ACTION_OPTIONS } }));
     }
 }
 
@@ -2130,7 +2328,11 @@ function addPestRow(tbodyId, data) {
     addProgressRow(document.getElementById(tbodyId), PEST_FIELDS, PEST_LABELS, data || {});
 }
 function addProtectionRow(tbodyId, data) {
-    addProgressRow(document.getElementById(tbodyId), PROTECTION_FIELDS, PROTECTION_LABELS, data || {});
+    addProgressRow(document.getElementById(tbodyId), PROTECTION_FIELDS, PROTECTION_LABELS, data || {}, {
+        fieldOptions: {
+            combined: ['לא', 'כן']
+        }
+    });
 }
 
 // =========================================
@@ -2141,8 +2343,20 @@ const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', fruitFloor:'
 const YIELD_DAMAGE_FIELDS = ['measureDate','damage','damageIndex','damageValue','damageDesc'];
 const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
 
-function addYieldMeasureRow(data) { addProgressRow(document.getElementById('yield-measure-tbody'), YIELD_MEASURE_FIELDS, YIELD_MEASURE_LABELS, data || {}); }
-function addYieldDamageRow(data) { addProgressRow(document.getElementById('yield-damage-tbody'), YIELD_DAMAGE_FIELDS, YIELD_DAMAGE_LABELS, data || {}); }
+function addYieldMeasureRow(data) {
+    addProgressRow(document.getElementById('yield-measure-tbody'), YIELD_MEASURE_FIELDS, YIELD_MEASURE_LABELS, data || {}, {
+        fieldOptions: {
+            quality: ['מובחר', "סוג א'", "סוג ב'", "סוג ג'"]
+        }
+    });
+}
+function addYieldDamageRow(data) {
+    addProgressRow(document.getElementById('yield-damage-tbody'), YIELD_DAMAGE_FIELDS, YIELD_DAMAGE_LABELS, data || {}, {
+        fieldOptions: {
+            damageIndex: ['%', 'ס"מ', 'No.']
+        }
+    });
+}
 
 // =========================================
 // Progress Views – Populate
@@ -2208,23 +2422,114 @@ function initProgressListeners() {
     document.getElementById('add-fertilization-row')?.addEventListener('click', () => openFertilizationModal());
     // Growth – open modal
     document.getElementById('add-growth-row')?.addEventListener('click', () => openGrowthModal());
-    // Rest – direct add
-    document.getElementById('add-climate-row')?.addEventListener('click', () => addProgressRow(document.getElementById('climate-tbody'), CLIMATE_FIELDS, CLIMATE_LABELS));
-    document.getElementById('add-agro-row')?.addEventListener('click', () => addProgressRow(document.getElementById('agro-tbody'), AGRO_FIELDS, AGRO_LABELS));
-    document.getElementById('add-pest-row')?.addEventListener('click', () => addPestRow('pest-tbody'));
-    document.getElementById('add-disease-row')?.addEventListener('click', () => addPestRow('disease-tbody'));
-    document.getElementById('add-spray-prot-row')?.addEventListener('click', () => addProtectionRow('spray-prot-tbody'));
-    document.getElementById('add-drench-row')?.addEventListener('click', () => addProtectionRow('drench-tbody'));
-    document.getElementById('add-yield-measure-row')?.addEventListener('click', () => addYieldMeasureRow());
-    document.getElementById('add-yield-damage-row')?.addEventListener('click', () => addYieldDamageRow());
 
-    // Modal buttons
+    // Climate – popup modal (spec: פופ אפ)
+    document.getElementById('add-climate-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת נתון אקלים חדש',
+            fields: CLIMATE_FIELDS,
+            labels: CLIMATE_LABELS,
+            skipFields: ['fileName'],
+            fieldOptions: { name: CLIMATE_NAME_OPTIONS, location: CLIMATE_LOCATION_OPTIONS },
+            onSave: (data) => addProgressRow(document.getElementById('climate-tbody'), CLIMATE_FIELDS, CLIMATE_LABELS, data, {
+                fieldOptions: { name: CLIMATE_NAME_OPTIONS, location: CLIMATE_LOCATION_OPTIONS },
+                enableFileUpload: true,
+                uploadFolder: 'climate'
+            })
+        })
+    );
+
+    // Agrotechnics – popup modal (spec: פופ אפ)
+    document.getElementById('add-agro-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת פעולה חדשה',
+            fields: AGRO_FIELDS,
+            labels: AGRO_LABELS,
+            fieldOptions: { action: AGRO_ACTION_OPTIONS },
+            onSave: (data) => addProgressRow(document.getElementById('agro-tbody'), AGRO_FIELDS, AGRO_LABELS, data, {
+                fieldOptions: { action: AGRO_ACTION_OPTIONS }
+            })
+        })
+    );
+
+    // Pests – popup modal (spec: פופ אפ)
+    document.getElementById('add-pest-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת מזיק חדש',
+            fields: PEST_FIELDS,
+            labels: PEST_LABELS,
+            onSave: (data) => addPestRow('pest-tbody', data)
+        })
+    );
+
+    // Diseases – popup modal (spec: פופ אפ)
+    document.getElementById('add-disease-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת מחלה חדשה',
+            fields: PEST_FIELDS,
+            labels: PEST_LABELS,
+            onSave: (data) => addPestRow('disease-tbody', data)
+        })
+    );
+
+    // Sprays – popup modal (spec: פופ אפ)
+    document.getElementById('add-spray-prot-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת ריסוס חדש',
+            fields: PROTECTION_FIELDS,
+            labels: PROTECTION_LABELS,
+            fieldOptions: { combined: ['לא', 'כן'] },
+            onSave: (data) => addProtectionRow('spray-prot-tbody', data)
+        })
+    );
+
+    // Drenches – popup modal (spec: פופ אפ)
+    document.getElementById('add-drench-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת הגמעה חדשה',
+            fields: PROTECTION_FIELDS,
+            labels: PROTECTION_LABELS,
+            fieldOptions: { combined: ['לא', 'כן'] },
+            onSave: (data) => addProtectionRow('drench-tbody', data)
+        })
+    );
+
+    // Yield Measure – popup modal (spec: פופ אפ)
+    document.getElementById('add-yield-measure-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת מדידה חדשה',
+            fields: YIELD_MEASURE_FIELDS,
+            labels: YIELD_MEASURE_LABELS,
+            fieldOptions: { quality: ['מובחר', "סוג א'", "סוג ב'", "סוג ג'"] },
+            onSave: (data) => addYieldMeasureRow(data)
+        })
+    );
+
+    // Yield Damage – popup modal (spec: פופ אפ)
+    document.getElementById('add-yield-damage-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת פגע חדש',
+            fields: YIELD_DAMAGE_FIELDS,
+            labels: YIELD_DAMAGE_LABELS,
+            fieldOptions: { damageIndex: ['%', 'ס"מ', 'No.'] },
+            onSave: (data) => addYieldDamageRow(data)
+        })
+    );
+
+    // Modal buttons – existing modals
     document.getElementById('irr-modal-cancel')?.addEventListener('click', () => closeModal('irrigation-file-modal'));
     document.getElementById('irr-modal-save')?.addEventListener('click', () => saveIrrigationFile());
     document.getElementById('fert-modal-cancel')?.addEventListener('click', () => closeModal('fertilization-file-modal'));
     document.getElementById('fert-modal-save')?.addEventListener('click', () => saveFertilizationFile());
     document.getElementById('growth-modal-cancel')?.addEventListener('click', () => closeModal('growth-data-modal'));
     document.getElementById('growth-modal-save')?.addEventListener('click', () => saveGrowthData());
+
+    // Generic modal buttons
+    document.getElementById('generic-modal-cancel')?.addEventListener('click', () => {
+        closeModal('generic-row-modal');
+        _genericModalConfig = null;
+    });
+    document.getElementById('generic-modal-save')?.addEventListener('click', () => saveGenericRow());
 
     // Dropzone visual
     initDropzone('irr-modal-dropzone', 'irr-modal-file', 'irr-modal-file-name');
@@ -2239,6 +2544,107 @@ function openModal(id) {
 }
 function closeModal(id) {
     document.getElementById(id)?.classList.add('hidden');
+}
+
+// =========================================
+// Generic Add-Row Modal
+// =========================================
+let _genericModalConfig = null;
+
+function openGenericRowModal(config) {
+    _genericModalConfig = config;
+    const title = document.getElementById('generic-modal-title');
+    const body = document.getElementById('generic-modal-body');
+    if (!title || !body) return;
+
+    title.textContent = config.title;
+    body.innerHTML = '';
+
+    const visibleFields = config.fields.filter(f => !(config.skipFields && config.skipFields.includes(f)));
+
+    // Group fields in pairs for 2-column layout
+    for (let i = 0; i < visibleFields.length; i += 2) {
+        const field1 = visibleFields[i];
+        const field2 = visibleFields[i + 1];
+
+        if (field2) {
+            const grid = document.createElement('div');
+            grid.className = 'modal-form-grid';
+            grid.appendChild(_createGenericField(field1, config));
+            grid.appendChild(_createGenericField(field2, config));
+            body.appendChild(grid);
+        } else {
+            const wrapper = _createGenericField(field1, config);
+            wrapper.className = 'modal-form-row-single';
+            body.appendChild(wrapper);
+        }
+    }
+
+    openModal('generic-row-modal');
+    setTimeout(() => {
+        const firstInput = body.querySelector('input, select');
+        if (firstInput) firstInput.focus();
+    }, 100);
+}
+
+function _createGenericField(field, config) {
+    const row = document.createElement('div');
+    row.className = 'modal-form-row';
+
+    const label = document.createElement('label');
+    label.textContent = (config.labels[field] || field) + ':';
+    row.appendChild(label);
+
+    const fieldOpts = config.fieldOptions && config.fieldOptions[field];
+    if (fieldOpts && Array.isArray(fieldOpts)) {
+        const select = document.createElement('select');
+        select.className = 'modal-input-sm modal-select';
+        select.id = `generic-modal-${field}`;
+
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = `בחירת ${config.labels[field] || field}`;
+        select.appendChild(emptyOpt);
+
+        fieldOpts.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt;
+            option.textContent = opt;
+            select.appendChild(option);
+        });
+        row.appendChild(select);
+    } else {
+        const input = document.createElement('input');
+        if (field === 'date' || (field.endsWith('Date') && field !== 'measureDates')) {
+            input.type = 'date';
+        } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert','amount'].includes(field)) {
+            input.type = 'number';
+            input.step = 'any';
+        } else {
+            input.type = 'text';
+        }
+        input.className = 'modal-input-sm';
+        input.id = `generic-modal-${field}`;
+        input.placeholder = config.labels[field] || '';
+        row.appendChild(input);
+    }
+
+    return row;
+}
+
+function saveGenericRow() {
+    if (!_genericModalConfig) return;
+    const data = {};
+    const visibleFields = _genericModalConfig.fields.filter(f => !(_genericModalConfig.skipFields && _genericModalConfig.skipFields.includes(f)));
+
+    visibleFields.forEach(field => {
+        const el = document.getElementById(`generic-modal-${field}`);
+        if (el) data[field] = el.value;
+    });
+
+    _genericModalConfig.onSave(data);
+    closeModal('generic-row-modal');
+    _genericModalConfig = null;
 }
 
 function initDropzone(dropzoneId, fileInputId, labelId) {
@@ -2279,7 +2685,7 @@ function openIrrigationModal() {
     document.getElementById('irr-modal-dates').value = '';
     document.getElementById('irr-modal-total').value = '';
     document.getElementById('irr-modal-file').value = '';
-    document.getElementById('irr-modal-file-name').textContent = 'גרור/י קובץ לכאן או לחץ/י לבחירה';
+    document.getElementById('irr-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('irr-modal-progress')?.classList.add('hidden');
     openModal('irrigation-file-modal');
 }
@@ -2301,11 +2707,6 @@ async function saveIrrigationFile() {
     const today = new Date().toLocaleDateString('he-IL');
 
     if (file) {
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
-            return;
-        }
         try {
             const result = await uploadProgressFile(file, 'irrigation', 'irr-modal-progress', 'irr-modal-progress-fill', 'irr-modal-progress-text');
             fileUrl = result.url;
@@ -2340,7 +2741,7 @@ function openFertilizationModal() {
     document.getElementById('fert-modal-company').value = '';
     document.getElementById('fert-modal-total').value = '';
     document.getElementById('fert-modal-file').value = '';
-    document.getElementById('fert-modal-file-name').textContent = 'גרור/י קובץ לכאן או לחץ/י לבחירה';
+    document.getElementById('fert-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('fert-modal-progress')?.classList.add('hidden');
     openModal('fertilization-file-modal');
 }
@@ -2364,11 +2765,6 @@ async function saveFertilizationFile() {
     const today = new Date().toLocaleDateString('he-IL');
 
     if (file) {
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            showToast('הקובץ גדול מדי. גודל מקסימלי: 10MB', 'error');
-            return;
-        }
         try {
             const result = await uploadProgressFile(file, 'fertilization', 'fert-modal-progress', 'fert-modal-progress-fill', 'fert-modal-progress-text');
             fileUrl = result.url;

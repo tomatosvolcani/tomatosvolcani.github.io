@@ -519,6 +519,8 @@
    ========================================= */
 .experiments-legend {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     gap: 25px;
     margin-bottom: 20px;
     padding: 12px 16px;
