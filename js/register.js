@@ -89,7 +89,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
         await signOut(auth);
 
         setTimeout(() => {
-            window.location.href = "index.html";
+            window.location.href = "login.html";
         }, 2000);
 
     } catch (error) {

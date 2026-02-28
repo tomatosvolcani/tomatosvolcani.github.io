@@ -73,7 +73,7 @@ function initEventListeners() {
 // Auth state listener
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        window.location.href = "index.html";
+        window.location.href = "login.html";
         return;
     }
 
@@ -335,7 +335,7 @@ function formatDate(timestamp) {
 async function handleLogout() {
     try {
         await signOut(auth);
-        window.location.href = "index.html";
+        window.location.href = "login.html";
     } catch (error) {
         console.error("Error signing out:", error);
     }

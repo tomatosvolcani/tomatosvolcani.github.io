@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="הרשמה למערכת איגום נתונים - מיזם ח״ץ">
-    <title>הרשמה - מיזם ח"ץ</title>
+    <meta name="description" content="מערכת איגום נתונים - התחברות מאובטחת">
+    <title>התחברות - מיזם ח"ץ</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/auth.css">
@@ -49,7 +49,7 @@
                 <p>פלטפורמת ניהול ידע מחקרי בתחום ניסוי עגבניות. איגום נתונים ותיעוד ניסויי שדה בחקלאות.</p>
             </div>
 
-            <!-- Security note moved to info panel (right side) -->
+            <!-- Security note -->
             <div class="security-note">
                 <i class="fa-solid fa-lock" aria-hidden="true"></i>
                 <span>המידע במערכת מוגן ומאובטח בגישת ZTA, כל ניסיון גישה נבדק בזמן אמת בצד שרת.</span>
@@ -87,69 +87,36 @@
 
         <div class="form-panel">
             <div class="form-panel-header">
-                <h2>הרשמה למערכת</h2>
-                <p>יצירת חשבון חדש במערכת מיזם ח"ץ</p>
+                <h2>התחברות למערכת</h2>
+                <p>מיזם ח״ץ - איגום נתונים חקלאיים</p>
             </div>
 
             <div class="input-group">
-                <label for="reg-fname">שם פרטי</label>
-                <div class="input-wrapper">
-                    <i class="fa-regular fa-user input-icon"></i>
-                    <input type="text" id="reg-fname" placeholder="הזנת שם פרטי">
-                </div>
-            </div>
-
-            <div class="input-group">
-                <label for="reg-lname">שם משפחה</label>
-                <div class="input-wrapper">
-                    <i class="fa-regular fa-user input-icon"></i>
-                    <input type="text" id="reg-lname" placeholder="הזנת שם משפחה">
-                </div>
-            </div>
-
-            <div class="input-group">
-                <label for="reg-email">כתובת אימייל</label>
+                <label for="login-email">כתובת דוא״ל</label>
                 <div class="input-wrapper">
                     <i class="fa-regular fa-envelope input-icon"></i>
-                    <input type="email" id="reg-email" placeholder="הזנת כתובת אימייל">
+                    <input type="email" id="login-email" placeholder="הזנת כתובת אימייל">
                 </div>
             </div>
 
             <div class="input-group">
-                <label for="reg-pass">סיסמה</label>
+                <label for="login-pass">סיסמה</label>
                 <div class="input-wrapper">
                     <i class="fa-solid fa-lock input-icon"></i>
-                    <input type="password" id="reg-pass" placeholder="הזנת סיסמה (לפחות 6 תווים)">
+                    <input type="password" id="login-pass" placeholder="הזנת סיסמה">
                     <button type="button" class="btn-toggle-pass" id="toggle-pass-btn" title="הצג/הסתר סיסמה"><i class="fa-regular fa-eye"></i></button>
                 </div>
             </div>
 
-            <div class="input-group">
-                <label for="reg-phone">טלפון נייד</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-mobile-screen input-icon"></i>
-                    <input type="tel" id="reg-phone" placeholder="הזנת מספר טלפון">
-                </div>
+            <div class="form-actions">
+                <a href="forgot_password.html" class="link-action">שכחת סיסמה?</a>
+                <span>חדש/ה? <a href="register.html" class="link-action">הרשמה</a></span>
             </div>
 
-            <div class="input-group">
-                <label for="reg-role">תפקיד</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-briefcase input-icon"></i>
-                    <select id="reg-role">
-                        <option value="" disabled selected>בחירת תפקיד...</option>
-                        <option value="חוקר">חוקר/ת</option>
-                        <option value="חקלאי">חקלאי/ת</option>
-                    </select>
-                    <i class="fa-solid fa-chevron-down select-arrow"></i>
-                </div>
-            </div>
-
-            <button id="btn-register" class="btn-primary">
-                <span class="btn-text">הרשמה</span>
+            <button id="btn-login" class="btn-primary">
+                <span class="btn-text">כניסה מאובטחת</span>
+                <i class="fa-solid fa-arrow-left" style="margin-right: 4px;"></i>
             </button>
-
-            <a href="login.html" class="text-link block-link">כבר רשום/ה? התחברות כאן</a>
 
             <div class="form-panel-footer">
                 <i class="fa-solid fa-shield-halved"></i>
@@ -176,7 +143,7 @@
                     </div>
                     <div class="bot-bubble" id="chat-bot-answer" style="display: none;"></div>
                     <button class="btn-back-chat" id="btn-back-chat">
-                        <i class="fa-solid fa-arrow-right"></i> חזור לשאלות
+                        <i class="fa-solid fa-arrow-right"></i> חזרה לשאלות
                     </button>
                 </div>
             </div>
@@ -191,7 +158,7 @@
     <script>
         // Password toggle
         document.getElementById('toggle-pass-btn').addEventListener('click', function() {
-            const passInput = document.getElementById('reg-pass');
+            const passInput = document.getElementById('login-pass');
             const icon = this.querySelector('i');
             if (passInput.type === 'password') {
                 passInput.type = 'text';
@@ -202,7 +169,7 @@
             }
         });
     </script>
-    <script type="module" src="js/register.js"></script>
+    <script type="module" src="js/login.js"></script>
     <script>
         // About modal
         document.getElementById('btn-about').addEventListener('click', () => {
@@ -217,4 +184,3 @@
     </script>
 </body>
 </html>
-

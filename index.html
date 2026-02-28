@@ -3,184 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="מערכת איגום נתונים - התחברות מאובטחת">
-    <title>התחברות - מיזם ח"ץ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/auth.css">
-    <link rel="stylesheet" href="css/accessibility.css">
-    <link rel="stylesheet" href="css/chatbot.css">
+    <title>מיזם ח״ץ | מערכת איגום נתונים</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <style>
+        /* ══ RESET & PREMIUM BASE ══════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow-x: hidden; }
+
+        :root {
+            --bg-pure:     #fcfcfd; /* לבן מעט שבור כדי לא לעייף את העין */
+            --text-dark:   #0f172a; /* נייבי עמוק, כמעט שחור */
+            --text-muted:  #64748b; /* אפור פרימיום */
+            --blue-accent: #0066cc; /* כחול טכנולוגי נקי */
+            --blue-light:  #3385ff;
+            --border-soft: #e2e8f0;
+            --surface:     rgba(255, 255, 255, 0.7);
+            --font:        'Heebo', -apple-system, sans-serif;
+
+            /* צלליות מרובות-שכבות (Apple Style) */
+            --shadow-float: 0 20px 40px -5px rgba(0,0,0,0.05), 0 10px 15px -5px rgba(0,0,0,0.02);
+            --shadow-hover: 0 25px 50px -12px rgba(0, 102, 204, 0.15);
+        }
+
+        body {
+            font-family: var(--font);
+            direction: rtl;
+            background-color: var(--bg-pure);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ══ STUDIO BACKGROUND ═════════════════════════════ */
+        /* הילת אור כחלחלה ועדינה מאחורי הכל (יוצר עומק) */
+        .bg-glow {
+            position: fixed; top: 0; left: 10%; width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(0, 102, 204, 0.04) 0%, transparent 60%);
+            z-index: -2; pointer-events: none;
+        }
+
+        /* רשת נקודות מינימליסטית */
+        .bg-dots {
+            position: fixed; inset: 0; z-index: -1; pointer-events: none;
+            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+            background-size: 32px 32px; opacity: 0.5;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 90%);
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 90%);
+        }
+
+        /* ══ LAYOUT ════════════════════════════════════════ */
+        .page {
+            position: relative; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 40px 5vw;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* חלוקה שווה */
+            gap: 60px;
+            align-items: center; width: 100%; max-width: 1300px;
+        }
+
+        /* ══ TYPOGRAPHY (LEFT SIDE) ════════════════════════ */
+        .content-side {
+            display: flex; flex-direction: column; align-items: flex-start;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #ffffff;
+            border: 1px solid var(--border-soft);
+            border-radius: 20px; padding: 6px 16px;
+            font-size: 0.8rem; font-weight: 500;
+            color: var(--text-muted); margin-bottom: 32px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            opacity: 0; animation: fadeUp 0.8s 0.2s ease forwards;
+        }
+        .bdot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue-accent); }
+
+        .headline { margin-bottom: 24px; opacity: 0; animation: fadeUp 0.8s 0.3s ease forwards; }
+
+        .hl-eyebrow {
+            display: block; font-size: 1.1rem;
+            font-weight: 400; color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        .hl-brand {
+            display: block;
+            font-size: clamp(3rem, 4.5vw, 4.5rem);
+            font-weight: 800; line-height: 1.1; letter-spacing: -0.03em;
+            color: var(--text-dark);
+        }
+
+        /* הדגשה כחולה מקצועית על המילה "נתונים" */
+        .text-gradient {
+            background: linear-gradient(135deg, var(--blue-accent) 0%, var(--blue-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* אפקט ההקלדה */
+        .desc-container {
+            font-size: 1.25rem; font-weight: 400; color: var(--text-muted);
+            line-height: 1.7; max-width: 520px;
+            margin-bottom: 48px; min-height: 85px;
+            opacity: 0; animation: fadeUp 0.8s 0.4s ease forwards;
+        }
+
+        .typing-cursor {
+            display: inline-block; width: 2px; height: 1.1em;
+            background-color: var(--blue-accent);
+            vertical-align: text-bottom; margin-right: 4px;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* CTA Button */
+        .cta-zone { opacity: 0; animation: fadeUp 0.8s 0.5s ease forwards; }
+
+        .cta-btn {
+            display: inline-flex; align-items: center; gap: 12px;
+            background: var(--blue-accent); color: #ffffff;
+            font-weight: 600; font-size: 1.05rem;
+            padding: 16px 32px; border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 14px rgba(0, 102, 204, 0.25);
+        }
+
+        .cta-btn:hover {
+            /* keep accent color on hover instead of switching to var(--blue-hover) */
+            background: var(--blue-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
+        }
+
+        .cta-btn i { font-size: 0.9rem; transition: transform 0.3s ease; }
+        .cta-btn:hover i { transform: translateX(-4px); }
+
+        .cta-note { display: block; margin-top: 12px; font-size: 0.85rem; color: var(--text-muted); }
+
+        /* ══ VISUAL SIDE (RIGHT) - FIXED LAYOUT ════════════ */
+        .visual-side {
+            display: flex;
+            flex-direction: row; /* בגלל ה-RTL, הילד הראשון יהיה מימין, השני משמאל */
+            align-items: center;
+            justify-content: flex-start;
+            gap: 30px; /* מרווח קבוע בין המודאלים לטלפון - מונע חפיפה! */
+            opacity: 0; animation: fadeIn 1s 0.4s ease forwards;
+        }
+
+        /* ══ WIDGETS (Modals) ══════════════════════════════ */
+        .widgets-container {
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .widget {
+            background: var(--surface);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-soft);
+            border-radius: 16px;
+            padding: 18px 22px;
+            display: flex; align-items: center; gap: 16px;
+            box-shadow: var(--shadow-float);
+            white-space: nowrap;
+            transform: translateX(30px); opacity: 0;
+            animation: slideInWidget 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: default;
+        }
+
+        /* מיקרו-אינטראקציה יוקרתית בעת ריחוף על כרטיסייה */
+        .widget:hover {
+            transform: translateY(-3px) scale(1.02) !important; /* דורס את האנימציה הסטטית */
+            border-color: rgba(0, 102, 204, 0.3);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .widget:nth-child(1) { animation-delay: 0.7s; }
+        .widget:nth-child(2) { animation-delay: 0.9s; }
+        .widget:nth-child(3) { animation-delay: 1.1s; }
+
+        .w-icon {
+            width: 44px; height: 44px;
+            background: #f0f7ff; color: var(--blue-accent);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+        }
+
+        .w-text { display: flex; flex-direction: column; gap: 4px; }
+        .w-title { font-weight: 700; font-size: 0.95rem; color: var(--text-dark); line-height: 1; }
+        .w-sub { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* ══ 3D PHONE MOCKUP ═══════════════════════════════ */
+        .phone-scene { perspective: 2000px; }
+
+        .phone-wrap {
+            transform: rotateY(-15deg) rotateX(5deg) rotateZ(1deg);
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear;
+        }
+
+        .phone-body {
+            width: 260px; height: 540px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e2e8f0 100%);
+            border: 1px solid #cbd5e1; border-radius: 46px;
+            position: relative; padding: 10px;
+            box-shadow:
+                -15px 25px 45px -10px rgba(0, 0, 0, 0.1),
+                inset 0 0 0 1px rgba(255,255,255,0.9);
+            transform-style: preserve-3d;
+        }
+
+        .phone-screen {
+            width: 100%; height: 100%; background: #000;
+            border-radius: 36px; border: 2px solid #0f172a;
+            overflow: hidden; position: relative;
+        }
+
+        .phone-video { width: 100%; height: 100%; object-fit: cover; }
+
+        .dyn-island {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            width: 85px; height: 26px; background: #000; border-radius: 14px; z-index: 10;
+        }
+
+        /* Hardware Details */
+        .sb { position: absolute; background: #cbd5e1; border-radius: 2px;}
+        .sb-m  { top: 90px; left: -3px; width: 3px; height: 24px; }
+        .sb-v1 { top: 130px; left: -3px; width: 3px; height: 46px; }
+        .sb-v2 { top: 185px; left: -3px; width: 3px; height: 46px; }
+        .sb-pw { top: 150px; right: -3px; width: 3px; height: 60px; }
+
+        /* ══ KEYFRAMES ═════════════════════════════════════ */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInWidget { to { opacity: 1; transform: translateX(0); } }
+
+        /* ══ RESPONSIVE ════════════════════════════════════ */
+        @media(max-width: 1100px) {
+            .split { grid-template-columns: 1fr; justify-items: center; gap: 60px; text-align: center; }
+            .content-side { align-items: center; padding-left: 0; }
+            .desc-container { margin: 0 auto 40px auto; }
+            .visual-side { flex-direction: row-reverse; justify-content: center; } /* כרטיסיות משמאל לטלפון במובייל לאיזון */
+        }
+        @media(max-width: 768px) {
+            .visual-side { flex-direction: column; }
+            .widgets-container { align-items: center; }
+            .phone-wrap { transform: rotateY(0) rotateX(0) rotateZ(0); }
+        }
+    </style>
 </head>
-<body data-page-context="auth">
-    <div class="dev-notice">
-        <i class="fas fa-code"></i>
-        <span>מערכת בתהליך פיתוח: זמנית, ייתכנו שיבושים או אי-דיוקים.</span>
-    </div>
+<body>
 
-    <!-- Accessibility Widget -->
-    <div class="a11y-widget" aria-label="תפריט נגישות">
-        <button class="btn-a11y-toggle" id="btn-a11y" aria-haspopup="true" aria-expanded="false" title="אפשרויות נגישות">
-            <i class="fa-solid fa-universal-access"></i>
-        </button>
-        <div class="a11y-menu" id="a11y-menu" role="menu">
-            <h4>התאמת נגישות</h4>
-            <button class="a11y-btn" id="toggle-contrast" role="menuitem">
-                <i class="fa-solid fa-circle-half-stroke"></i> ניגודיות גבוהה
-            </button>
-            <button class="a11y-btn" id="toggle-text-size" role="menuitem">
-                <i class="fa-solid fa-text-height"></i> הגדלת טקסט
-            </button>
-            <button class="a11y-btn" id="reset-a11y" role="menuitem" style="color: var(--auth-error); margin-top: 8px;">
-                <i class="fa-solid fa-rotate-left"></i> איפוס הגדרות
-            </button>
-        </div>
-    </div>
+    <div class="bg-glow"></div>
+    <div class="bg-dots"></div>
 
-    <!-- Auth Layout -->
-    <div class="auth-wrapper">
-        <div class="info-panel">
-            <div class="brand-section">
-                <img src="gptlogo.jpeg" alt="לוגו מיזם ח&quot;ץ" class="brand-logo">
-            </div>
-            <div class="info-content">
-                <h1>מערכת איגום נתונים</h1>
-                <p>פלטפורמת ניהול ידע מחקרי בתחום ניסוי עגבניות. איגום נתונים ותיעוד ניסויי שדה בחקלאות.</p>
-            </div>
+    <div class="page">
+        <div class="split">
 
-            <!-- Security note -->
-            <div class="security-note">
-                <i class="fa-solid fa-lock" aria-hidden="true"></i>
-                <span>המידע במערכת מוגן ומאובטח בגישת ZTA, כל ניסיון גישה נבדק בזמן אמת בצד שרת.</span>
-            </div>
-
-            <button type="button" class="btn-info" id="btn-about"><i class="fa-solid fa-users"></i><span>אודות וצוות המיזם</span></button>
-        </div>
-
-        <!-- About & Team Modal -->
-        <div class="about-overlay" id="about-overlay">
-            <div class="about-modal">
-                <button class="about-close" id="about-close" title="סגירה"><i class="fa-solid fa-xmark"></i></button>
-                <div class="about-header">
-                    <h2>מיזם ח"ץ</h2>
-                    <p>מערכת איגום נתונים לניסויי שדה בחקלאות</p>
+            <div class="content-side">
+                <div class="badge">
+                    <span class="bdot"></span> פלטפורמה פעילה ומאובטחת
                 </div>
-                <div class="about-body">
-                    <h3><i class="fa-solid fa-users"></i> צוות המיזם</h3>
-                    <div class="team-grid">
-                        <div class="team-card"><i class="fa-solid fa-user"></i><span>ד"ר אביב דומברובסקי</span></div>
-                        <div class="team-card"><i class="fa-solid fa-user-large"></i><span>ד"ר יעל זלצר</span></div>
-                        <div class="team-card"><i class="fa-solid fa-user"></i><span>פרופ' גלעד רביד</span></div>
-                        <div class="team-card"><i class="fa-solid fa-user"></i><span>נוי שרף</span></div>
-                        <div class="team-card"><i class="fa-solid fa-user"></i><span>יהודה הלר</span></div>
+
+                <div class="headline">
+                    <span class="hl-eyebrow">מיזם ח״ץ - איגום נתונים חקלאיים</span>
+                    <h1 class="hl-brand">מערכת איגום <span class="text-gradient">נתונים</span></h1>
+                </div>
+
+                <div class="desc-container" id="typewriter-container">
+                    <span id="typewriter-text"></span><span class="typing-cursor"></span>
+                </div>
+
+                <div class="cta-zone">
+                    <a href="index.html" class="cta-btn">
+                        <span>התחברות למערכת</span>
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                    <span class="cta-note">גישה למורשים/ות בלבד.</span>
+                </div>
+            </div>
+
+            <div class="visual-side">
+
+                <div class="widgets-container">
+                    <div class="widget" style="transform: translateX(0);">
+                        <div class="w-icon"><i class="fa-solid fa-flask"></i></div>
+                        <div class="w-text">
+                            <span class="w-title">ניהול ניסויים</span>
+                            <span class="w-sub">צפו, צרו ושתפו ניסויים חקלאיים</span>
+                        </div>
                     </div>
-                    <div class="about-thanks">
-                        <h3><i class="fa-solid fa-heart"></i> תודות</h3>
-                        <p>תודה מיוחדת לכל מי שתרמו לפיתוח וקידום המיזם.</p>
-                        <div class="thanks-names" id="thanks-names"></div>
+
+                    <div class="widget" style="transform: translateX(0);">
+                        <div class="w-icon"><i class="fa-solid fa-tractor"></i></div>
+                        <div class="w-text">
+                            <span class="w-title">איסוף נתוני שדה</span>
+                            <span class="w-sub">השקיה, צמיחה, אגרוטכניקה ויבולים</span>
+                        </div>
+                    </div>
+
+                    <div class="widget" style="transform: translateX(0);">
+                        <div class="w-icon"><i class="fa-solid fa-file-excel"></i></div>
+                        <div class="w-text">
+                            <span class="w-title">ייצוא ודוחות</span>
+                            <span class="w-sub">הוריד/ה קבצים ל־Excel ודוחות לניתוח</span>
+                        </div>
                     </div>
                 </div>
-                <div class="about-footer">מכון וולקני · ארגון המחקר החקלאי</div>
-            </div>
-        </div>
 
-        <div class="form-panel">
-            <div class="form-panel-header">
-                <h2>התחברות למערכת</h2>
-                <p>מיזם ח״ץ - איגום נתונים חקלאיים</p>
-            </div>
+                <div class="phone-scene">
+                    <div class="phone-wrap" id="phone3d">
+                        <div class="phone-body">
+                            <div class="sb sb-m"></div><div class="sb sb-v1"></div>
+                            <div class="sb sb-v2"></div><div class="sb sb-pw"></div>
 
-            <div class="input-group">
-                <label for="login-email">כתובת דוא״ל</label>
-                <div class="input-wrapper">
-                    <i class="fa-regular fa-envelope input-icon"></i>
-                    <input type="email" id="login-email" placeholder="הזנת כתובת אימייל">
-                </div>
-            </div>
-
-            <div class="input-group">
-                <label for="login-pass">סיסמה</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-lock input-icon"></i>
-                    <input type="password" id="login-pass" placeholder="הזנת סיסמה">
-                    <button type="button" class="btn-toggle-pass" id="toggle-pass-btn" title="הצג/הסתר סיסמה"><i class="fa-regular fa-eye"></i></button>
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <a href="forgot_password.html" class="link-action">שכחת סיסמה?</a>
-                <span>חדש/ה? <a href="register.html" class="link-action">הרשמה</a></span>
-            </div>
-
-            <button id="btn-login" class="btn-primary">
-                <span class="btn-text">כניסה מאובטחת</span>
-                <i class="fa-solid fa-arrow-left" style="margin-right: 4px;"></i>
-            </button>
-
-            <div class="form-panel-footer">
-                <i class="fa-solid fa-shield-halved"></i>
-                <span>למורשים בלבד. בהרשמה או בהתחברות הינך מאשר/ת כי קראת/ה והסכמת/ה ל־<a href="terms.html" class="link-action" style="font-weight:700; text-decoration:underline;">תנאי השימוש</a>.</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Chatbot Widget -->
-    <div class="chat-container">
-        <div class="chat-panel" id="chat-panel">
-            <div class="chat-header">
-                <h4><i class="fa-solid fa-robot"></i> עוזר מיזם ח"ץ</h4>
-                <button class="btn-close-chat" id="btn-close-chat" title="סגור"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="chat-body" id="chat-body">
-                <div class="faq-list" id="faq-list"></div>
-                <div class="chat-active-view" id="chat-active-view">
-                    <div class="user-bubble" id="chat-user-question">...</div>
-                    <div class="typing-indicator" id="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
+                            <div class="phone-screen">
+                                <div class="dyn-island"></div>
+                                <video class="phone-video" id="vid" autoplay loop muted playsinline>
+                                    <source src="Recording to mock.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bot-bubble" id="chat-bot-answer" style="display: none;"></div>
-                    <button class="btn-back-chat" id="btn-back-chat">
-                        <i class="fa-solid fa-arrow-right"></i> חזרה לשאלות
-                    </button>
                 </div>
+
             </div>
+
         </div>
-        <button class="btn-chat-toggle" id="btn-chat-toggle" aria-label="פתיחת עוזר וירטואלי">
-            <i class="fa-solid fa-comment-dots"></i>
-        </button>
     </div>
 
-    <script src="js/accessibility.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script>
-        // Password toggle
-        document.getElementById('toggle-pass-btn').addEventListener('click', function() {
-            const passInput = document.getElementById('login-pass');
-            const icon = this.querySelector('i');
-            if (passInput.type === 'password') {
-                passInput.type = 'text';
-                icon.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-                passInput.type = 'password';
-                icon.classList.replace('fa-eye-slash', 'fa-eye');
+<script>
+    // 1. הגדרת וידאו
+    document.addEventListener('DOMContentLoaded', () => {
+        const v = document.getElementById('vid');
+        if (v) {
+            v.playbackRate = 2.0;
+            v.play().catch(e => console.log("Autoplay prevented:", e));
+        }
+    });
+
+    // 2. Typewriter Effect (מדויק ומוקפד)
+    const runTypewriter = () => {
+        const descElement = document.getElementById('typewriter-text');
+        if (!descElement) return;
+
+        const textLines = [
+            "מערכת לניהול ניסויים חקלאיים ושיתוף ידע.",
+            "איסוף נתוני שדה, יצירת ניסויים, שיתוף וייצוא דוחות." 
+        ];
+
+        let lineIndex = 0;
+        let charIndex = 0;
+        let currentHTML = "";
+
+        const typeLine = () => {
+            if (lineIndex < textLines.length) {
+                if (charIndex < textLines[lineIndex].length) {
+                    currentHTML += textLines[lineIndex].charAt(charIndex);
+                    descElement.innerHTML = currentHTML;
+                    charIndex++;
+                    setTimeout(typeLine, Math.random() * 25 + 25);
+                } else {
+                    currentHTML += "<br>";
+                    descElement.innerHTML = currentHTML;
+                    lineIndex++;
+                    charIndex = 0;
+                    setTimeout(typeLine, 600); // השהיה בין שורות
+                }
             }
+        };
+
+        setTimeout(typeLine, 1000);
+    };
+    runTypewriter();
+
+    // 3. תזוזת עכבר עדינה לטלפון
+    const initPhoneParallax = () => {
+        if(window.innerWidth <= 1100) return;
+
+        const phone = document.getElementById('phone3d');
+        if(!phone) return;
+
+        const baseRY = -15, baseRX = 5;
+        let tRY = baseRY, tRX = baseRX, cRY = baseRY, cRX = baseRX;
+
+        document.addEventListener('mousemove', e => {
+            const nx = (e.clientX / window.innerWidth) * 2 - 1;
+            const ny = (e.clientY / window.innerHeight) * 2 - 1;
+
+            tRY = baseRY + (nx * 8);
+            tRX = baseRX - (ny * 5);
         });
-    </script>
-    <script type="module" src="js/login.js"></script>
-    <script>
-        // About modal
-        document.getElementById('btn-about').addEventListener('click', () => {
-            document.getElementById('about-overlay').classList.add('active');
+
+        document.addEventListener('mouseleave', () => {
+            tRY = baseRY; tRX = baseRX;
         });
-        document.getElementById('about-close').addEventListener('click', () => {
-            document.getElementById('about-overlay').classList.remove('active');
-        });
-        document.getElementById('about-overlay').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) document.getElementById('about-overlay').classList.remove('active');
-        });
-    </script>
+
+        const renderParallax = () => {
+            cRY += (tRY - cRY) * 0.08;
+            cRX += (tRX - cRX) * 0.08;
+            phone.style.transform = `rotateY(${cRY}deg) rotateX(${cRX}deg) rotateZ(1deg)`;
+            requestAnimationFrame(renderParallax);
+        };
+        renderParallax();
+    };
+    initPhoneParallax();
+
+</script>
 </body>
 </html>

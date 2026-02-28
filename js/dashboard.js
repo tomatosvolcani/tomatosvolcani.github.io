@@ -111,7 +111,7 @@ function initEventListeners() {
 // Auth state listener
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        window.location.href = "index.html";
+        window.location.href = "login.html";
         return;
     }
 
@@ -138,13 +138,13 @@ async function checkUserApproval() {
             } else {
                 // משתמש לא מאושר - התנתק והחזר לדף התחברות
                 await signOut(auth);
-                window.location.href = "index.html";
+                window.location.href = "login.html";
                 return false;
             }
         } else {
             // אין מסמך משתמש
             await signOut(auth);
-            window.location.href = "index.html";
+            window.location.href = "login.html";
             return false;
         }
     } catch (error) {
@@ -467,7 +467,7 @@ function formatDate(timestamp) {
 async function handleLogout() {
     try {
         await signOut(auth);
-        window.location.href = "index.html";
+        window.location.href = "login.html";
     } catch (error) {
         console.error("Error signing out:", error);
     }

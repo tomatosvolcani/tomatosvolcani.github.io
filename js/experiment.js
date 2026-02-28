@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        window.location.href = "index.html";
+        window.location.href = "login.html";
         return;
     }
 
@@ -101,13 +101,13 @@ async function checkUserApproval() {
             } else {
                 // משתמש לא מאושר - התנתק והחזר לדף התחברות
                 await signOut(auth);
-                window.location.href = "index.html";
+                window.location.href = "login.html";
                 return false;
             }
         } else {
             // אין מסמך משתמש
             await signOut(auth);
-            window.location.href = "index.html";
+            window.location.href = "login.html";
             return false;
         }
     } catch (error) {
@@ -1118,7 +1118,7 @@ function initEventListeners() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             await signOut(auth);
-            window.location.href = "index.html";
+            window.location.href = "login.html";
         });
     }
 

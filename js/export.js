@@ -41,16 +41,16 @@ function initSidebar() {
     }
 
     const logoutBtn = document.getElementById('btn-logout');
-    if (logoutBtn) logoutBtn.addEventListener('click', async () => { await signOut(auth); window.location.href = "index.html"; });
+    if (logoutBtn) logoutBtn.addEventListener('click', async () => { await signOut(auth); window.location.href = "login.html"; });
 }
 
 // ── Auth ──
 onAuthStateChanged(auth, async (user) => {
-    if (!user) { window.location.href = "index.html"; return; }
+    if (!user) { window.location.href = "login.html"; return; }
     currentUser = user;
 
     const userDocSnap = await getDoc(doc(db, "users", currentUser.uid));
-    if (!userDocSnap.exists() || !userDocSnap.data().isApproved) { await signOut(auth); window.location.href = "index.html"; return; }
+    if (!userDocSnap.exists() || !userDocSnap.data().isApproved) { await signOut(auth); window.location.href = "login.html"; return; }
     userData = userDocSnap.data();
 
     const displayName = document.getElementById('user-display-name');
