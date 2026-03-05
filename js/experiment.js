@@ -1,6 +1,7 @@
 // js/experiment.js
-import { auth, db, storage } from "./firebase-config.js";
+import { auth, db, storage, analytics } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { logEvent, setUserId } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import {
     doc,
     getDoc,
@@ -49,6 +50,11 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentUser = user;
+
+    // link analytics to Firebase user id (if analytics object exists)
+    if (analytics) {
+        setUserId(analytics, user.uid);
+    }
 
     // בדיקת אישור משתמש לפני טעינת הניסוי
     const isApproved = await checkUserApproval();

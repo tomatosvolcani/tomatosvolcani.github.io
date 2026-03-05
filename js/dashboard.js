@@ -1,7 +1,7 @@
 // js/dashboard.js
 import { auth, db, analytics } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { logEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+import { logEvent, setUserId } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import {
     doc,
     getDoc,
@@ -116,6 +116,11 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentUser = user;
+
+    // link analytics data to this Firebase user (if consent given)
+    if (analytics) {
+        setUserId(analytics, user.uid);
+    }
 
     // בדיקת אישור משתמש לפני טעינת הדשבורד
     const isApproved = await checkUserApproval();

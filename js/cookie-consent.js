@@ -104,7 +104,7 @@
             <span class="cc-icon">🍪</span>
             <div class="cc-msg">
                 <strong>האתר משתמש בעוגיות (Cookies)</strong>
-                אנו משתמשים ב-<strong>Google Analytics</strong> לניטור אנונימי של השימוש באתר — ללא זיהוי אישי.
+                אנו משתמשים ב-<strong>Google Analytics</strong> לצורך ניטור ותיעוד אופן השימוש. חלק מהנתונים עשויים להיות מקושרים לחשבונך במערכת לאבטחה ושיפור השירות.
                 העוגיות כוללות: <code>_ga</code> ו-<code>_ga_QTPXWHZ06N</code>.
                 לפרטים נוספים ראו <a href="terms.html" target="_blank">תנאי השימוש</a>.
             </div>
@@ -122,8 +122,8 @@
         <div class="cc-dec-icon">🚫</div>
         <div class="cc-dec-title">לא ניתן להמשיך ללא הסכמה לעוגיות</div>
         <div class="cc-dec-msg">
-            השימוש באתר מיזם ח"ץ מותנה בהסכמה לאיסוף נתוני שימוש אנונימיים
-            באמצעות Google Analytics. ללא הסכמה זו, לא נוכל לספק גישה לאתר.
+            השימוש באתר מיזם ח\"ץ מותנה בהסכמה לאיסוף נתוני שימוש באמצעות Google Analytics. חלק מהנתונים עשויים להיות
+            מקושרים לחשבונך לשיפור השירות ואבטחת מידע. ללא הסכמה זו, לא נוכל לספק גישה לאתר.
         </div>
         <button class="cc-btn-change-mind" id="cc-change-mind-btn">שיניתי את דעתי — מסכים/ה ✓</button>
         <div class="cc-dec-countdown" id="cc-countdown-msg">
