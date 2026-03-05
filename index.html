@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        
+
         /* ══ RESET & PREMIUM BASE ══════════════════════════ */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; overflow-x: hidden; }
@@ -256,6 +256,30 @@
             transition: transform 0.1s linear;
         }
 
+        /* --- הוספת CSS למסגרת AI רצה --- */
+        .phone-ai-wrapper {
+            position: relative;
+            padding: 3px; /* עובי המסגרת */
+            border-radius: 49px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .phone-ai-wrapper::before {
+            content: '';
+            position: absolute;
+            width: 150%; height: 150%;
+            background: conic-gradient(from 0deg, #4285f4, #34a853, #fbbc05, #ea4335, #4285f4);
+            animation: rotateAI 4s linear infinite;
+        }
+
+        @keyframes rotateAI {
+            to { transform: rotate(360deg); }
+        }
+        /* ------------------------------- */
+
         .phone-body {
             width: 260px; height: 540px;
             background: linear-gradient(135deg, #f8f9fa 0%, #e2e8f0 100%);
@@ -265,6 +289,7 @@
                 -15px 25px 45px -10px rgba(0, 0, 0, 0.1),
                 inset 0 0 0 1px rgba(255,255,255,0.9);
             transform-style: preserve-3d;
+            z-index: 1; /* חשוב כדי שגוף הטלפון יסתיר את מרכז הגרדיאנט */
         }
 
         .phone-screen {
@@ -380,15 +405,17 @@
                 <div class="phone-scene">
                     <div class="phone-levitate">
                         <div class="phone-wrap" id="phone3d">
-                            <div class="phone-body">
-                                <div class="sb sb-m"></div><div class="sb sb-v1"></div>
-                                <div class="sb sb-v2"></div><div class="sb sb-pw"></div>
+                            <div class="phone-ai-wrapper">
+                                <div class="phone-body">
+                                    <div class="sb sb-m"></div><div class="sb sb-v1"></div>
+                                    <div class="sb sb-v2"></div><div class="sb sb-pw"></div>
 
-                                <div class="phone-screen">
-                                    <div class="dyn-island"></div>
-                                    <video class="phone-video" id="vid" autoplay loop muted playsinline>
-                                        <source src="Recording to mock.mp4" type="video/mp4">
-                                    </video>
+                                    <div class="phone-screen">
+                                        <div class="dyn-island"></div>
+                                        <video class="phone-video" id="vid" autoplay loop muted playsinline>
+                                            <source src="Recording to mock.mp4" type="video/mp4">
+                                        </video>
+                                    </div>
                                 </div>
                             </div>
                         </div>
