@@ -177,11 +177,11 @@ function createExportCard(exp) {
         <div class="export-card-actions">
             <button class="btn-export excel" data-type="excel" title="הורדת Excel עם כל נתוני הניסוי">
                 <i class="fas fa-file-excel"></i>
-                <span>הורד Excel</span>
+                <span>להורדת Excel</span>
             </button>
             <button class="btn-export zip" data-type="zip" title="הורדת ZIP — Excel + כל הקבצים המצורפים">
                 <i class="fas fa-file-archive"></i>
-                <span>הורד ZIP (Excel + קבצים)</span>
+                <span>להורדת ZIP (Excel + קבצים)</span>
             </button>
         </div>
         <div class="export-progress" id="progress-${exp.id}">
