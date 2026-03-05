@@ -256,10 +256,10 @@
             transition: transform 0.1s linear;
         }
 
-        /* --- הוספת CSS למסגרת AI רצה --- */
+        /* --- הוספת CSS למסגרת בגווני כחול ושחור --- */
         .phone-ai-wrapper {
             position: relative;
-            padding: 3px; /* עובי המסגרת */
+            padding: 2.5px; /* עובי המסגרת */
             border-radius: 49px;
             overflow: hidden;
             display: flex;
@@ -271,7 +271,15 @@
             content: '';
             position: absolute;
             width: 150%; height: 150%;
-            background: conic-gradient(from 0deg, #4285f4, #34a853, #fbbc05, #ea4335, #4285f4);
+            /* שינוי גוונים לכחול ושחור */
+            background: conic-gradient(
+                from 0deg,
+                #000000 0%,
+                #003366 25%,
+                #0066cc 50%,
+                #3385ff 75%,
+                #000000 100%
+            );
             animation: rotateAI 4s linear infinite;
         }
 
@@ -289,7 +297,7 @@
                 -15px 25px 45px -10px rgba(0, 0, 0, 0.1),
                 inset 0 0 0 1px rgba(255,255,255,0.9);
             transform-style: preserve-3d;
-            z-index: 1; /* חשוב כדי שגוף הטלפון יסתיר את מרכז הגרדיאנט */
+            z-index: 1;
         }
 
         .phone-screen {
@@ -506,5 +514,4 @@
 
 </script>
 </body>
-
 </html>
