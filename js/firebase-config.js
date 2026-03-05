@@ -3,7 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-// 1. הייבוא לאנליטיקס:
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
 const firebaseConfig = {
@@ -22,8 +21,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// 2. אתחל את האנליטיקס
-const analytics = getAnalytics(app);
+// 2. init analytics — only if the user has consented to cookies
+const analytics = localStorage.getItem('cookieConsent') === 'accepted'
+    ? getAnalytics(app)
+    : null;
 
-// 3. ייצא את האנליטיקס (analytics) החוצה
+// 3. export everything
 export { auth, db, storage, analytics };
