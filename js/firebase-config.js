@@ -6,13 +6,13 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-s
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDDUcheGr5UaOKSu3zp7PivgOo30aX2qC8",
-  authDomain: "tomato-volcani.firebaseapp.com",
-  projectId: "tomato-volcani",
-  storageBucket: "tomato-volcani.firebasestorage.app",
-  messagingSenderId: "244825797105",
-  appId: "1:244825797105:web:ebccb150341d1ca0b3d450",
-  measurementId: "G-QTPXWHZ06N"
+  apiKey: "AIzaSyDaZoVnU8Yq9zDMTyANQm17RIoCL9znmJI",
+  authDomain: "rsc-tgi-lzp.firebaseapp.com",
+  projectId: "rsc-tgi-lzp",
+  storageBucket: "rsc-tgi-lzp.firebasestorage.app",
+  messagingSenderId: "422701013051",
+  appId: "1:422701013051:web:43aa3f6d34562cc920e41e",
+  measurementId: "G-99N09JWV0D"
 };
 
 // init
