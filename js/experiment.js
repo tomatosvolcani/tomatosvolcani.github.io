@@ -848,7 +848,7 @@ async function saveExperiment() {
         await updateDoc(experimentRef, formData);
 
         // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
-        const syncResult = await syncSharedExperiments(formData.partners);
+        const syncResult = await syncSharedExperiments(formData.partners, formData);
 
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
@@ -863,7 +863,7 @@ async function saveExperiment() {
 // =========================================
 // Sync Shared Experiments
 // =========================================
-async function syncSharedExperiments(currentPartners) {
+async function syncSharedExperiments(currentPartners, latestExperimentData = null) {
     // רק הבעלים המקורי יכול לסנכרן שותפים
     if (experimentOwnerUid !== currentUser.uid) return { added: 0, removed: 0 };
 
@@ -888,13 +888,28 @@ async function syncSharedExperiments(currentPartners) {
             const partnerUser = allUsers.find(u => u.email.toLowerCase() === partner.email.toLowerCase());
 
             if (partnerUser && partnerUser.uid) {
+                const cachedExperiment = {
+                    experimentName: latestExperimentData?.experimentName ?? experimentData?.experimentName ?? '',
+                    experimentYear: latestExperimentData?.experimentYear ?? experimentData?.experimentYear ?? '',
+                    experimentSite: latestExperimentData?.experimentSite ?? experimentData?.experimentSite ?? '',
+                    siteCoordinates: latestExperimentData?.siteCoordinates ?? experimentData?.siteCoordinates ?? '',
+                    workPackage: latestExperimentData?.workPackage ?? experimentData?.workPackage ?? '',
+                    keywords: Array.isArray(latestExperimentData?.keywords)
+                        ? latestExperimentData.keywords
+                        : (Array.isArray(experimentData?.keywords) ? experimentData.keywords : []),
+                    cropDetails: latestExperimentData?.cropDetails ?? experimentData?.cropDetails ?? null,
+                    createdAt: experimentData?.createdAt || null,
+                    updatedAt: serverTimestamp()
+                };
+
                 // הוסף אסמכתא לניסוי באוסף sharedExperiments של השותף
                 const sharedRef = doc(db, "users", partnerUser.uid, "sharedExperiments", currentExperimentId);
                 await setDoc(sharedRef, {
                     experimentId: currentExperimentId,
                     ownerUid: currentUser.uid,
                     ownerEmail: currentUser.email,
-                    addedAt: serverTimestamp()
+                    addedAt: serverTimestamp(),
+                    cachedExperiment
                 }, { merge: true });
 
                 addedCount++;

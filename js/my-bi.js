@@ -162,8 +162,19 @@ async function loadAndRender() {
 
         // --- קריאות מקבילות לניסויים המשותפים ---
         const sharedFetches = sharedSnap.docs.map(async sharedDoc => {
-            const { ownerUid, experimentId } = sharedDoc.data();
+            const sharedData = sharedDoc.data();
+            const { ownerUid, experimentId, cachedExperiment } = sharedData;
             if (!ownerUid || !experimentId) return null;
+
+            if (cachedExperiment && typeof cachedExperiment === 'object') {
+                return {
+                    id: experimentId,
+                    ownerUid,
+                    isShared: true,
+                    ...cachedExperiment
+                };
+            }
+
             try {
                 const expSnap = await getDoc(doc(db, 'users', ownerUid, 'experiments', experimentId));
                 if (!expSnap.exists()) return null;
@@ -177,11 +188,11 @@ async function loadAndRender() {
 
         allExperiments = [...myExperiments, ...sharedResults];
 
-        // --- Render ---
-        renderAll(myExperiments.length, sharedResults.length);
-
         if (loadingEl) loadingEl.style.display = 'none';
         if (contentEl) contentEl.classList.remove('hidden');
+
+        // --- Render after content is visible (Leaflet needs visible container) ---
+        renderAll(myExperiments.length, sharedResults.length);
 
     } catch (err) {
         console.error('loadAndRender:', err);
@@ -213,6 +224,9 @@ function renderAll(ownCount, sharedCount) {
     renderChartByPackage(exps);
     renderChartByCrop(exps);
 
+    // Map
+    renderExperimentsMap(exps);
+
     // Keywords
     renderKeywordsCloud(exps);
 
@@ -225,8 +239,230 @@ function renderAll(ownCount, sharedCount) {
 }
 
 // ======================================================
-// Charts
+// Render Map – from experiments siteCoordinates
 // ======================================================
+function renderExperimentsMap(exps) {
+    const mapContainer = document.getElementById('experiments-map');
+    if (!mapContainer) return;
+
+    mapContainer.innerHTML = '';
+
+    // Parse coordinates from already-loaded experiment docs (no extra Firestore reads)
+    const expsWithCoords = exps
+        .map(exp => {
+            const coordinates = parseExperimentCoordinates(exp);
+            return coordinates ? { exp, ...coordinates } : null;
+        })
+        .filter(Boolean);
+
+    if (expsWithCoords.length === 0) {
+        mapContainer.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:16px;text-align:center;padding:20px;direction:rtl;">
+                <div>
+                    <div style="font-size:32px;margin-bottom:8px;">📍</div>
+                    <strong>לא היתה אפשרות להציג את המפה</strong>
+                    <div style="font-size:13px;margin-top:8px;color:#d1d5db;">אין קואורדינטות בניסויים</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Initialize map centered on Israel
+    const map = L.map(mapContainer).setView([31.5, 34.75], 7);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add marker for each experiment
+    const markers = [];
+    expsWithCoords.forEach(({ exp, lat, lng }) => {
+        const color = exp.isShared ? '#3b82f6' : '#16a34a';
+
+        const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'experiment-marker',
+                html: `<div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);"><i class="fas fa-flask" style="color:#fff;font-size:13px;"></i></div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -14]
+            })
+        }).addTo(map);
+
+        // Popup with experiment name and site
+        const expName = escHtml(norm(exp.experimentName) || 'ללא שם');
+        const siteName = escHtml(norm(exp.experimentSite) || 'לא צוין');
+        
+        marker.bindPopup(`
+            <div style="font-family: 'Heebo', sans-serif; text-align: right; direction: rtl; min-width: 180px;">
+                <strong style="font-size: 13px; color: #1a1a1a; display: block; margin-bottom: 4px;">🧪 ${expName}</strong>
+                <span style="font-size: 12px; color: #6b7280;">📍 אתר: ${siteName}</span><br/>
+                <span style="font-size: 11px; color: #9ca3af;">קואורדינטות: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+            </div>
+        `);
+
+        markers.push(marker);
+    });
+
+    addMapScaleControl(map);
+    addMapHelpControl(map, {
+        title: 'הוראות מהירות',
+        lines: [
+            'לחיצה על סמן פותחת פרטי ניסוי',
+            'ניתן להתקרב/להתרחק עם גלגלת העכבר',
+            'כפתור 🎯 מחזיר תצוגה לכל הניסויים'
+        ]
+    });
+
+    const ownCount = expsWithCoords.filter(x => !x.exp.isShared).length;
+    const sharedCount = expsWithCoords.filter(x => x.exp.isShared).length;
+    addMapLegendControl(map, {
+        total: expsWithCoords.length,
+        own: ownCount,
+        shared: sharedCount,
+        showOwnership: true
+    });
+
+    // Auto-fit map to show all markers
+    if (markers.length > 0) {
+        const group = new L.featureGroup(markers);
+        const bounds = group.getBounds().pad(0.1);
+        map.fitBounds(bounds);
+        addMapResetViewControl(map, bounds);
+    }
+}
+
+function addMapScaleControl(map) {
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
+}
+
+function addMapHelpControl(map, config) {
+    const control = L.control({ position: 'topleft' });
+    control.onAdd = () => {
+        const div = L.DomUtil.create('div');
+        div.style.background = '#fff';
+        div.style.padding = '10px 12px';
+        div.style.borderRadius = '10px';
+        div.style.boxShadow = '0 1px 6px rgba(0,0,0,.2)';
+        div.style.minWidth = '220px';
+        div.style.direction = 'rtl';
+        div.style.fontFamily = 'Heebo, sans-serif';
+        div.innerHTML = `
+            <div style="font-weight:700;font-size:13px;color:#1f2937;margin-bottom:6px;">💡 ${escHtml(config.title)}</div>
+            <ul style="margin:0;padding:0 16px 0 0;color:#4b5563;font-size:12px;line-height:1.45;">
+                ${config.lines.map(line => `<li style="margin-bottom:2px;">${escHtml(line)}</li>`).join('')}
+            </ul>
+        `;
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+    };
+    control.addTo(map);
+}
+
+function addMapLegendControl(map, stats) {
+    const control = L.control({ position: 'topright' });
+    control.onAdd = () => {
+        const div = L.DomUtil.create('div');
+        div.style.background = '#fff';
+        div.style.padding = '10px 12px';
+        div.style.borderRadius = '10px';
+        div.style.boxShadow = '0 1px 6px rgba(0,0,0,.2)';
+        div.style.minWidth = '180px';
+        div.style.direction = 'rtl';
+        div.style.fontFamily = 'Heebo, sans-serif';
+
+        const ownershipRows = stats.showOwnership ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:12px;color:#1f2937;">
+                <span>🟦 שותף/ה</span><strong>${stats.shared}</strong>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;font-size:12px;color:#1f2937;">
+                <span>🟩 שלי</span><strong>${stats.own}</strong>
+            </div>
+        ` : '';
+
+        div.innerHTML = `
+            <div style="font-weight:700;font-size:13px;color:#1f2937;margin-bottom:6px;">🧪 מקרא</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#1f2937;">
+                <span style="width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);font-size:11px;">⚗</span>
+                <span>מיקום ניסוי</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:12px;color:#1f2937;">
+                <span>סה"כ על המפה</span><strong>${stats.total}</strong>
+            </div>
+            ${ownershipRows}
+        `;
+
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+    };
+    control.addTo(map);
+}
+
+function addMapResetViewControl(map, bounds) {
+    const control = L.control({ position: 'bottomright' });
+    control.onAdd = () => {
+        const button = L.DomUtil.create('button');
+        button.type = 'button';
+        button.title = 'מיקוד לכל הניסויים';
+        button.style.width = '38px';
+        button.style.height = '38px';
+        button.style.border = 'none';
+        button.style.borderRadius = '10px';
+        button.style.cursor = 'pointer';
+        button.style.background = '#2563eb';
+        button.style.color = '#fff';
+        button.style.fontSize = '18px';
+        button.style.boxShadow = '0 1px 6px rgba(0,0,0,.25)';
+        button.textContent = '🎯';
+        L.DomEvent.disableClickPropagation(button);
+        L.DomEvent.on(button, 'click', () => map.fitBounds(bounds));
+        return button;
+    };
+    control.addTo(map);
+}
+
+function parseExperimentCoordinates(exp) {
+    const direct = parseCoordinatesValue(exp?.siteCoordinates);
+    if (direct) return direct;
+
+    const nested = parseCoordinatesValue(exp?.locationCoordinates);
+    if (nested) return nested;
+
+    return null;
+}
+
+function parseCoordinatesValue(value) {
+    if (!value) return null;
+
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[()\[\]]/g, '').replace(';', ',');
+        const parts = cleaned.split(',').map(p => parseFloat(p.trim()));
+        if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return null;
+        return validateLatLng(parts[0], parts[1]);
+    }
+
+    if (typeof value === 'object') {
+        const rawLat = value.lat ?? value.latitude;
+        const rawLng = value.lng ?? value.lon ?? value.longitude;
+        const lat = Number(rawLat);
+        const lng = Number(rawLng);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+        return validateLatLng(lat, lng);
+    }
+
+    return null;
+}
+
+function validateLatLng(lat, lng) {
+    if (lat < -90 || lat > 90) return null;
+    if (lng < -180 || lng > 180) return null;
+    return { lat, lng };
+}
 function renderChartByYear(exps) {
     const freq   = freqMap(exps, e => e.experimentYear ? String(e.experimentYear) : 'לא צוין');
     const sorted = Object.entries(freq).sort((a, b) => a[0].localeCompare(b[0]));
