@@ -36,6 +36,163 @@ let selectedPartner = null; // Currently selected partner from autocomplete
 let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
 let isSharedExperiment = false; // האם זה ניסוי שאני שותף בו
 
+const SITE_PRESET_VALUES = ['volcani-bet-dagan', 'mop-darom', 'gilat'];
+const DYNAMIC_FIELD_CONFIG = {
+    experimentSiteOther: { datalistId: 'datalist-experiment-site-other' },
+    cropType: { datalistId: 'datalist-crop-type' },
+    variety: { datalistId: 'datalist-variety' },
+    nursery: { datalistId: 'datalist-nursery' },
+    substrateCompany: { datalistId: 'datalist-substrate-company' },
+    substrateType: { datalistId: 'datalist-substrate-type' },
+    soilDisinfectionMaterial: { datalistId: 'datalist-soil-disinfection-material' },
+    fertilizerType: { datalistId: 'datalist-fertilizer-type' },
+    fertilizerCompany: { datalistId: 'datalist-fertilizer-company' },
+    plantProtectionMaterial: { datalistId: 'datalist-plant-protection-material' }
+};
+let dynamicFieldOptions = getDefaultDynamicFieldOptions();
+
+function getDefaultDynamicFieldOptions() {
+    return Object.keys(DYNAMIC_FIELD_CONFIG).reduce((acc, key) => {
+        acc[key] = [];
+        return acc;
+    }, {});
+}
+
+function normalizeDynamicValue(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).trim();
+}
+
+function normalizeUniqueValues(values) {
+    const seen = new Set();
+    const unique = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+        const normalized = normalizeDynamicValue(value);
+        if (!normalized) return;
+        const key = normalized.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push(normalized);
+    });
+    return unique;
+}
+
+function setDatalistOptions(datalistId, options) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    normalizeUniqueValues(options).forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        datalist.appendChild(option);
+    });
+}
+
+function applyDynamicFieldOptionsToUI() {
+    Object.entries(DYNAMIC_FIELD_CONFIG).forEach(([key, config]) => {
+        setDatalistOptions(config.datalistId, dynamicFieldOptions[key]);
+    });
+}
+
+function registerDynamicOption(fieldKey, value) {
+    if (!DYNAMIC_FIELD_CONFIG[fieldKey]) return;
+    const normalized = normalizeDynamicValue(value);
+    if (!normalized) return;
+
+    const existing = dynamicFieldOptions[fieldKey] || [];
+    const hasValue = existing.some((item) => item.toLowerCase() === normalized.toLowerCase());
+    if (hasValue) return;
+
+    dynamicFieldOptions[fieldKey] = [...existing, normalized];
+    setDatalistOptions(DYNAMIC_FIELD_CONFIG[fieldKey].datalistId, dynamicFieldOptions[fieldKey]);
+}
+
+function mergeDynamicFieldOptions(base, additions) {
+    const merged = getDefaultDynamicFieldOptions();
+    Object.keys(merged).forEach((key) => {
+        merged[key] = normalizeUniqueValues([...(base[key] || []), ...(additions[key] || [])]);
+    });
+    return merged;
+}
+
+function createEmptyDynamicBucket() {
+    return getDefaultDynamicFieldOptions();
+}
+
+function collectDynamicFieldValues(formData) {
+    const collected = createEmptyDynamicBucket();
+
+    if (formData?.experimentSiteSelection === 'other') {
+        collected.experimentSiteOther.push(formData.experimentSiteOther || '');
+    }
+
+    const crop = formData?.cropDetails?.data || {};
+    collected.cropType.push(crop.cropType || '');
+    collected.variety.push(crop.variety || '');
+    collected.nursery.push(crop.nursery || '');
+
+    const soil = formData?.soilDetails?.data || {};
+    collected.substrateCompany.push(soil.substrateCompany || '');
+    collected.substrateType.push(soil.substrateType || '');
+    (soil.disinfectRows || []).forEach((row) => {
+        collected.soilDisinfectionMaterial.push(row?.material || '');
+    });
+
+    (formData?.fertilizationData || []).forEach((row) => {
+        collected.fertilizerType.push(row?.fertType || '');
+        collected.fertilizerCompany.push(row?.company || '');
+    });
+
+    const plantProtection = formData?.plantProtectionData || {};
+    [...(plantProtection.sprays || []), ...(plantProtection.drenches || [])].forEach((row) => {
+        collected.plantProtectionMaterial.push(row?.material || '');
+    });
+
+    Object.keys(collected).forEach((key) => {
+        collected[key] = normalizeUniqueValues(collected[key]);
+    });
+
+    return collected;
+}
+
+async function loadDynamicFieldOptions() {
+    if (!experimentOwnerUid) return;
+
+    try {
+        const optionsRef = doc(db, 'users', experimentOwnerUid, 'settings', 'experimentDynamicOptions');
+        const optionsSnap = await getDoc(optionsRef);
+        const base = getDefaultDynamicFieldOptions();
+
+        if (optionsSnap.exists()) {
+            const data = optionsSnap.data() || {};
+            Object.keys(base).forEach((key) => {
+                base[key] = normalizeUniqueValues(data[key]);
+            });
+        }
+
+        dynamicFieldOptions = base;
+        applyDynamicFieldOptionsToUI();
+    } catch (error) {
+        console.error('Error loading dynamic field options:', error);
+    }
+}
+
+async function persistDynamicFieldOptions(formData) {
+    if (!experimentOwnerUid) return;
+
+    try {
+        const additions = collectDynamicFieldValues(formData);
+        const merged = mergeDynamicFieldOptions(dynamicFieldOptions, additions);
+        const optionsRef = doc(db, 'users', experimentOwnerUid, 'settings', 'experimentDynamicOptions');
+
+        await setDoc(optionsRef, merged, { merge: true });
+        dynamicFieldOptions = merged;
+        applyDynamicFieldOptionsToUI();
+    } catch (error) {
+        console.error('Error persisting dynamic field options:', error);
+    }
+}
+
 // =========================================
 // Initialization
 // =========================================
@@ -85,6 +242,8 @@ onAuthStateChanged(auth, async (user) => {
         experimentOwnerUid = currentUser.uid;
         isSharedExperiment = false;
     }
+
+    await loadDynamicFieldOptions();
 
     if (currentExperimentId) {
         await loadExperiment();
@@ -362,7 +521,7 @@ function populateForm() {
     setFieldValue('experiment-month', data.experimentMonth);
     setFieldValue('research-period', data.researchPeriod || data.startDate || '');
     setFieldValue('work-package', data.workPackage);
-    setFieldValue('experiment-site', data.experimentSite);
+    setExperimentSiteFromData(data.experimentSite, data.experimentSiteSelection, data.experimentSiteOther);
     setFieldValue('site-coordinates', data.siteCoordinates);
     setFieldValue('experiment-goal', data.experimentGoal);
     setFieldValue('experiment-summary', data.experimentSummary);
@@ -390,12 +549,20 @@ function populateForm() {
     // Crop details
     if (data.cropDetails && data.cropDetails.data) {
         const crop = data.cropDetails.data;
+        let mappedVarietyType = crop.varietyType || '';
+        if (mappedVarietyType === 'cherry' || mappedVarietyType === 'cluster') {
+            mappedVarietyType = 'regular';
+        }
+        let mappedSplitPlant = crop.splitPlant || '';
+        if (mappedSplitPlant === 'yes') mappedSplitPlant = 'כן';
+        if (mappedSplitPlant === 'no') mappedSplitPlant = 'לא';
+
         setFieldValue('planting-date', crop.plantingDate);
         setFieldValue('crop-type', crop.cropType);
         setFieldValue('variety', crop.variety);
         setFieldValue('grafted-plant', crop.graftedPlant);
-        setFieldValue('variety-type', crop.varietyType);
-        setFieldValue('split-plant', crop.splitPlant);
+        setFieldValue('variety-type', mappedVarietyType);
+        setFieldValue('split-plant', mappedSplitPlant);
         setFieldValue('nursery', crop.nursery);
         setFieldValue('seedlings-count', crop.seedlingsCount);
         setFieldValue('planting-density', crop.plantingDensity);
@@ -413,13 +580,17 @@ function populateForm() {
     // Structure details
     if (data.structureDetails && data.structureDetails.data) {
         const structure = data.structureDetails.data;
+        let mappedNetWashing = structure.netWashing || '';
+        if (mappedNetWashing === 'nylon' || mappedNetWashing === 'net') {
+            mappedNetWashing = 'כן';
+        }
         setFieldValue('structure-type', structure.type);
         setFieldValue('structure-size', structure.size);
         setFieldValue('structure-tunnels', structure.tunnels);
         setFieldValue('structure-length', structure.length);
         setFieldValue('structure-width', structure.width);
         setFieldValue('roof-covering', structure.roofCovering);
-        setFieldValue('net-washing', structure.netWashing);
+        setFieldValue('net-washing', mappedNetWashing);
         setFieldValue('structure-direction', structure.direction);
         setFieldValue('structure-notes', structure.notes);
     }
@@ -437,7 +608,7 @@ function populateForm() {
         if (mulchVal === 'קיים') mulchVal = 'כסף'; // ערך ישן – ממופה לכסף כברירת מחדל
         setFieldValue('soil-mulch', mulchVal);
         setFieldValue('soil-disinfection-adigan', soil.disinfectionAdigan);
-        setFieldValue('soil-adigan-amount', soil.adiganAmount);
+        setAdiganAmountFromData(soil.adiganAmount);
         setFieldValue('soil-solarization', soil.solarization);
         // Dynamic tables
         renderSoilTable('compost-tbody', soil.compostRows || [], ['date','amount','method']);
@@ -460,8 +631,70 @@ function populateForm() {
     // Progress views (מהלך הניסוי + נתוני יבול)
     populateProgressViews(data);
 
+    updateConditionalFieldVisibility();
+
     // עדכון כפתור Google Maps אחרי שהנתונים נטענו
     updateGoogleMapsButtonVisibility();
+}
+
+function setExperimentSiteFromData(experimentSiteValue, experimentSiteSelection, experimentSiteOther) {
+    const siteSelect = document.getElementById('experiment-site');
+    const siteOtherInput = document.getElementById('experiment-site-other');
+    if (!siteSelect) return;
+
+    const oldToNewSiteMap = {
+        volcani: 'volcani-bet-dagan'
+    };
+
+    let normalizedSite = normalizeDynamicValue(experimentSiteValue);
+    normalizedSite = oldToNewSiteMap[normalizedSite] || normalizedSite;
+
+    let selection = normalizeDynamicValue(experimentSiteSelection);
+    if (!selection) {
+        selection = SITE_PRESET_VALUES.includes(normalizedSite) ? normalizedSite : (normalizedSite ? 'other' : '');
+    }
+
+    siteSelect.value = selection;
+
+    if (siteOtherInput) {
+        const resolvedOther = normalizeDynamicValue(experimentSiteOther) || (selection === 'other' ? normalizedSite : '');
+        siteOtherInput.value = resolvedOther;
+    }
+
+    updateExperimentSiteOtherVisibility();
+}
+
+function setAdiganAmountFromData(value) {
+    const adiganAmountSelect = document.getElementById('soil-adigan-amount');
+    const adiganAmountCustomInput = document.getElementById('soil-adigan-amount-custom');
+    if (!adiganAmountSelect || !adiganAmountCustomInput) return;
+
+    const normalized = normalizeDynamicValue(value);
+    const presetValues = ['40', '60', '80', '100', '120'];
+
+    if (!normalized) {
+        adiganAmountSelect.value = '';
+        adiganAmountCustomInput.value = '';
+    } else if (presetValues.includes(normalized)) {
+        adiganAmountSelect.value = normalized;
+        adiganAmountCustomInput.value = '';
+    } else {
+        adiganAmountSelect.value = 'other';
+        adiganAmountCustomInput.value = normalized;
+    }
+
+    updateAdiganAmountVisibility();
+}
+
+function getResolvedAdiganAmount() {
+    const adiganAmountSelect = document.getElementById('soil-adigan-amount');
+    const adiganAmountCustomInput = document.getElementById('soil-adigan-amount-custom');
+    if (!adiganAmountSelect || !adiganAmountCustomInput) return '';
+
+    if (adiganAmountSelect.value === 'other') {
+        return adiganAmountCustomInput.value.trim();
+    }
+    return adiganAmountSelect.value || '';
 }
 
 function setFieldValue(id, value) {
@@ -748,6 +981,11 @@ function collectFormData() {
 
     const sharedToggle = document.getElementById('shared-data-toggle');
     const isShared = sharedToggle ? sharedToggle.checked : true;
+    const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
+    const experimentSiteOther = document.getElementById('experiment-site-other')?.value.trim() || '';
+    const resolvedExperimentSite = experimentSiteSelection === 'other'
+        ? experimentSiteOther
+        : experimentSiteSelection;
 
     return {
         leadResearcher: document.getElementById('lead-researcher')?.value || '',
@@ -756,7 +994,9 @@ function collectFormData() {
         experimentMonth: document.getElementById('experiment-month')?.value || '',
         researchPeriod: document.getElementById('research-period')?.value || '',
         workPackage: document.getElementById('work-package')?.value || '',
-        experimentSite: document.getElementById('experiment-site')?.value || '',
+        experimentSite: resolvedExperimentSite,
+        experimentSiteSelection,
+        experimentSiteOther: experimentSiteSelection === 'other' ? experimentSiteOther : '',
         siteCoordinates: document.getElementById('site-coordinates')?.value || '',
         experimentGoal: document.getElementById('experiment-goal')?.value || '',
         experimentSummary: document.getElementById('experiment-summary')?.value || '',
@@ -809,7 +1049,7 @@ function collectFormData() {
                 substrateVolume: document.getElementById('substrate-volume')?.value || '',
                 mulch: document.getElementById('soil-mulch')?.value || '',
                 disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
-                adiganAmount: document.getElementById('soil-adigan-amount')?.value || '',
+                adiganAmount: getResolvedAdiganAmount(),
                 solarization: document.getElementById('soil-solarization')?.value || '',
                 compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
                 sprayRows: collectSoilTableRows('spray-tbody', ['date','amount','method']),
@@ -846,6 +1086,7 @@ async function saveExperiment() {
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         await updateDoc(experimentRef, formData);
+        await persistDynamicFieldOptions(formData);
 
         // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
         const syncResult = await syncSharedExperiments(formData.partners, formData);
@@ -858,6 +1099,68 @@ async function saveExperiment() {
         console.error("Error saving experiment:", error);
         showToast('שגיאה בשמירת הניסוי: ' + error.message, 'error');
     }
+}
+
+function updateExperimentSiteOtherVisibility() {
+    const siteSelect = document.getElementById('experiment-site');
+    const siteOtherInput = document.getElementById('experiment-site-other');
+    if (!siteSelect || !siteOtherInput) return;
+
+    const shouldShow = siteSelect.value === 'other';
+    siteOtherInput.style.display = shouldShow ? 'block' : 'none';
+    if (!shouldShow) siteOtherInput.value = '';
+}
+
+function updatePreparationNameVisibility() {
+    const graftedPlantSelect = document.getElementById('grafted-plant');
+    const preparationGroup = document.getElementById('preparation-name-group');
+    if (!graftedPlantSelect || !preparationGroup) return;
+
+    const shouldShow = graftedPlantSelect.value === 'yes';
+    preparationGroup.style.display = shouldShow ? '' : 'none';
+}
+
+function updateDetachedSubstrateVisibility() {
+    const detachedSubstrateSelect = document.getElementById('detached-substrate');
+    if (!detachedSubstrateSelect) return;
+
+    const shouldShow = detachedSubstrateSelect.value === 'כן';
+    ['substrate-company', 'substrate-type', 'substrate-volume'].forEach((id) => {
+        const input = document.getElementById(id);
+        const group = input?.closest('.form-group');
+        if (group) {
+            group.style.display = shouldShow ? '' : 'none';
+        }
+    });
+}
+
+function updateAdiganAmountVisibility() {
+    const disinfectionAdiganSelect = document.getElementById('soil-disinfection-adigan');
+    const adiganAmountSelect = document.getElementById('soil-adigan-amount');
+    const adiganAmountCustomInput = document.getElementById('soil-adigan-amount-custom');
+
+    if (!disinfectionAdiganSelect || !adiganAmountSelect || !adiganAmountCustomInput) return;
+
+    const shouldShowAmount = disinfectionAdiganSelect.value === 'כן';
+    adiganAmountSelect.style.display = shouldShowAmount ? 'block' : 'none';
+
+    if (!shouldShowAmount) {
+        adiganAmountSelect.value = '';
+        adiganAmountCustomInput.value = '';
+        adiganAmountCustomInput.style.display = 'none';
+        return;
+    }
+
+    const shouldShowCustom = adiganAmountSelect.value === 'other';
+    adiganAmountCustomInput.style.display = shouldShowCustom ? 'block' : 'none';
+    if (!shouldShowCustom) adiganAmountCustomInput.value = '';
+}
+
+function updateConditionalFieldVisibility() {
+    updateExperimentSiteOtherVisibility();
+    updatePreparationNameVisibility();
+    updateDetachedSubstrateVisibility();
+    updateAdiganAmountVisibility();
 }
 
 // =========================================
@@ -1163,6 +1466,14 @@ function initEventListeners() {
             if (target) target.focus();
         });
     });
+
+    document.getElementById('experiment-site')?.addEventListener('change', updateExperimentSiteOtherVisibility);
+    document.getElementById('grafted-plant')?.addEventListener('change', updatePreparationNameVisibility);
+    document.getElementById('detached-substrate')?.addEventListener('change', updateDetachedSubstrateVisibility);
+    document.getElementById('soil-disinfection-adigan')?.addEventListener('change', updateAdiganAmountVisibility);
+    document.getElementById('soil-adigan-amount')?.addEventListener('change', updateAdiganAmountVisibility);
+
+    updateConditionalFieldVisibility();
 
     // Partners Autocomplete - נקרא אחרי טעינת הניסוי ב-loadExperiment
     // initPartnersAutocomplete();
@@ -1919,6 +2230,8 @@ function renderSoilDisinfectTable(tbodyId, rows) {
 }
 
 function addSoilDisinfectRow(tbody, data = {}) {
+    registerDynamicOption('soilDisinfectionMaterial', data.material);
+
     const fields = ['date','material','amount','method'];
     const labels = { date: 'תאריך', material: 'חומר החיטוי', amount: 'כמות', method: 'אופן יישום' };
     const placeholders = { date: '', material: 'חומר החיטוי', amount: 'כמות', method: 'אופן יישום' };
@@ -1931,6 +2244,9 @@ function addSoilDisinfectRow(tbody, data = {}) {
         inp.className = 'soil-input';
         inp.dataset.field = field;
         inp.value = data[field] || '';
+        if (field === 'material') {
+            inp.setAttribute('list', 'datalist-soil-disinfection-material');
+        }
         if (placeholders[field]) inp.placeholder = placeholders[field];
         td.appendChild(inp);
         tr.appendChild(td);
@@ -1998,6 +2314,7 @@ function initSoilTableListeners() {
             title: 'הוספת חיטוי קרקע',
             fields: ['date', 'material', 'amount', 'method'],
             labels: SOIL_LABELS,
+            dynamicDatalists: { material: 'datalist-soil-disinfection-material' },
             onSave: (data) => addSoilDisinfectRow(disinfectTbody, data)
         })
     );
@@ -2154,6 +2471,10 @@ function addProgressRow(tbody, fields, labels, data, options) {
                 inp.className = 'soil-input';
                 inp.dataset.field = field;
                 inp.value = data[field] || '';
+                const fieldDatalist = options.dynamicDatalists && options.dynamicDatalists[field];
+                if (fieldDatalist && inputType === 'text') {
+                    inp.setAttribute('list', fieldDatalist);
+                }
                 if (labels[field]) inp.placeholder = labels[field];
                 if (isReadonly) { inp.readOnly = true; inp.style.fontWeight = '600'; }
                 td.appendChild(inp);
@@ -2321,6 +2642,7 @@ const IRRIGATION_FIELDS = ['fileName','uploadDate','measureDates','totalWater'];
 const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', totalWater:'סה"כ כמות מים (ליטר)' };
 const FERTILIZATION_FIELDS = ['fileName','uploadDate','measureDates','fertType','company','totalFert'];
 const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
+const FERTILIZATION_DYNAMIC_DATALISTS = { fertType: 'datalist-fertilizer-type', company: 'datalist-fertilizer-company' };
 
 // =========================================
 // Growth
@@ -2416,9 +2738,14 @@ function addPestRow(tbodyId, data) {
     addProgressRow(document.getElementById(tbodyId), PEST_FIELDS, PEST_LABELS, data || {});
 }
 function addProtectionRow(tbodyId, data) {
+    registerDynamicOption('plantProtectionMaterial', data?.material);
+
     addProgressRow(document.getElementById(tbodyId), PROTECTION_FIELDS, PROTECTION_LABELS, data || {}, {
         fieldOptions: {
             combined: ['לא', 'כן']
+        },
+        dynamicDatalists: {
+            material: 'datalist-plant-protection-material'
         }
     });
 }
@@ -2455,7 +2782,12 @@ function populateProgressViews(data) {
     if (irrigTbody) { irrigTbody.innerHTML = ''; (data.irrigationData || []).forEach(r => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, r)); }
     // Fertilization
     const fertTbody = document.getElementById('fertilization-tbody');
-    if (fertTbody) { fertTbody.innerHTML = ''; (data.fertilizationData || []).forEach(r => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, r)); }
+    if (fertTbody) {
+        fertTbody.innerHTML = '';
+        (data.fertilizationData || []).forEach(r => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, r, {
+            dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
+        }));
+    }
     // Growth, Climate, Agro – use their render functions (handle defaults)
     renderGrowthTable(data.growthData);
     renderClimateTable(data.climateData);
@@ -2567,6 +2899,7 @@ function initProgressListeners() {
             fields: PROTECTION_FIELDS,
             labels: PROTECTION_LABELS,
             fieldOptions: { combined: ['לא', 'כן'] },
+            dynamicDatalists: { material: 'datalist-plant-protection-material' },
             onSave: (data) => addProtectionRow('spray-prot-tbody', data)
         })
     );
@@ -2578,6 +2911,7 @@ function initProgressListeners() {
             fields: PROTECTION_FIELDS,
             labels: PROTECTION_LABELS,
             fieldOptions: { combined: ['לא', 'כן'] },
+            dynamicDatalists: { material: 'datalist-plant-protection-material' },
             onSave: (data) => addProtectionRow('drench-tbody', data)
         })
     );
@@ -2713,6 +3047,10 @@ function _createGenericField(field, config) {
         }
         input.className = 'modal-input-sm';
         input.id = `generic-modal-${field}`;
+        const fieldDatalist = config.dynamicDatalists && config.dynamicDatalists[field];
+        if (fieldDatalist && input.type === 'text') {
+            input.setAttribute('list', fieldDatalist);
+        }
         input.placeholder = config.labels[field] || '';
         row.appendChild(input);
     }
@@ -2864,6 +3202,9 @@ async function saveFertilizationFile() {
     }
 
     const tbody = document.getElementById('fertilization-tbody');
+    registerDynamicOption('fertilizerType', fertType);
+    registerDynamicOption('fertilizerCompany', company);
+
     addProgressRow(tbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, {
         fileName: fileName,
         uploadDate: today,
@@ -2873,6 +3214,8 @@ async function saveFertilizationFile() {
         totalFert: totalFert,
         fileUrl: fileUrl || '',
         filePath: filePath || ''
+    }, {
+        dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
     });
 
     closeModal('fertilization-file-modal');

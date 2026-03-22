@@ -219,10 +219,12 @@
                             <label>אתר הניסוי:</label>
                             <select id="experiment-site">
                                 <option value="">בחירת אתר</option>
-                                <option value="volcani">מכון וולקני</option>
-                                <option value="newe-yaar">נווה יער</option>
+                                <option value="volcani-bet-dagan">מכון וולקני - בית דגן</option>
+                                <option value="mop-darom">מו"פ דרום</option>
                                 <option value="gilat">גילת</option>
+                                <option value="other">אחר</option>
                             </select>
+                            <input type="text" id="experiment-site-other" list="datalist-experiment-site-other" placeholder="הזן אתר ניסוי" style="display: none; margin-top: 8px;">
                         </div>
                         <div class="form-group">
                             <label>קורדינטות אתר הניסוי:</label>
@@ -343,11 +345,11 @@
                         </div>
                         <div class="form-group">
                             <label>סוג גידול:</label>
-                            <input type="text" id="crop-type" placeholder="עגבניה">
+                            <input type="text" id="crop-type" list="datalist-crop-type" placeholder="עגבניה">
                         </div>
                         <div class="form-group">
                             <label>זן:</label>
-                            <input type="text" id="variety" placeholder="איקראם">
+                            <input type="text" id="variety" list="datalist-variety" placeholder="איקראם">
                         </div>
                         <div class="form-group">
                             <label>צמח מורכב:</label>
@@ -360,17 +362,19 @@
                             <label>סוג הזן:</label>
                             <select id="variety-type">
                                 <option value="regular">רגיל</option>
-                                <option value="cherry">שרי</option>
-                                <option value="cluster">אשכולות</option>
+                                <option value="finishing">מסיים</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>צמח מפוצל:</label>
-                            <input type="text" id="split-plant" placeholder="לא">
+                            <select id="split-plant">
+                                <option value="לא">לא</option>
+                                <option value="כן">כן</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>משתלה:</label>
-                            <input type="text" id="nursery" placeholder="חישתיל">
+                            <input type="text" id="nursery" list="datalist-nursery" placeholder="חישתיל">
                         </div>
                         <div class="form-group">
                             <label>כמות שתילים:</label>
@@ -378,7 +382,7 @@
                         </div>
                         <div class="form-group">
                             <label>עומד שתילה:</label>
-                            <input type="text" id="planting-density" placeholder='30 ס"מ'>
+                            <input type="number" id="planting-density" step="any" placeholder="30">
                         </div>
                         <div class="form-group">
                             <label>מבנה שתילה:</label>
@@ -388,7 +392,7 @@
                             <label>שטח הניסוי (דונם):</label>
                             <input type="number" id="experiment-area" step="0.01" placeholder="0.2">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="preparation-name-group" style="display: none;">
                             <label>שם הכנה:</label>
                             <input type="text" id="preparation-name">
                         </div>
@@ -407,7 +411,14 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label>סוג המבנה:</label>
-                            <input type="text" id="structure-type" placeholder="חממות">
+                            <select id="structure-type">
+                                <option value="">בחירת ערך</option>
+                                <option value="חממות">חממות</option>
+                                <option value="בתי רשת">בתי רשת</option>
+                                <option value="מנהרות">מנהרות</option>
+                                <option value="שטחים פתוחים">שטחים פתוחים</option>
+                                <option value="קרנטינה">קרנטינה</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>גודל מבנה (דונם):</label>
@@ -438,8 +449,8 @@
                             <label>שטיפת רשתות:</label>
                             <select id="net-washing">
                                 <option value="">בחירת ערך</option>
-                                <option value="nylon">ניילון</option>
-                                <option value="net">רשת</option>
+                                <option value="לא">לא</option>
+                                <option value="כן">כן</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -477,15 +488,15 @@
                             </div>
                             <div class="form-group soil-inline-field">
                                 <label>סוג החברה:</label>
-                                <input type="text" id="substrate-company" placeholder="שם החברה">
+                                <input type="text" id="substrate-company" list="datalist-substrate-company" placeholder="שם החברה">
                             </div>
                             <div class="form-group soil-inline-field">
                                 <label>סוג המצע:</label>
-                                <input type="text" id="substrate-type" placeholder="סוג המצע">
+                                <input type="text" id="substrate-type" list="datalist-substrate-type" placeholder="סוג המצע">
                             </div>
                             <div class="form-group soil-inline-field">
                                 <label>נפח המצע:</label>
-                                <input type="text" id="substrate-volume" placeholder="נפח">
+                                <input type="number" id="substrate-volume" step="any" placeholder="נפח">
                             </div>
                         </div>
                     </div>
@@ -522,7 +533,16 @@
                             </div>
                             <div class="form-group soil-inline-field">
                                 <label>כמות:</label>
-                                <input type="text" id="soil-adigan-amount" placeholder="כמות">
+                                <select id="soil-adigan-amount" style="display: none;">
+                                    <option value="">בחירת כמות</option>
+                                    <option value="40">40</option>
+                                    <option value="60">60</option>
+                                    <option value="80">80</option>
+                                    <option value="100">100</option>
+                                    <option value="120">120</option>
+                                    <option value="other">אחר</option>
+                                </select>
+                                <input type="number" id="soil-adigan-amount-custom" step="any" placeholder="כמות אחרת" style="display: none; margin-top: 8px;">
                             </div>
                         </div>
                     </div>
@@ -1057,11 +1077,11 @@
             <div class="modal-form-grid">
                 <div class="modal-form-row">
                     <label>סוג הדשן:</label>
-                    <input type="text" id="fert-modal-type" class="modal-input-sm" placeholder="סוג הדשן">
+                        <input type="text" id="fert-modal-type" list="datalist-fertilizer-type" class="modal-input-sm" placeholder="סוג הדשן">
                 </div>
                 <div class="modal-form-row">
                     <label>חברה:</label>
-                    <input type="text" id="fert-modal-company" class="modal-input-sm" placeholder="חברה">
+                        <input type="text" id="fert-modal-company" list="datalist-fertilizer-company" class="modal-input-sm" placeholder="חברה">
                 </div>
             </div>
             <div class="modal-form-row modal-form-row-single">
@@ -1184,6 +1204,17 @@
             </div>
         </div>
     </div>
+
+    <datalist id="datalist-experiment-site-other"></datalist>
+    <datalist id="datalist-crop-type"></datalist>
+    <datalist id="datalist-variety"></datalist>
+    <datalist id="datalist-nursery"></datalist>
+    <datalist id="datalist-substrate-company"></datalist>
+    <datalist id="datalist-substrate-type"></datalist>
+    <datalist id="datalist-soil-disinfection-material"></datalist>
+    <datalist id="datalist-fertilizer-type"></datalist>
+    <datalist id="datalist-fertilizer-company"></datalist>
+    <datalist id="datalist-plant-protection-material"></datalist>
 
     <!-- Leaflet (OpenStreetMap) - Free and Open Source -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
