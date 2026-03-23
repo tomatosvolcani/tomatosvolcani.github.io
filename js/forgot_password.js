@@ -53,6 +53,7 @@ resetBtn.addEventListener('click', async () => {
     }
 
     setButtonLoading(resetBtn, true);
+    let countdownStarted = false;
 
     try {
         await sendPasswordResetEmail(auth, email);
@@ -60,6 +61,7 @@ resetBtn.addEventListener('click', async () => {
 
         // Start 3-minute (180 seconds) countdown and persist it
         startButtonCountdown(resetBtn, 180, originalBtnText, COUNTDOWN_STORAGE_KEY);
+        countdownStarted = true;
 
     } catch (error) {
         // Log the full error for debugging
@@ -67,6 +69,8 @@ resetBtn.addEventListener('click', async () => {
         const message = getHebrewErrorMessageFirebase(error);
         showToast('שגיאה: ' + message, 'error');
     } finally {
-        setButtonLoading(resetBtn, false);
+        if (!countdownStarted) {
+            setButtonLoading(resetBtn, false);
+        }
     }
 });
