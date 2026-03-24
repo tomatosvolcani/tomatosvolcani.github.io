@@ -1,7 +1,6 @@
 // js/dashboard.js
-import { auth, db, analytics } from "./firebase-config.js";
+import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { logEvent, setUserId } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import {
     doc,
     getDoc,
@@ -116,11 +115,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentUser = user;
-
-    // link analytics data to this Firebase user (if consent given)
-    if (analytics) {
-        setUserId(analytics, user.uid);
-    }
 
     // בדיקת אישור משתמש לפני טעינת הדשבורד
     const isApproved = await checkUserApproval();
@@ -438,17 +432,6 @@ async function createNewExperiment() {
         };
 
         const docRef = await addDoc(experimentsRef, newExperiment);
-
-        // --> תוספת הניטור: דיווח על יצירת ניסוי <--
-        try {
-            logEvent(analytics, 'create_experiment', {
-                experiment_id: docRef.id,
-                experiment_name: experimentName
-            });
-        } catch (analyticsErr) {
-            console.warn('Analytics logEvent failed:', analyticsErr);
-        }
-        // ----------------------------------------
 
         closeNewExperimentModal();
 

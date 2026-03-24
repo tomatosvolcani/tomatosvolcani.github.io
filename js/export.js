@@ -1,6 +1,6 @@
 // js/export.js
 // Client-side experiment export — Excel (SheetJS) and ZIP (JSZip + FileSaver)
-import { auth, db, storage, analytics } from "./firebase-config.js";
+import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     doc, getDoc, collection, collectionGroup, getDocs, query, orderBy, limit
@@ -8,7 +8,6 @@ import {
 import {
     ref, listAll, getBlob
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { logEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import { showToast } from "./toast.js";
 
 let currentUser = null;
@@ -223,13 +222,6 @@ async function handleExport(e, exp, type) {
             XLSX.writeFile(wb, fileName);
             showToast('קובץ Excel הורד בהצלחה!', 'success');
 
-            // --> דיווח על הורדת אקסל <--
-            try {
-                logEvent(analytics, 'export_experiment', { format: 'excel', experiment_id: exp.id });
-            } catch (analyticsErr) {
-                console.warn('Analytics logEvent failed:', analyticsErr);
-            }
-
         } else {
             setProgress('מכין קובץ ZIP...');
             const zip = new JSZip();
@@ -250,13 +242,6 @@ async function handleExport(e, exp, type) {
             const zipName = sanitizeFileName(data.experimentName || 'experiment') + '.zip';
             saveAs(zipBlob, zipName);
             showToast('קובץ ZIP הורד בהצלחה!', 'success');
-
-            // --> דיווח על הורדת ZIP <--
-            try {
-                logEvent(analytics, 'export_experiment', { format: 'zip', experiment_id: exp.id });
-            } catch (analyticsErr) {
-                console.warn('Analytics logEvent failed:', analyticsErr);
-            }
         }
     } catch (err) {
         console.error("Export error:", err);
