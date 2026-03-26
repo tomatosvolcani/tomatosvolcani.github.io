@@ -258,6 +258,11 @@ async function handleExport(e, exp, type) {
 function buildExcelWorkbook(data) {
     const wb = XLSX.utils.book_new();
     const rows = [];
+    const treatmentsCount = Math.max(
+        1,
+        parseInt(data.treatmentsCount) || 0,
+        Array.isArray(data.treatments) ? data.treatments.length : 0
+    );
 
     function addSection(title) {
         rows.push([]);
@@ -271,6 +276,45 @@ function buildExcelWorkbook(data) {
         rows.push(headers);
         dataRows.forEach(r => rows.push(r));
         rows.push([]);
+    }
+    function deepClone(value) {
+        if (value === undefined) return undefined;
+        return JSON.parse(JSON.stringify(value));
+    }
+    function getTreatmentTitle(index) {
+        const t = data.treatments?.[index] || {};
+        if (t.name && t.pesticide) return `טיפול ${index + 1} - ${t.name} (${t.pesticide})`;
+        if (t.name) return `טיפול ${index + 1} - ${t.name}`;
+        return `טיפול ${index + 1}`;
+    }
+    function resolveSectionState(sectionId, legacyShared, legacyData) {
+        const model = data.sectionSharedState?.[sectionId];
+        let shared = legacyShared !== false;
+        let sharedData = deepClone(legacyData || {});
+        let byTreatment = [];
+
+        if (model) {
+            shared = model.shared !== false;
+            sharedData = deepClone(model.sharedData || model.data || sharedData || {});
+            byTreatment = Array.isArray(model.byTreatment) ? deepClone(model.byTreatment) : [];
+        }
+
+        while (byTreatment.length < treatmentsCount) {
+            byTreatment.push(deepClone(sharedData || {}));
+        }
+
+        return {
+            shared,
+            sharedData,
+            byTreatment
+        };
+    }
+    function renderPerTreatment(sectionState, renderCb) {
+        for (let i = 0; i < treatmentsCount; i++) {
+            rows.push([]);
+            rows.push([getTreatmentTitle(i)]);
+            renderCb(sectionState.byTreatment[i] || {}, i);
+        }
     }
 
     // ── 1. תוכנית הניסוי ──
@@ -304,134 +348,224 @@ function buildExcelWorkbook(data) {
     }
 
     // ── 2. הכנות לניסוי > פרטי הגידול ──
-    const crop = data.cropDetails?.data || {};
+    const cropState = resolveSectionState('crop', data.cropDetails?.shared, data.cropDetails?.data || {});
     addSection('הכנות לניסוי > פרטי הגידול');
-    addField('נתונים משותפים לכל הטיפולים', data.cropDetails?.shared ? 'כן' : 'לא');
-    addField('מועד שתילה', crop.plantingDate);
-    addField('סוג גידול', crop.cropType);
-    addField('זן', crop.variety);
-    addField('צמח מורכב', crop.graftedPlant);
-    addField('סוג הזן', crop.varietyType);
-    addField('צמח מפוצל', crop.splitPlant);
-    addField('משתלה', crop.nursery);
-    addField('כמות שתילים', crop.seedlingsCount);
-    addField('עומד שתילה', crop.plantingDensity);
-    addField('מבנה שתילה', crop.plantingStructure);
-    addField('שטח הניסוי (דונם)', crop.experimentArea);
-    addField('שם הכנה', crop.preparationName);
-    addField('הערות', crop.notes);
+    addField('נתונים משותפים לכל הטיפולים', cropState.shared ? 'כן' : 'לא');
+    const renderCropFields = (crop) => {
+        addField('מועד שתילה', crop.plantingDate);
+        addField('סוג גידול', crop.cropType);
+        addField('זן', crop.variety);
+        addField('צמח מורכב', crop.graftedPlant);
+        addField('סוג הזן', crop.varietyType);
+        addField('צמח מפוצל', crop.splitPlant);
+        addField('משתלה', crop.nursery);
+        addField('כמות שתילים', crop.seedlingsCount);
+        addField('עומד שתילה', crop.plantingDensity);
+        addField('מבנה שתילה', crop.plantingStructure);
+        addField('שטח הניסוי (דונם)', crop.experimentArea);
+        addField('שם הכנה', crop.preparationName);
+        addField('הערות', crop.notes);
+    };
+    if (cropState.shared) {
+        renderCropFields(cropState.sharedData || cropState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(cropState, renderCropFields);
+    }
 
     // ── 3. הכנות לניסוי > מבנה ──
-    const structure = data.structureDetails?.data || {};
+    const structureState = resolveSectionState('structure', data.structureDetails?.shared, data.structureDetails?.data || {});
     addSection('הכנות לניסוי > מבנה');
-    addField('נתונים משותפים לכל הטיפולים', data.structureDetails?.shared ? 'כן' : 'לא');
-    addField('סוג המבנה', structure.type);
-    addField('גודל מבנה (דונם)', structure.size);
-    addField('מספר גמלונים', structure.tunnels);
-    addField('אורך שלוחה (מ\')', structure.length);
-    addField('רוחב גמלון (מ\')', structure.width);
-    addField('חיפוי גג', structure.roofCovering);
-    addField('שטיפת רשתות', structure.netWashing);
-    addField('מפנה המבנה', structure.direction);
-    addField('פעולות חריגות', structure.notes);
+    addField('נתונים משותפים לכל הטיפולים', structureState.shared ? 'כן' : 'לא');
+    const renderStructureFields = (structure) => {
+        addField('סוג המבנה', structure.type);
+        addField('גודל מבנה (דונם)', structure.size);
+        addField('מספר גמלונים', structure.tunnels);
+        addField('אורך שלוחה (מ\')', structure.length);
+        addField('רוחב גמלון (מ\')', structure.width);
+        addField('חיפוי גג', structure.roofCovering);
+        addField('שטיפת רשתות', structure.netWashing);
+        addField('מפנה המבנה', structure.direction);
+        addField('פעולות חריגות', structure.notes);
+    };
+    if (structureState.shared) {
+        renderStructureFields(structureState.sharedData || structureState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(structureState, renderStructureFields);
+    }
 
     // ── 4. הכנות לניסוי > טיפול בקרקע ──
-    const soil = data.soilDetails?.data || {};
+    const soilState = resolveSectionState('soil', data.soilDetails?.shared, data.soilDetails?.data || {});
     addSection('הכנות לניסוי > טיפול בקרקע');
-    addField('נתונים משותפים לכל הטיפולים', data.soilDetails?.shared ? 'כן' : 'לא');
-    addField('מצע מנותק', soil.detachedSubstrate);
-    addField('סוג החברה', soil.substrateCompany);
-    addField('סוג המצע', soil.substrateType);
-    addField('נפח המצע', soil.substrateVolume);
-    addField('חיפוי קרקע/כסף', soil.mulch);
-    addField('חיטוי סולרי', soil.solarization);
-    addField('חיטוי בהמטרה אדיגן', soil.disinfectionAdigan);
-    addField('כמות אדיגן', soil.adiganAmount);
+    addField('נתונים משותפים לכל הטיפולים', soilState.shared ? 'כן' : 'לא');
+    const renderSoilFields = (soil) => {
+        addField('מצע מנותק', soil.detachedSubstrate);
+        addField('סוג החברה', soil.substrateCompany);
+        addField('סוג המצע', soil.substrateType);
+        addField('נפח המצע', soil.substrateVolume);
+        addField('חיפוי קרקע/כסף', soil.mulch);
+        addField('חיטוי סולרי', soil.solarization);
+        addField('חיטוי בהמטרה אדיגן', soil.disinfectionAdigan);
+        addField('כמות אדיגן', soil.adiganAmount);
 
-    if (soil.compostRows?.length > 0) {
-        rows.push([]); rows.push(['פיזור קומפוסט:']);
-        addTable(['תאריך', 'כמות', 'אופן יישום'], soil.compostRows.map(r => [r.date || '', r.amount || '', r.method || '']));
-    }
-    if (soil.sprayRows?.length > 0) {
-        rows.push(['ריסוס מונע הצצה:']);
-        addTable(['תאריך', 'כמות', 'אופן יישום'], soil.sprayRows.map(r => [r.date || '', r.amount || '', r.method || '']));
-    }
-    if (soil.disinfectRows?.length > 0) {
-        rows.push(['חיטוי קרקע:']);
-        addTable(['תאריך', 'חומר החיטוי', 'כמות', 'אופן יישום'], soil.disinfectRows.map(r => [r.date || '', r.material || '', r.amount || '', r.method || '']));
+        if (soil.compostRows?.length > 0) {
+            rows.push([]); rows.push(['פיזור קומפוסט:']);
+            addTable(['תאריך', 'כמות', 'אופן יישום'], soil.compostRows.map(r => [r.date || '', r.amount || '', r.method || '']));
+        }
+        if (soil.sprayRows?.length > 0) {
+            rows.push(['ריסוס מונע הצצה:']);
+            addTable(['תאריך', 'כמות', 'אופן יישום'], soil.sprayRows.map(r => [r.date || '', r.amount || '', r.method || '']));
+        }
+        if (soil.disinfectRows?.length > 0) {
+            rows.push(['חיטוי קרקע:']);
+            addTable(['תאריך', 'חומר החיטוי', 'כמות', 'אופן יישום'], soil.disinfectRows.map(r => [r.date || '', r.material || '', r.amount || '', r.method || '']));
+        }
+    };
+    if (soilState.shared) {
+        renderSoilFields(soilState.sharedData || soilState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(soilState, renderSoilFields);
     }
 
     // ── 5. הכנות לניסוי > סוג ופריסת הטפטוף ──
-    const drip = data.dripDetails?.data || {};
+    const dripState = resolveSectionState('drip', data.dripDetails?.shared, data.dripDetails?.data || {});
     addSection('הכנות לניסוי > סוג ופריסת הטפטוף');
-    addField('נתונים משותפים לכל הטיפולים', data.dripDetails?.shared ? 'כן' : 'לא');
-    addField('שלוחה בודדת/כפולה', drip.singleDouble);
-    addField('קוטר צינור טפטוף', drip.pipeDiameter);
-    addField('מרחק בין טפטפות (ס"מ)', drip.emitterSpacing);
-    addField('ספיקה (ליטר/שעה)', drip.flowRate);
-    addField('מס\' שלוחות (יח\')', drip.linesCount);
-    addField('מרחק בין שלוחות טפטוף (ס"מ)', drip.linesSpacing);
-    addField('מרחק בין מרכז ערוגות (מטר)', drip.bedSpacing);
+    addField('נתונים משותפים לכל הטיפולים', dripState.shared ? 'כן' : 'לא');
+    const renderDripFields = (drip) => {
+        addField('שלוחה בודדת/כפולה', drip.singleDouble);
+        addField('קוטר צינור טפטוף', drip.pipeDiameter);
+        addField('מרחק בין טפטפות (ס"מ)', drip.emitterSpacing);
+        addField('ספיקה (ליטר/שעה)', drip.flowRate);
+        addField('מס\' שלוחות (יח\')', drip.linesCount);
+        addField('מרחק בין שלוחות טפטוף (ס"מ)', drip.linesSpacing);
+        addField('מרחק בין מרכז ערוגות (מטר)', drip.bedSpacing);
+    };
+    if (dripState.shared) {
+        renderDripFields(dripState.sharedData || dripState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(dripState, renderDripFields);
+    }
 
     // ── 6. מהלך הניסוי > השקיה ודשן ──
+    const irrigationState = resolveSectionState('irrigation', true, {
+        irrigationData: data.irrigationData || [],
+        fertilizationData: data.fertilizationData || []
+    });
     addSection('מהלך הניסוי > השקיה ודשן');
-    const irrigationData = data.irrigationData || [];
-    if (irrigationData.length > 0) {
-        rows.push(['השקיה:']);
-        addTable(
-            ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סה"כ כמות מים (ליטר)', 'קישור קובץ'],
-            irrigationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.totalWater || '', r.fileUrl || ''])
-        );
-    } else { addField('השקיה', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', irrigationState.shared ? 'כן' : 'לא');
+    const renderIrrigationFields = (sectionData) => {
+        const irrigationData = sectionData.irrigationData || [];
+        if (irrigationData.length > 0) {
+            rows.push(['השקיה:']);
+            addTable(
+                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סה"כ כמות מים (ליטר)', 'קישור קובץ'],
+                irrigationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.totalWater || '', r.fileUrl || ''])
+            );
+        } else {
+            addField('השקיה', 'אין נתונים');
+        }
 
-    const fertilizationData = data.fertilizationData || [];
-    if (fertilizationData.length > 0) {
-        rows.push(['דישון:']);
-        addTable(
-            ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סוג הדשן', 'חברה', 'סה"כ כמות דשן', 'קישור קובץ'],
-            fertilizationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.fertType || '', r.company || '', r.totalFert || '', r.fileUrl || ''])
-        );
-    } else { addField('דישון', 'אין נתונים'); }
+        const fertilizationData = sectionData.fertilizationData || [];
+        if (fertilizationData.length > 0) {
+            rows.push(['דישון:']);
+            addTable(
+                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סוג הדשן', 'חברה', 'סה"כ כמות דשן', 'קישור קובץ'],
+                fertilizationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.fertType || '', r.company || '', r.totalFert || '', r.fileUrl || ''])
+            );
+        } else {
+            addField('דישון', 'אין נתונים');
+        }
+    };
+    if (irrigationState.shared) {
+        renderIrrigationFields(irrigationState.sharedData || irrigationState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(irrigationState, renderIrrigationFields);
+    }
 
     // ── 7. מהלך הניסוי > צימוח ──
-    const growthData = data.growthData || [];
+    const growthState = resolveSectionState('growth', true, { growthData: data.growthData || [] });
     addSection('מהלך הניסוי > צימוח');
-    if (growthData.length > 0) {
-        addTable(['נתון', 'ערך', 'תאריך מדידה'], growthData.map(r => [r.name || '', r.value || '', r.measureDate || '']));
-    } else { addField('צימוח', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', growthState.shared ? 'כן' : 'לא');
+    const renderGrowthFields = (sectionData) => {
+        const growthData = sectionData.growthData || [];
+        if (growthData.length > 0) {
+            addTable(['נתון', 'ערך', 'תאריך מדידה'], growthData.map(r => [r.name || '', r.value || '', r.measureDate || '']));
+        } else {
+            addField('צימוח', 'אין נתונים');
+        }
+    };
+    if (growthState.shared) {
+        renderGrowthFields(growthState.sharedData || growthState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(growthState, renderGrowthFields);
+    }
 
     // ── 8. מהלך הניסוי > נתוני אקלים וסנסורים ──
-    const climateData = data.climateData || [];
+    const climateState = resolveSectionState('climate', true, { climateData: data.climateData || [] });
     addSection('מהלך הניסוי > נתוני אקלים וסנסורים');
-    if (climateData.length > 0) {
-        addTable(
-            ['נתון', 'מיקום מדידה', 'מיקום חיישן במרחב', 'גובה/עומק חיישן', 'תאריכי מדידה', 'הערות'],
-            climateData.map(r => [r.name || '', r.location || '', r.sensorPosition || '', r.sensorDepth || '', r.measureDates || '', r.notes || ''])
-        );
-    } else { addField('אקלים', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', climateState.shared ? 'כן' : 'לא');
+    const renderClimateFields = (sectionData) => {
+        const climateData = sectionData.climateData || [];
+        if (climateData.length > 0) {
+            addTable(
+                ['נתון', 'מיקום מדידה', 'מיקום חיישן במרחב', 'גובה/עומק חיישן', 'תאריכי מדידה', 'הערות'],
+                climateData.map(r => [r.name || '', r.location || '', r.sensorPosition || '', r.sensorDepth || '', r.measureDates || '', r.notes || ''])
+            );
+        } else {
+            addField('אקלים', 'אין נתונים');
+        }
+    };
+    if (climateState.shared) {
+        renderClimateFields(climateState.sharedData || climateState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(climateState, renderClimateFields);
+    }
 
     // ── 9. מהלך הניסוי > אגרוטכניקה ──
-    const agroData = data.agrotechnicsData || [];
+    const agroState = resolveSectionState('agrotechnics', true, { agrotechnicsData: data.agrotechnicsData || [] });
     addSection('מהלך הניסוי > אגרוטכניקה');
-    if (agroData.length > 0) {
-        addTable(
-            ['פעולה', 'תאריך ביצוע הפעולה', 'כמות שעות לפעולה', 'כמות עובדים לפעולה'],
-            agroData.map(r => [r.action || '', r.actionDate || '', r.hours || '', r.workers || ''])
-        );
-    } else { addField('אגרוטכניקה', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', agroState.shared ? 'כן' : 'לא');
+    const renderAgroFields = (sectionData) => {
+        const agroData = sectionData.agrotechnicsData || [];
+        if (agroData.length > 0) {
+            addTable(
+                ['פעולה', 'תאריך ביצוע הפעולה', 'כמות שעות לפעולה', 'כמות עובדים לפעולה'],
+                agroData.map(r => [r.action || '', r.actionDate || '', r.hours || '', r.workers || ''])
+            );
+        } else {
+            addField('אגרוטכניקה', 'אין נתונים');
+        }
+    };
+    if (agroState.shared) {
+        renderAgroFields(agroState.sharedData || agroState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(agroState, renderAgroFields);
+    }
 
     // ── 10. מהלך הניסוי > הגנת הצומח ──
-    const pp = data.plantProtectionData || {};
+    const plantProtectionState = resolveSectionState('plantProtection', true, {
+        plantProtectionData: data.plantProtectionData || {}
+    });
     addSection('מהלך הניסוי > הגנת הצומח');
-    const pests = pp.pests || [];
-    if (pests.length > 0) { rows.push(['מזיקים:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], pests.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
-    const diseases = pp.diseases || [];
-    if (diseases.length > 0) { rows.push(['מחלות:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], diseases.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
-    const sprays = pp.sprays || [];
-    if (sprays.length > 0) { rows.push(['ריסוסים:']); addTable(['חומר', 'תאריך', 'מינון לטיפול', 'משולב עם חומרים נוספים', 'הערות'], sprays.map(r => [r.material || '', r.date || '', r.dosage || '', r.combined || '', r.notes || ''])); }
-    const drenches = pp.drenches || [];
-    if (drenches.length > 0) { rows.push(['הגמעות:']); addTable(['חומר', 'תאריך', 'מינון לטיפול', 'משולב עם חומרים נוספים', 'הערות'], drenches.map(r => [r.material || '', r.date || '', r.dosage || '', r.combined || '', r.notes || ''])); }
-    if (pests.length === 0 && diseases.length === 0 && sprays.length === 0 && drenches.length === 0) { addField('הגנת הצומח', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', plantProtectionState.shared ? 'כן' : 'לא');
+    const renderPlantProtection = (sectionData) => {
+        const pp = sectionData.plantProtectionData || {};
+        const pests = pp.pests || [];
+        if (pests.length > 0) { rows.push(['מזיקים:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], pests.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
+        const diseases = pp.diseases || [];
+        if (diseases.length > 0) { rows.push(['מחלות:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], diseases.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
+        const sprays = pp.sprays || [];
+        if (sprays.length > 0) { rows.push(['ריסוסים:']); addTable(['חומר', 'תאריך', 'מינון לטיפול', 'משולב עם חומרים נוספים', 'הערות'], sprays.map(r => [r.material || '', r.date || '', r.dosage || '', r.combined || '', r.notes || ''])); }
+        const drenches = pp.drenches || [];
+        if (drenches.length > 0) { rows.push(['הגמעות:']); addTable(['חומר', 'תאריך', 'מינון לטיפול', 'משולב עם חומרים נוספים', 'הערות'], drenches.map(r => [r.material || '', r.date || '', r.dosage || '', r.combined || '', r.notes || ''])); }
+        if (pests.length === 0 && diseases.length === 0 && sprays.length === 0 && drenches.length === 0) {
+            addField('הגנת הצומח', 'אין נתונים');
+        }
+    };
+    if (plantProtectionState.shared) {
+        renderPlantProtection(plantProtectionState.sharedData || plantProtectionState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(plantProtectionState, renderPlantProtection);
+    }
 
     // ── 11. נתוני יבול ──
     const yd = data.yieldData || {};

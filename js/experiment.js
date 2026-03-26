@@ -34,6 +34,22 @@ let allUsers = []; // All users for partner selection
 let selectedPartner = null; // Currently selected partner from autocomplete
 let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
 let isSharedExperiment = false; // האם זה ניסוי שאני שותף בו
+let sharedSectionState = {};
+let isSyncingSharedToggle = false;
+
+const SHARED_VIEW_TO_SECTION = {
+    crop: 'crop',
+    structure: 'structure',
+    soil: 'soil',
+    drip: 'drip',
+    irrigation: 'irrigation',
+    growth: 'growth',
+    climate: 'climate',
+    agrotechnics: 'agrotechnics',
+    'plant-protection': 'plantProtection'
+};
+
+const SHARED_SECTION_IDS = Object.values(SHARED_VIEW_TO_SECTION);
 
 const SITE_PRESET_VALUES = ['volcani-bet-dagan', 'mop-darom', 'gilat'];
 const DYNAMIC_FIELD_CONFIG = {
@@ -60,6 +76,212 @@ function getDefaultDynamicFieldOptions() {
 function normalizeDynamicValue(value) {
     if (value === null || value === undefined) return '';
     return String(value).trim();
+}
+
+function deepClone(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+}
+
+function getCurrentTreatmentsCount() {
+    const fromInput = parseInt(document.getElementById('treatments-count')?.value);
+    if (Number.isFinite(fromInput) && fromInput > 0) return fromInput;
+    const fromData = parseInt(experimentData?.treatmentsCount);
+    if (Number.isFinite(fromData) && fromData > 0) return fromData;
+    return 1;
+}
+
+function getSectionIdByView(viewName = currentView) {
+    return SHARED_VIEW_TO_SECTION[viewName] || null;
+}
+
+function getSectionModel(sectionId) {
+    if (!sectionId) return null;
+    if (!sharedSectionState[sectionId]) {
+        sharedSectionState[sectionId] = {
+            shared: true,
+            sharedData: {},
+            byTreatment: []
+        };
+    }
+    return sharedSectionState[sectionId];
+}
+
+function ensureModelTreatmentLength(model, treatmentsCount = getCurrentTreatmentsCount()) {
+    if (!model) return;
+    if (!Array.isArray(model.byTreatment)) model.byTreatment = [];
+
+    if (model.byTreatment.length > treatmentsCount) {
+        model.byTreatment = model.byTreatment.slice(0, treatmentsCount);
+    }
+
+    while (model.byTreatment.length < treatmentsCount) {
+        model.byTreatment.push(deepClone(model.sharedData || {}));
+    }
+}
+
+function getSectionEffectiveData(sectionId, treatmentIndex = currentTreatmentIndex) {
+    const model = getSectionModel(sectionId);
+    if (!model) return {};
+
+    ensureModelTreatmentLength(model);
+
+    if (model.shared) {
+        return deepClone(model.sharedData || {});
+    }
+
+    return deepClone(model.byTreatment[treatmentIndex] || {});
+}
+
+function setSectionCurrentData(sectionId, data, treatmentIndex = currentTreatmentIndex) {
+    const model = getSectionModel(sectionId);
+    if (!model) return;
+
+    if (model.shared) {
+        model.sharedData = deepClone(data || {});
+        return;
+    }
+
+    ensureModelTreatmentLength(model);
+    model.byTreatment[treatmentIndex] = deepClone(data || {});
+}
+
+function cloneSectionTreatment1ToAll(sectionId) {
+    const model = getSectionModel(sectionId);
+    if (!model) return;
+
+    const treatmentsCount = getCurrentTreatmentsCount();
+    const firstData = model.shared
+        ? deepClone(model.sharedData || {})
+        : deepClone(model.byTreatment[0] || model.sharedData || {});
+
+    model.sharedData = deepClone(firstData || {});
+    model.byTreatment = Array.from({ length: treatmentsCount }, () => deepClone(firstData || {}));
+}
+
+function createProgressDefaults() {
+    return {
+        irrigation: { irrigationData: [], fertilizationData: [] },
+        growth: { growthData: [] },
+        climate: { climateData: [] },
+        agrotechnics: { agrotechnicsData: [] },
+        plantProtection: {
+            plantProtectionData: {
+                pests: [],
+                diseases: [],
+                sprays: [],
+                drenches: []
+            }
+        }
+    };
+}
+
+function getLegacySectionDataFromExperiment(sectionId, data) {
+    const progressDefaults = createProgressDefaults();
+
+    switch (sectionId) {
+        case 'crop':
+            return deepClone(data?.cropDetails?.data || {});
+        case 'structure':
+            return deepClone(data?.structureDetails?.data || {});
+        case 'soil':
+            return deepClone(data?.soilDetails?.data || {});
+        case 'drip':
+            return deepClone(data?.dripDetails?.data || {});
+        case 'irrigation':
+            return {
+                irrigationData: deepClone(data?.irrigationData || progressDefaults.irrigation.irrigationData),
+                fertilizationData: deepClone(data?.fertilizationData || progressDefaults.irrigation.fertilizationData)
+            };
+        case 'growth':
+            return {
+                growthData: deepClone(data?.growthData || progressDefaults.growth.growthData)
+            };
+        case 'climate':
+            return {
+                climateData: deepClone(data?.climateData || progressDefaults.climate.climateData)
+            };
+        case 'agrotechnics':
+            return {
+                agrotechnicsData: deepClone(data?.agrotechnicsData || progressDefaults.agrotechnics.agrotechnicsData)
+            };
+        case 'plantProtection':
+            return {
+                plantProtectionData: deepClone(data?.plantProtectionData || progressDefaults.plantProtection.plantProtectionData)
+            };
+        default:
+            return {};
+    }
+}
+
+function normalizeSectionModel(sectionId, data, treatmentsCount) {
+    const sectionSharedState = data?.sectionSharedState?.[sectionId];
+    const prepKeyMap = {
+        crop: 'cropDetails',
+        structure: 'structureDetails',
+        soil: 'soilDetails',
+        drip: 'dripDetails'
+    };
+
+    let shared = true;
+    let sharedData = {};
+    let byTreatment = [];
+
+    if (sectionSharedState) {
+        shared = sectionSharedState.shared !== false;
+        sharedData = deepClone(sectionSharedState.sharedData || {});
+        byTreatment = Array.isArray(sectionSharedState.byTreatment)
+            ? deepClone(sectionSharedState.byTreatment)
+            : [];
+    } else if (prepKeyMap[sectionId]) {
+        const block = data?.[prepKeyMap[sectionId]] || {};
+        shared = block.shared !== false;
+        sharedData = deepClone(block.sharedData || block.data || {});
+        byTreatment = Array.isArray(block.byTreatment) ? deepClone(block.byTreatment) : [];
+    } else {
+        shared = true;
+        sharedData = getLegacySectionDataFromExperiment(sectionId, data);
+    }
+
+    const model = { shared, sharedData: sharedData || {}, byTreatment: byTreatment || [] };
+    ensureModelTreatmentLength(model, treatmentsCount);
+
+    if (model.shared) {
+        cloneSectionTreatment1ToAllTemp(model, treatmentsCount);
+    }
+
+    return model;
+}
+
+function cloneSectionTreatment1ToAllTemp(model, treatmentsCount = getCurrentTreatmentsCount()) {
+    if (!model) return;
+    const firstData = model.shared
+        ? deepClone(model.sharedData || {})
+        : deepClone(model.byTreatment[0] || model.sharedData || {});
+
+    model.sharedData = deepClone(firstData || {});
+    model.byTreatment = Array.from({ length: treatmentsCount }, () => deepClone(firstData || {}));
+}
+
+function initializeSharedSectionState() {
+    const treatmentsCount = getCurrentTreatmentsCount();
+    const data = experimentData || {};
+
+    sharedSectionState = {};
+    SHARED_SECTION_IDS.forEach((sectionId) => {
+        sharedSectionState[sectionId] = normalizeSectionModel(sectionId, data, treatmentsCount);
+    });
+}
+
+function syncAllSectionTreatmentCounts() {
+    const treatmentsCount = getCurrentTreatmentsCount();
+    SHARED_SECTION_IDS.forEach((sectionId) => {
+        const model = getSectionModel(sectionId);
+        ensureModelTreatmentLength(model, treatmentsCount);
+        if (model.shared) {
+            cloneSectionTreatment1ToAllTemp(model, treatmentsCount);
+        }
+    });
 }
 
 function normalizeUniqueValues(values) {
@@ -172,6 +394,12 @@ async function loadDynamicFieldOptions() {
         dynamicFieldOptions = base;
         applyDynamicFieldOptionsToUI();
     } catch (error) {
+        if (error?.code === 'permission-denied') {
+            dynamicFieldOptions = getDefaultDynamicFieldOptions();
+            applyDynamicFieldOptionsToUI();
+            console.warn('Skipping dynamic field options load due to permissions (permission-denied).');
+            return;
+        }
         console.error('Error loading dynamic field options:', error);
     }
 }
@@ -188,6 +416,10 @@ async function persistDynamicFieldOptions(formData) {
         dynamicFieldOptions = merged;
         applyDynamicFieldOptionsToUI();
     } catch (error) {
+        if (error?.code === 'permission-denied') {
+            console.warn('Skipping dynamic field options persist due to permissions (permission-denied).');
+            return;
+        }
         console.error('Error persisting dynamic field options:', error);
     }
 }
@@ -197,6 +429,12 @@ async function persistDynamicFieldOptions(formData) {
 // =========================================
 document.addEventListener('DOMContentLoaded', () => {
     initEventListeners();
+});
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
 });
 
 onAuthStateChanged(auth, async (user) => {
@@ -565,10 +803,6 @@ function populateForm() {
         setFieldValue('preparation-name', crop.preparationName);
         setFieldValue('crop-notes', crop.notes);
 
-        const toggle = document.getElementById('shared-data-toggle');
-        if (toggle && data.cropDetails.shared !== undefined) {
-            toggle.checked = data.cropDetails.shared;
-        }
     }
 
     // Structure details
@@ -629,6 +863,10 @@ function populateForm() {
 
     // עדכון כפתור Google Maps אחרי שהנתונים נטענו
     updateGoogleMapsButtonVisibility();
+
+    initializeSharedSectionState();
+    syncSharedToggleForCurrentView();
+    loadCurrentSectionDataFromState();
 }
 
 function setExperimentSiteFromData(experimentSiteValue, experimentSiteSelection, experimentSiteOther) {
@@ -698,6 +936,364 @@ function setFieldValue(id, value) {
     }
 }
 
+function collectSectionDataFromDOM(sectionId) {
+    switch (sectionId) {
+        case 'crop':
+            return {
+                plantingDate: document.getElementById('planting-date')?.value || '',
+                cropType: document.getElementById('crop-type')?.value || '',
+                variety: document.getElementById('variety')?.value || '',
+                graftedPlant: document.getElementById('grafted-plant')?.value || '',
+                varietyType: document.getElementById('variety-type')?.value || '',
+                splitPlant: document.getElementById('split-plant')?.value || '',
+                nursery: document.getElementById('nursery')?.value || '',
+                seedlingsCount: document.getElementById('seedlings-count')?.value || '',
+                plantingDensity: document.getElementById('planting-density')?.value || '',
+                plantingStructure: document.getElementById('planting-structure')?.value || '',
+                experimentArea: document.getElementById('experiment-area')?.value || '',
+                preparationName: document.getElementById('preparation-name')?.value || '',
+                notes: document.getElementById('crop-notes')?.value || ''
+            };
+        case 'structure':
+            return {
+                type: document.getElementById('structure-type')?.value || '',
+                size: document.getElementById('structure-size')?.value || '',
+                tunnels: document.getElementById('structure-tunnels')?.value || '',
+                length: document.getElementById('structure-length')?.value || '',
+                width: document.getElementById('structure-width')?.value || '',
+                roofCovering: document.getElementById('roof-covering')?.value || '',
+                netWashing: document.getElementById('net-washing')?.value || '',
+                direction: document.getElementById('structure-direction')?.value || '',
+                notes: document.getElementById('structure-notes')?.value || ''
+            };
+        case 'soil':
+            return {
+                detachedSubstrate: document.getElementById('detached-substrate')?.value || '',
+                substrateCompany: document.getElementById('substrate-company')?.value || '',
+                substrateType: document.getElementById('substrate-type')?.value || '',
+                substrateVolume: document.getElementById('substrate-volume')?.value || '',
+                mulch: document.getElementById('soil-mulch')?.value || '',
+                disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
+                adiganAmount: getResolvedAdiganAmount(),
+                solarization: document.getElementById('soil-solarization')?.value || '',
+                compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
+                sprayRows: collectSoilTableRows('spray-tbody', ['date','amount','method']),
+                disinfectRows: collectSoilDisinfectRows('disinfect-tbody')
+            };
+        case 'drip':
+            return {
+                singleDouble: document.getElementById('drip-single-double')?.value || '',
+                pipeDiameter: document.getElementById('drip-pipe-diameter')?.value || '',
+                emitterSpacing: document.getElementById('drip-emitter-spacing')?.value || '',
+                flowRate: document.getElementById('drip-flow-rate')?.value || '',
+                linesCount: document.getElementById('drip-lines-count')?.value || '',
+                linesSpacing: document.getElementById('drip-lines-spacing')?.value || '',
+                bedSpacing: document.getElementById('drip-bed-spacing')?.value || ''
+            };
+        case 'irrigation':
+            return {
+                irrigationData: collectProgressRows('irrigation-tbody', IRRIGATION_FIELDS),
+                fertilizationData: collectProgressRows('fertilization-tbody', FERTILIZATION_FIELDS)
+            };
+        case 'growth':
+            return {
+                growthData: collectProgressRows('growth-tbody', GROWTH_FIELDS)
+            };
+        case 'climate':
+            return {
+                climateData: collectProgressRows('climate-tbody', CLIMATE_FIELDS)
+            };
+        case 'agrotechnics':
+            return {
+                agrotechnicsData: collectProgressRows('agro-tbody', AGRO_FIELDS)
+            };
+        case 'plantProtection':
+            return {
+                plantProtectionData: {
+                    pests: collectProgressRows('pest-tbody', PEST_FIELDS),
+                    diseases: collectProgressRows('disease-tbody', PEST_FIELDS),
+                    sprays: collectProgressRows('spray-prot-tbody', PROTECTION_FIELDS),
+                    drenches: collectProgressRows('drench-tbody', PROTECTION_FIELDS)
+                }
+            };
+        default:
+            return {};
+    }
+}
+
+function applySectionDataToDOM(sectionId, sectionData) {
+    const data = sectionData || {};
+
+    switch (sectionId) {
+        case 'crop': {
+            let mappedVarietyType = data.varietyType || '';
+            if (mappedVarietyType === 'cherry' || mappedVarietyType === 'cluster') mappedVarietyType = 'regular';
+            let mappedSplitPlant = data.splitPlant || '';
+            if (mappedSplitPlant === 'yes') mappedSplitPlant = 'כן';
+            if (mappedSplitPlant === 'no') mappedSplitPlant = 'לא';
+
+            setFieldValue('planting-date', data.plantingDate);
+            setFieldValue('crop-type', data.cropType);
+            setFieldValue('variety', data.variety);
+            setFieldValue('grafted-plant', data.graftedPlant);
+            setFieldValue('variety-type', mappedVarietyType);
+            setFieldValue('split-plant', mappedSplitPlant);
+            setFieldValue('nursery', data.nursery);
+            setFieldValue('seedlings-count', data.seedlingsCount);
+            setFieldValue('planting-density', data.plantingDensity);
+            setFieldValue('planting-structure', data.plantingStructure);
+            setFieldValue('experiment-area', data.experimentArea);
+            setFieldValue('preparation-name', data.preparationName);
+            setFieldValue('crop-notes', data.notes);
+            break;
+        }
+        case 'structure': {
+            let mappedNetWashing = data.netWashing || '';
+            if (mappedNetWashing === 'nylon' || mappedNetWashing === 'net') mappedNetWashing = 'כן';
+            setFieldValue('structure-type', data.type);
+            setFieldValue('structure-size', data.size);
+            setFieldValue('structure-tunnels', data.tunnels);
+            setFieldValue('structure-length', data.length);
+            setFieldValue('structure-width', data.width);
+            setFieldValue('roof-covering', data.roofCovering);
+            setFieldValue('net-washing', mappedNetWashing);
+            setFieldValue('structure-direction', data.direction);
+            setFieldValue('structure-notes', data.notes);
+            break;
+        }
+        case 'soil': {
+            setFieldValue('detached-substrate', data.detachedSubstrate);
+            setFieldValue('substrate-company', data.substrateCompany);
+            setFieldValue('substrate-type', data.substrateType);
+            setFieldValue('substrate-volume', data.substrateVolume);
+            let mulchVal = data.mulch || '';
+            if (mulchVal === 'אין') mulchVal = 'ללא';
+            if (mulchVal === 'קיים') mulchVal = 'כסף';
+            setFieldValue('soil-mulch', mulchVal);
+            setFieldValue('soil-disinfection-adigan', data.disinfectionAdigan);
+            setAdiganAmountFromData(data.adiganAmount);
+            setFieldValue('soil-solarization', data.solarization);
+            renderSoilTable('compost-tbody', data.compostRows || [], ['date','amount','method']);
+            renderSoilTable('spray-tbody', data.sprayRows || [], ['date','amount','method']);
+            renderSoilDisinfectTable('disinfect-tbody', data.disinfectRows || []);
+            break;
+        }
+        case 'drip': {
+            setFieldValue('drip-single-double', data.singleDouble);
+            setFieldValue('drip-pipe-diameter', data.pipeDiameter);
+            setFieldValue('drip-emitter-spacing', data.emitterSpacing);
+            setFieldValue('drip-flow-rate', data.flowRate);
+            setFieldValue('drip-lines-count', data.linesCount);
+            setFieldValue('drip-lines-spacing', data.linesSpacing);
+            setFieldValue('drip-bed-spacing', data.bedSpacing);
+            break;
+        }
+        case 'irrigation': {
+            const irrigTbody = document.getElementById('irrigation-tbody');
+            if (irrigTbody) {
+                irrigTbody.innerHTML = '';
+                (data.irrigationData || []).forEach((row) => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, row));
+            }
+
+            const fertTbody = document.getElementById('fertilization-tbody');
+            if (fertTbody) {
+                fertTbody.innerHTML = '';
+                (data.fertilizationData || []).forEach((row) => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, row, {
+                    dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
+                }));
+            }
+            break;
+        }
+        case 'growth': {
+            renderGrowthTable(data.growthData || []);
+            break;
+        }
+        case 'climate': {
+            renderClimateTable(data.climateData || []);
+            break;
+        }
+        case 'agrotechnics': {
+            renderAgroTable(data.agrotechnicsData || []);
+            break;
+        }
+        case 'plantProtection': {
+            const pp = data.plantProtectionData || {};
+
+            const pestTbody = document.getElementById('pest-tbody');
+            if (pestTbody) {
+                pestTbody.innerHTML = '';
+                (pp.pests || []).forEach((row) => addPestRow('pest-tbody', row));
+            }
+
+            const diseaseTbody = document.getElementById('disease-tbody');
+            if (diseaseTbody) {
+                diseaseTbody.innerHTML = '';
+                (pp.diseases || []).forEach((row) => addPestRow('disease-tbody', row));
+            }
+
+            const sprayProtTbody = document.getElementById('spray-prot-tbody');
+            if (sprayProtTbody) {
+                sprayProtTbody.innerHTML = '';
+                (pp.sprays || []).forEach((row) => addProtectionRow('spray-prot-tbody', row));
+            }
+
+            const drenchTbody = document.getElementById('drench-tbody');
+            if (drenchTbody) {
+                drenchTbody.innerHTML = '';
+                (pp.drenches || []).forEach((row) => addProtectionRow('drench-tbody', row));
+            }
+            break;
+        }
+        default:
+            break;
+    }
+
+    updateConditionalFieldVisibility();
+}
+
+function syncSharedToggleForCurrentView() {
+    const toggle = document.getElementById('shared-data-toggle');
+    const sectionId = getSectionIdByView();
+    if (!toggle || !sectionId) return;
+
+    const model = getSectionModel(sectionId);
+    isSyncingSharedToggle = true;
+    toggle.checked = model?.shared !== false;
+    isSyncingSharedToggle = false;
+}
+
+function getSharedReadonlyMessageElement() {
+    const toggleContainer = document.getElementById('shared-toggle-container');
+    if (!toggleContainer) return null;
+
+    let messageEl = document.getElementById('shared-readonly-message');
+    if (!messageEl) {
+        messageEl = document.createElement('div');
+        messageEl.id = 'shared-readonly-message';
+        messageEl.style.width = '100%';
+        messageEl.style.marginTop = '8px';
+        messageEl.style.fontSize = '0.9rem';
+        messageEl.style.fontWeight = '600';
+        messageEl.style.color = '#666';
+        messageEl.style.display = 'none';
+        toggleContainer.appendChild(messageEl);
+    }
+
+    return messageEl;
+}
+
+function applySharedReadonlyForCurrentView() {
+    const sectionId = getSectionIdByView();
+    const viewElement = document.getElementById(`view-${currentView}`);
+    const messageEl = getSharedReadonlyMessageElement();
+
+    if (!sectionId || !viewElement) {
+        if (messageEl) messageEl.style.display = 'none';
+        return;
+    }
+
+    const model = getSectionModel(sectionId);
+    const isReadOnlyMode = Boolean(model?.shared && currentTreatmentIndex > 0);
+    const controls = viewElement.querySelectorAll('input, select, textarea, button');
+
+    controls.forEach((control) => {
+        if (control.type === 'hidden') return;
+
+        if (isReadOnlyMode) {
+            if (!control.dataset.sharedReadonlyManaged) {
+                control.dataset.sharedReadonlyManaged = '1';
+                control.dataset.sharedReadonlyPrevDisabled = control.disabled ? '1' : '0';
+            }
+            control.disabled = true;
+        } else if (control.dataset.sharedReadonlyManaged === '1') {
+            control.disabled = control.dataset.sharedReadonlyPrevDisabled === '1';
+            delete control.dataset.sharedReadonlyManaged;
+            delete control.dataset.sharedReadonlyPrevDisabled;
+        }
+    });
+
+    if (messageEl) {
+        if (isReadOnlyMode) {
+            messageEl.textContent = 'נתונים זהים לכלל הטיפולים. אם ברצונך לשנות, בטל/י את הסימון "נתונים זהים לכלל הטיפולים".';
+            messageEl.style.display = 'block';
+        } else {
+            messageEl.style.display = 'none';
+        }
+    }
+}
+
+function persistCurrentSectionDataToState() {
+    const sectionId = getSectionIdByView();
+    if (!sectionId) return;
+    const sectionData = collectSectionDataFromDOM(sectionId);
+    setSectionCurrentData(sectionId, sectionData);
+}
+
+function loadCurrentSectionDataFromState() {
+    const sectionId = getSectionIdByView();
+    if (!sectionId) return;
+    const sectionData = getSectionEffectiveData(sectionId);
+    applySectionDataToDOM(sectionId, sectionData);
+    applySharedReadonlyForCurrentView();
+}
+
+function setSectionSharedState(sectionId, shouldBeShared) {
+    const model = getSectionModel(sectionId);
+    if (!model) return;
+
+    if (shouldBeShared === model.shared) return;
+
+    if (shouldBeShared) {
+        cloneSectionTreatment1ToAll(sectionId);
+        model.shared = true;
+        return;
+    }
+
+    cloneSectionTreatment1ToAll(sectionId);
+    model.shared = false;
+}
+
+function buildSectionModelForSave(sectionId) {
+    const model = getSectionModel(sectionId);
+    if (!model) {
+        return { shared: true, sharedData: {}, byTreatment: [], data: {} };
+    }
+
+    ensureModelTreatmentLength(model);
+
+    const treatmentOneData = deepClone(model.byTreatment[0] || model.sharedData || {});
+    return {
+        shared: model.shared !== false,
+        data: treatmentOneData,
+        sharedData: deepClone(model.sharedData || {}),
+        byTreatment: deepClone(model.byTreatment || [])
+    };
+}
+
+function hasFilePathInValue(value, targetFilePath) {
+    if (!value || !targetFilePath) return false;
+
+    if (Array.isArray(value)) {
+        return value.some((item) => hasFilePathInValue(item, targetFilePath));
+    }
+
+    if (typeof value === 'object') {
+        if (value.filePath === targetFilePath) return true;
+        return Object.values(value).some((child) => hasFilePathInValue(child, targetFilePath));
+    }
+
+    return false;
+}
+
+function isFilePathSharedAcrossTreatments(sectionId, filePath, currentIndex = currentTreatmentIndex) {
+    const model = getSectionModel(sectionId);
+    if (!model || !filePath) return false;
+
+    ensureModelTreatmentLength(model);
+
+    return model.byTreatment.some((entry, idx) => idx !== currentIndex && hasFilePathInValue(entry, filePath));
+}
+
 // עדכון כפתור Google Maps - פונקציה גלובלית שניתן לקרוא לה מכל מקום
 function updateGoogleMapsButtonVisibility() {
     const openGoogleMapsBtn = document.getElementById('open-google-maps-btn');
@@ -742,18 +1338,27 @@ function generateTreatmentTabs() {
 }
 
 function switchTreatmentTab(index) {
+    persistCurrentSectionDataToState();
+
     currentTreatmentIndex = index;
     // Match tabs by their data-index attribute instead of DOM order
     document.querySelectorAll('.tab-item').forEach((tab) => {
         const tabIndex = parseInt(tab.dataset.index);
         tab.classList.toggle('active', tabIndex === index);
     });
+
+    loadCurrentSectionDataFromState();
 }
 
 // =========================================
 // View Switching
 // =========================================
 function switchView(viewName) {
+    const previousView = currentView;
+    if (previousView !== viewName) {
+        persistCurrentSectionDataToState();
+    }
+
     currentView = viewName;
 
     // Hide all views
@@ -786,7 +1391,12 @@ function switchView(viewName) {
     } else {
         if (tabsContainer) tabsContainer.style.display = 'none';
         if (toggleContainer) toggleContainer.style.display = 'none';
+        const messageEl = document.getElementById('shared-readonly-message');
+        if (messageEl) messageEl.style.display = 'none';
     }
+
+    syncSharedToggleForCurrentView();
+    loadCurrentSectionDataFromState();
 
     // Update breadcrumb with full path and clickable links
     const viewNames = {
@@ -973,8 +1583,18 @@ function collectFormData() {
         keywords.push(tag.dataset.value);
     });
 
-    const sharedToggle = document.getElementById('shared-data-toggle');
-    const isShared = sharedToggle ? sharedToggle.checked : true;
+    persistCurrentSectionDataToState();
+
+    const cropModel = buildSectionModelForSave('crop');
+    const structureModel = buildSectionModelForSave('structure');
+    const soilModel = buildSectionModelForSave('soil');
+    const dripModel = buildSectionModelForSave('drip');
+    const irrigationModel = buildSectionModelForSave('irrigation');
+    const growthModel = buildSectionModelForSave('growth');
+    const climateModel = buildSectionModelForSave('climate');
+    const agrotechnicsModel = buildSectionModelForSave('agrotechnics');
+    const plantProtectionModel = buildSectionModelForSave('plantProtection');
+
     const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
     const experimentSiteOther = document.getElementById('experiment-site-other')?.value.trim() || '';
     const resolvedExperimentSite = experimentSiteSelection === 'other'
@@ -1003,66 +1623,46 @@ function collectFormData() {
         dependentVariables,
         keywords,
         cropDetails: {
-            shared: isShared,
-            data: {
-                plantingDate: document.getElementById('planting-date')?.value || '',
-                cropType: document.getElementById('crop-type')?.value || '',
-                variety: document.getElementById('variety')?.value || '',
-                graftedPlant: document.getElementById('grafted-plant')?.value || '',
-                varietyType: document.getElementById('variety-type')?.value || '',
-                splitPlant: document.getElementById('split-plant')?.value || '',
-                nursery: document.getElementById('nursery')?.value || '',
-                seedlingsCount: document.getElementById('seedlings-count')?.value || '',
-                plantingDensity: document.getElementById('planting-density')?.value || '',
-                plantingStructure: document.getElementById('planting-structure')?.value || '',
-                experimentArea: document.getElementById('experiment-area')?.value || '',
-                preparationName: document.getElementById('preparation-name')?.value || '',
-                notes: document.getElementById('crop-notes')?.value || ''
-            }
+            shared: cropModel.shared,
+            data: cropModel.data,
+            sharedData: cropModel.sharedData,
+            byTreatment: cropModel.byTreatment
         },
         structureDetails: {
-            shared: isShared,
-            data: {
-                type: document.getElementById('structure-type')?.value || '',
-                size: document.getElementById('structure-size')?.value || '',
-                tunnels: document.getElementById('structure-tunnels')?.value || '',
-                length: document.getElementById('structure-length')?.value || '',
-                width: document.getElementById('structure-width')?.value || '',
-                roofCovering: document.getElementById('roof-covering')?.value || '',
-                netWashing: document.getElementById('net-washing')?.value || '',
-                direction: document.getElementById('structure-direction')?.value || '',
-                notes: document.getElementById('structure-notes')?.value || ''
-            }
+            shared: structureModel.shared,
+            data: structureModel.data,
+            sharedData: structureModel.sharedData,
+            byTreatment: structureModel.byTreatment
         },
         soilDetails: {
-            shared: isShared,
-            data: {
-                detachedSubstrate: document.getElementById('detached-substrate')?.value || '',
-                substrateCompany: document.getElementById('substrate-company')?.value || '',
-                substrateType: document.getElementById('substrate-type')?.value || '',
-                substrateVolume: document.getElementById('substrate-volume')?.value || '',
-                mulch: document.getElementById('soil-mulch')?.value || '',
-                disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
-                adiganAmount: getResolvedAdiganAmount(),
-                solarization: document.getElementById('soil-solarization')?.value || '',
-                compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
-                sprayRows: collectSoilTableRows('spray-tbody', ['date','amount','method']),
-                disinfectRows: collectSoilDisinfectRows('disinfect-tbody')
-            }
+            shared: soilModel.shared,
+            data: soilModel.data,
+            sharedData: soilModel.sharedData,
+            byTreatment: soilModel.byTreatment
         },
         dripDetails: {
-            shared: isShared,
-            data: {
-                singleDouble: document.getElementById('drip-single-double')?.value || '',
-                pipeDiameter: document.getElementById('drip-pipe-diameter')?.value || '',
-                emitterSpacing: document.getElementById('drip-emitter-spacing')?.value || '',
-                flowRate: document.getElementById('drip-flow-rate')?.value || '',
-                linesCount: document.getElementById('drip-lines-count')?.value || '',
-                linesSpacing: document.getElementById('drip-lines-spacing')?.value || '',
-                bedSpacing: document.getElementById('drip-bed-spacing')?.value || ''
-            }
+            shared: dripModel.shared,
+            data: dripModel.data,
+            sharedData: dripModel.sharedData,
+            byTreatment: dripModel.byTreatment
         },
-        ...collectProgressData(),
+        irrigationData: irrigationModel.data.irrigationData || [],
+        fertilizationData: irrigationModel.data.fertilizationData || [],
+        growthData: growthModel.data.growthData || [],
+        climateData: climateModel.data.climateData || [],
+        agrotechnicsData: agrotechnicsModel.data.agrotechnicsData || [],
+        plantProtectionData: plantProtectionModel.data.plantProtectionData || { pests: [], diseases: [], sprays: [], drenches: [] },
+        sectionSharedState: {
+            crop: cropModel,
+            structure: structureModel,
+            soil: soilModel,
+            drip: dripModel,
+            irrigation: irrigationModel,
+            growth: growthModel,
+            climate: climateModel,
+            agrotechnics: agrotechnicsModel,
+            plantProtection: plantProtectionModel
+        },
         events: collectEventsData(),
         updatedAt: serverTimestamp()
     };
@@ -1282,6 +1882,7 @@ function initEventListeners() {
     // Form submit
     const form = document.getElementById('experiment-form');
     if (form) {
+        form.setAttribute('novalidate', 'novalidate');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             await saveExperiment();
@@ -1293,6 +1894,7 @@ function initEventListeners() {
     const treatmentsCount = document.getElementById('treatments-count');
     if (treatmentsCount) {
         treatmentsCount.addEventListener('change', () => {
+            persistCurrentSectionDataToState();
             const count = parseInt(treatmentsCount.value) || 0;
             const existingTreatments = [];
             document.querySelectorAll('.treatment-name').forEach(input => {
@@ -1304,7 +1906,39 @@ function initEventListeners() {
                 });
             });
             generateTreatmentInputs(count, existingTreatments);
+            syncAllSectionTreatmentCounts();
+            currentTreatmentIndex = Math.max(0, Math.min(currentTreatmentIndex, Math.max(count - 1, 0)));
             generateTreatmentTabs();
+            loadCurrentSectionDataFromState();
+        });
+    }
+
+    const sharedToggle = document.getElementById('shared-data-toggle');
+    if (sharedToggle) {
+        sharedToggle.addEventListener('change', () => {
+            if (isSyncingSharedToggle) return;
+
+            const sectionId = getSectionIdByView();
+            if (!sectionId) return;
+
+            persistCurrentSectionDataToState();
+
+            const model = getSectionModel(sectionId);
+            const targetShared = sharedToggle.checked;
+
+            if (model?.shared === false && targetShared === true) {
+                const confirmed = window.confirm('שימו לב: הפעלת מצב "נתונים זהים לכלל הטיפולים" תדרוס נתונים ייחודיים בטיפולים האחרים ותחליף אותם בנתוני טיפול 1. האם להמשיך?');
+                if (!confirmed) {
+                    isSyncingSharedToggle = true;
+                    sharedToggle.checked = false;
+                    isSyncingSharedToggle = false;
+                    return;
+                }
+            }
+
+            setSectionSharedState(sectionId, targetShared);
+            loadCurrentSectionDataFromState();
+            syncSharedToggleForCurrentView();
         });
     }
 
@@ -2391,10 +3025,16 @@ function addProgressRow(tbody, fields, labels, data, options) {
                     const filePath = tr.dataset.filePath;
                     if (!filePath) return;
                     if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+                    const sectionId = getSectionIdByView();
+                    const shouldDeletePhysicalFile = !sectionId || !isFilePathSharedAcrossTreatments(sectionId, filePath);
                     try {
-                        const storageRef = ref(storage, filePath);
-                        await deleteObject(storageRef);
-                        showToast('הקובץ נמחק בהצלחה', 'success');
+                        if (shouldDeletePhysicalFile) {
+                            const storageRef = ref(storage, filePath);
+                            await deleteObject(storageRef);
+                            showToast('הקובץ נמחק בהצלחה', 'success');
+                        } else {
+                            showToast('הקובץ נותק מהרשומה הנוכחית בלבד (קיים גם בטיפול נוסף)', 'info');
+                        }
                     } catch (err) {
                         if (err.code !== 'storage/object-not-found') {
                             showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
@@ -2585,9 +3225,15 @@ function renderProgressFileCell(td, tr, data, labels, field, uploadFolder) {
             const filePath = tr.dataset.filePath;
             if (!filePath) return;
             if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+            const sectionId = getSectionIdByView();
+            const shouldDeletePhysicalFile = !sectionId || !isFilePathSharedAcrossTreatments(sectionId, filePath);
             try {
-                await deleteObject(ref(storage, filePath));
-                showToast('הקובץ נמחק בהצלחה', 'success');
+                if (shouldDeletePhysicalFile) {
+                    await deleteObject(ref(storage, filePath));
+                    showToast('הקובץ נמחק בהצלחה', 'success');
+                } else {
+                    showToast('הקובץ נותק מהרשומה הנוכחית בלבד (קיים גם בטיפול נוסף)', 'info');
+                }
             } catch (err) {
                 if (err.code !== 'storage/object-not-found') {
                     showToast('שגיאה במחיקת הקובץ: ' + err.message, 'error');
