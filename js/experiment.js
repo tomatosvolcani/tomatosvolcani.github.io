@@ -19,7 +19,7 @@ import {
     getDownloadURL,
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { showToast } from "./toast.js";
+import { showToast, showConfirmModal, showInfoModal } from "./toast.js";
 
 // =========================================
 // State
@@ -82,6 +82,35 @@ function normalizeDynamicValue(value) {
 function deepClone(value) {
     if (value === undefined) return undefined;
     return JSON.parse(JSON.stringify(value));
+}
+
+function confirmDeferredDeletion(itemLabel) {
+    return showConfirmModal({
+        title: 'אישור מחיקה',
+        message: `האם למחוק את ${itemLabel}?\nהמחיקה בפועל תתרחש רק לאחר לחיצה על "שמירה".`,
+        confirmText: 'מחק/י',
+        cancelText: 'ביטול',
+        tone: 'warning'
+    });
+}
+
+function confirmImmediateDeletion(itemLabel) {
+    return showConfirmModal({
+        title: 'אישור מחיקה מיידית',
+        message: `האם את/ה בטוח/ה שברצונך למחוק את ${itemLabel}?`,
+        confirmText: 'מחק/י עכשיו',
+        cancelText: 'ביטול',
+        tone: 'error'
+    });
+}
+
+function alertDeferredChange(changeLabel) {
+    return showInfoModal({
+        title: 'לתשומת ליבך',
+        message: `${changeLabel} יישמר בפועל רק לאחר לחיצה על "שמירה".`,
+        buttonText: 'הבנתי',
+        tone: 'info'
+    });
 }
 
 function getCurrentTreatmentsCount() {
@@ -1525,7 +1554,10 @@ function addPartnerRow(partnerData = null) {
 
     const deleteBtn = row.querySelector('.btn-delete');
     if (isOwner) {
-        deleteBtn.addEventListener('click', () => row.remove());
+        deleteBtn.addEventListener('click', async () => {
+            if (!(await confirmDeferredDeletion('השותף'))) return;
+            row.remove();
+        });
     }
     container.appendChild(row);
 }
@@ -1542,7 +1574,10 @@ function addVariableRow(type, value = '') {
         <button type="button" class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
     `;
 
-    row.querySelector('.btn-delete').addEventListener('click', () => row.remove());
+    row.querySelector('.btn-delete').addEventListener('click', async () => {
+        if (!(await confirmDeferredDeletion('המשתנה'))) return;
+        row.remove();
+    });
     container.appendChild(row);
 }
 
@@ -1561,7 +1596,10 @@ function addKeywordTag(value) {
         <span class="remove"><i class="fas fa-times"></i></span>
     `;
 
-    tag.querySelector('.remove').addEventListener('click', () => tag.remove());
+    tag.querySelector('.remove').addEventListener('click', async () => {
+        if (!(await confirmDeferredDeletion('מילת המפתח'))) return;
+        tag.remove();
+    });
     container.appendChild(tag);
 }
 
@@ -1946,7 +1984,7 @@ function initEventListeners() {
 
     const sharedToggle = document.getElementById('shared-data-toggle');
     if (sharedToggle) {
-        sharedToggle.addEventListener('change', () => {
+        sharedToggle.addEventListener('change', async () => {
             if (isSyncingSharedToggle) return;
 
             const sectionId = getSectionIdByView();
@@ -1958,7 +1996,13 @@ function initEventListeners() {
             const targetShared = sharedToggle.checked;
 
             if (model?.shared === false && targetShared === true) {
-                const confirmed = window.confirm('שימו לב: הפעלת מצב "נתונים זהים לכלל הטיפולים" תדרוס נתונים ייחודיים בטיפולים האחרים ותחליף אותם בנתוני טיפול 1. האם להמשיך?');
+                const confirmed = await showConfirmModal({
+                    title: 'אישור הפעלת נתונים זהים',
+                    message: 'שימו לב: הפעלת מצב "נתונים זהים לכלל הטיפולים" תדרוס נתונים ייחודיים בטיפולים האחרים ותחליף אותם בנתוני טיפול 1.\nהשינוי יישמר בפועל רק לאחר לחיצה על "שמירה". האם להמשיך?',
+                    confirmText: 'כן, להמשיך',
+                    cancelText: 'ביטול',
+                    tone: 'warning'
+                });
                 if (!confirmed) {
                     isSyncingSharedToggle = true;
                     sharedToggle.checked = false;
@@ -1970,6 +2014,7 @@ function initEventListeners() {
             setSectionSharedState(sectionId, targetShared);
             loadCurrentSectionDataFromState();
             syncSharedToggleForCurrentView();
+            await alertDeferredChange('השינוי במצב "נתונים זהים לכלל הטיפולים"');
         });
     }
 
@@ -2768,7 +2813,7 @@ async function deleteEventFile(eventIndex) {
     const event = eventsData[eventIndex];
     if (!event || !event.filePath) return;
 
-    if (!confirm('האם למחוק את הקובץ?')) return;
+    if (!(await confirmImmediateDeletion('הקובץ'))) return;
 
     try {
         const storageRef = ref(storage, event.filePath);
@@ -2804,7 +2849,7 @@ async function deleteEvent(eventIndex) {
         return;
     }
 
-    if (!confirm('האם למחוק את האירוע?')) return;
+    if (!(await confirmDeferredDeletion('האירוע'))) return;
 
     // הסר מהמערך
     eventsData.splice(eventIndex, 1);
@@ -2875,7 +2920,10 @@ function addSoilTableRow(tbody, fields, data = {}) {
     delBtn.type = 'button';
     delBtn.className = 'btn-del-soil-row';
     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    delBtn.addEventListener('click', () => tr.remove());
+    delBtn.addEventListener('click', async () => {
+        if (!(await confirmDeferredDeletion('השורה'))) return;
+        tr.remove();
+    });
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
     tbody.appendChild(tr);
@@ -2916,7 +2964,10 @@ function addSoilDisinfectRow(tbody, data = {}) {
     delBtn.type = 'button';
     delBtn.className = 'btn-del-soil-row';
     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    delBtn.addEventListener('click', () => tr.remove());
+    delBtn.addEventListener('click', async () => {
+        if (!(await confirmDeferredDeletion('השורה'))) return;
+        tr.remove();
+    });
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
     tbody.appendChild(tr);
@@ -3055,7 +3106,7 @@ function addProgressRow(tbody, fields, labels, data, options) {
                 td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
                     const filePath = tr.dataset.filePath;
                     if (!filePath) return;
-                    if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+                    if (!(await confirmImmediateDeletion('הקובץ'))) return;
                     const sectionId = getSectionIdByView();
                     const shouldDeletePhysicalFile = !sectionId || !isFilePathSharedAcrossTreatments(sectionId, filePath);
                     try {
@@ -3155,12 +3206,13 @@ function addProgressRow(tbody, fields, labels, data, options) {
     delBtn.type = 'button';
     delBtn.className = 'btn-del-soil-row';
     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    delBtn.addEventListener('click', () => {
+    delBtn.addEventListener('click', async () => {
         // Block deletion if a file is still attached
         if (tr.dataset.fileUrl) {
             showToast('זוהה קובץ - יש למחוק את הקובץ המצורף לפני מחיקת השורה', 'error');
             return;
         }
+        if (!(await confirmDeferredDeletion('השורה'))) return;
         tr.remove();
     });
     tdDel.appendChild(delBtn);
@@ -3255,7 +3307,7 @@ function renderProgressFileCell(td, tr, data, labels, field, uploadFolder) {
         td.querySelector('.btn-delete-progress-file')?.addEventListener('click', async () => {
             const filePath = tr.dataset.filePath;
             if (!filePath) return;
-            if (!confirm('האם לאשר את מחיקת הקובץ?')) return;
+            if (!(await confirmImmediateDeletion('הקובץ'))) return;
             const sectionId = getSectionIdByView();
             const shouldDeletePhysicalFile = !sectionId || !isFilePathSharedAcrossTreatments(sectionId, filePath);
             try {

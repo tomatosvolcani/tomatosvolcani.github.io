@@ -51,6 +51,148 @@ export function showToast(message, type = 'info', duration = 3000) {
     return toast;
 }
 
+let activeDialogResolver = null;
+
+function removeActiveDialog() {
+    const existing = document.getElementById('app-dialog-overlay');
+    if (existing) existing.remove();
+}
+
+function createDialogBase({ title = '', message = '', tone = 'info' } = {}) {
+    removeActiveDialog();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'app-dialog-overlay';
+    overlay.className = 'app-dialog-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = `app-dialog app-dialog-${tone}`;
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+
+    const titleId = `app-dialog-title-${Date.now()}`;
+    dialog.setAttribute('aria-labelledby', titleId);
+
+    dialog.innerHTML = `
+        <div class="app-dialog-header">
+            <h3 id="${titleId}" class="app-dialog-title">${title}</h3>
+        </div>
+        <div class="app-dialog-body">${message}</div>
+        <div class="app-dialog-actions" id="app-dialog-actions"></div>
+    `;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    return { overlay, dialog, actions: dialog.querySelector('#app-dialog-actions') };
+}
+
+export function showConfirmModal({
+    title = 'אישור פעולה',
+    message = '',
+    confirmText = 'אישור',
+    cancelText = 'ביטול',
+    tone = 'warning'
+} = {}) {
+    return new Promise((resolve) => {
+        const { overlay, dialog, actions } = createDialogBase({ title, message, tone });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'app-dialog-btn app-dialog-btn-secondary';
+        cancelBtn.textContent = cancelText;
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'app-dialog-btn app-dialog-btn-primary';
+        confirmBtn.textContent = confirmText;
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+
+        const close = (result) => {
+            if (!activeDialogResolver) return;
+            activeDialogResolver = null;
+            removeActiveDialog();
+            resolve(result);
+        };
+
+        activeDialogResolver = close;
+
+        confirmBtn.addEventListener('click', () => close(true));
+        cancelBtn.addEventListener('click', () => close(false));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close(false);
+        });
+
+        const onKeyDown = (e) => {
+            if (!document.getElementById('app-dialog-overlay')) {
+                document.removeEventListener('keydown', onKeyDown);
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close(false);
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                close(true);
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        setTimeout(() => confirmBtn.focus(), 0);
+    });
+}
+
+export function showInfoModal({
+    title = 'הודעה',
+    message = '',
+    buttonText = 'הבנתי',
+    tone = 'info'
+} = {}) {
+    return new Promise((resolve) => {
+        const { overlay, actions } = createDialogBase({ title, message, tone });
+
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'app-dialog-btn app-dialog-btn-primary';
+        okBtn.textContent = buttonText;
+        actions.appendChild(okBtn);
+
+        const close = () => {
+            if (!activeDialogResolver) return;
+            activeDialogResolver = null;
+            removeActiveDialog();
+            resolve();
+        };
+
+        activeDialogResolver = close;
+
+        okBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+
+        const onKeyDown = (e) => {
+            if (!document.getElementById('app-dialog-overlay')) {
+                document.removeEventListener('keydown', onKeyDown);
+                return;
+            }
+
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                close();
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        setTimeout(() => okBtn.focus(), 0);
+    });
+}
+
 /**
  * Start a countdown on a button with localStorage persistence
  * @param {HTMLButtonElement} button - The button element
