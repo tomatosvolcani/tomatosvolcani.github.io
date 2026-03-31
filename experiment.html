@@ -345,15 +345,16 @@
                         </div>
                         <div class="form-group">
                             <label>סוג גידול:</label>
-                            <input type="text" id="crop-type" list="datalist-crop-type" placeholder="עגבניה">
+                            <input type="text" id="crop-type" list="datalist-crop-type">
                         </div>
                         <div class="form-group">
                             <label>זן:</label>
-                            <input type="text" id="variety" list="datalist-variety" placeholder="איקראם">
+                            <input type="text" id="variety" list="datalist-variety">
                         </div>
                         <div class="form-group">
                             <label>צמח מורכב:</label>
                             <select id="grafted-plant">
+                                <option value="">בחר</option>
                                 <option value="no">לא</option>
                                 <option value="yes">כן</option>
                             </select>
@@ -368,29 +369,30 @@
                         <div class="form-group">
                             <label>צמח מפוצל:</label>
                             <select id="split-plant">
+                                <option value="">בחר</option>
                                 <option value="לא">לא</option>
                                 <option value="כן">כן</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>משתלה:</label>
-                            <input type="text" id="nursery" list="datalist-nursery" placeholder="חישתיל">
+                            <input type="text" id="nursery" list="datalist-nursery">
                         </div>
                         <div class="form-group">
                             <label>כמות שתילים:</label>
-                            <input type="number" id="seedlings-count" placeholder="1400">
+                            <input type="number" id="seedlings-count">
                         </div>
                         <div class="form-group">
                             <label>עומד שתילה:</label>
-                            <input type="number" id="planting-density" step="any" placeholder="30">
+                            <input type="number" id="planting-density" step="any">
                         </div>
                         <div class="form-group">
                             <label>מבנה שתילה:</label>
-                            <input type="text" id="planting-structure" placeholder="3 צמדים">
+                            <input type="text" id="planting-structure">
                         </div>
                         <div class="form-group">
                             <label>שטח הניסוי (דונם):</label>
-                            <input type="number" id="experiment-area" step="0.01" placeholder="0.2">
+                            <input type="number" id="experiment-area" step="0.01">
                         </div>
                         <div class="form-group" id="preparation-name-group" style="display: none;">
                             <label>שם הכנה:</label>
@@ -422,19 +424,19 @@
                         </div>
                         <div class="form-group">
                             <label>גודל מבנה (דונם):</label>
-                            <input type="number" id="structure-size" step="0.01" placeholder="0.6">
+                            <input type="number" id="structure-size" step="0.01">
                         </div>
                         <div class="form-group">
                             <label>מספר גמלונים:</label>
-                            <input type="number" id="structure-tunnels" placeholder="3">
+                            <input type="number" id="structure-tunnels">
                         </div>
                         <div class="form-group">
                             <label>אורך שלוחה (מ'):</label>
-                            <input type="number" id="structure-length" placeholder="15">
+                            <input type="number" id="structure-length">
                         </div>
                         <div class="form-group">
                             <label>רוחב גמלון (מ'):</label>
-                            <input type="number" id="structure-width" placeholder="9">
+                            <input type="number" id="structure-width">
                         </div>
                         <div class="form-group">
                             <label>חיפוי גג:</label>
@@ -482,6 +484,7 @@
                             <div class="form-group soil-inline-field">
                                 <label>מצע מנותק:</label>
                                 <select id="detached-substrate">
+                                    <option value="">בחר</option>
                                     <option value="לא">לא</option>
                                     <option value="כן">כן</option>
                                 </select>
@@ -515,6 +518,7 @@
                         <div class="form-group">
                             <label>חיטוי סולרי:</label>
                             <select id="soil-solarization">
+                                <option value="">בחר</option>
                                 <option value="כן">כן</option>
                                 <option value="לא">לא</option>
                             </select>
@@ -527,6 +531,7 @@
                             <div class="form-group soil-inline-field">
                                 <label>חיטוי בהמטרה אדיגן:</label>
                                 <select id="soil-disinfection-adigan">
+                                    <option value="">בחר</option>
                                     <option value="לא">לא</option>
                                     <option value="כן">כן</option>
                                 </select>
@@ -643,7 +648,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-pipe-diameter" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-pipe-diameter" class="drip-number-input" placeholder="16" step="any">
+                                <input type="number" id="drip-pipe-diameter" class="drip-number-input" step="any">
                             </div>
                         </div>
 
@@ -654,7 +659,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-emitter-spacing" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-emitter-spacing" class="drip-number-input" placeholder="0.15" step="any">
+                                <input type="number" id="drip-emitter-spacing" class="drip-number-input" step="any">
                             </div>
                         </div>
 
@@ -665,7 +670,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-flow-rate" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-flow-rate" class="drip-number-input" placeholder="1" step="any">
+                                <input type="number" id="drip-flow-rate" class="drip-number-input" step="any">
                             </div>
                         </div>
 
@@ -676,7 +681,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-lines-count" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-lines-count" class="drip-number-input" placeholder="6" step="1">
+                                <input type="number" id="drip-lines-count" class="drip-number-input" step="1">
                             </div>
                         </div>
 
@@ -687,7 +692,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-lines-spacing" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-lines-spacing" class="drip-number-input" placeholder="1.8" step="any">
+                                <input type="number" id="drip-lines-spacing" class="drip-number-input" step="any">
                             </div>
                         </div>
 
@@ -698,7 +703,7 @@
                                 <button type="button" class="drip-edit-btn" data-target="drip-bed-spacing" title="ערוך">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <input type="number" id="drip-bed-spacing" class="drip-number-input" placeholder="1.8" step="any">
+                                <input type="number" id="drip-bed-spacing" class="drip-number-input" step="any">
                             </div>
                         </div>
 

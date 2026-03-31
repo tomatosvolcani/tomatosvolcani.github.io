@@ -193,6 +193,74 @@ export function showInfoModal({
     });
 }
 
+export function showThreeOptionModal({
+    title = 'אישור פעולה',
+    message = '',
+    confirmText = 'אישור',
+    alternateText = 'המשך ללא שמירה',
+    cancelText = 'ביטול',
+    tone = 'warning'
+} = {}) {
+    return new Promise((resolve) => {
+        const { overlay, actions } = createDialogBase({ title, message, tone });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'app-dialog-btn app-dialog-btn-secondary';
+        cancelBtn.textContent = cancelText;
+
+        const alternateBtn = document.createElement('button');
+        alternateBtn.type = 'button';
+        alternateBtn.className = 'app-dialog-btn app-dialog-btn-secondary';
+        alternateBtn.textContent = alternateText;
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'app-dialog-btn app-dialog-btn-primary';
+        confirmBtn.textContent = confirmText;
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(alternateBtn);
+        actions.appendChild(confirmBtn);
+
+        const close = (result) => {
+            if (!activeDialogResolver) return;
+            activeDialogResolver = null;
+            removeActiveDialog();
+            resolve(result);
+        };
+
+        activeDialogResolver = close;
+
+        confirmBtn.addEventListener('click', () => close('confirm'));
+        alternateBtn.addEventListener('click', () => close('alternate'));
+        cancelBtn.addEventListener('click', () => close('cancel'));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close('cancel');
+        });
+
+        const onKeyDown = (e) => {
+            if (!document.getElementById('app-dialog-overlay')) {
+                document.removeEventListener('keydown', onKeyDown);
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close('cancel');
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                close('confirm');
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        setTimeout(() => confirmBtn.focus(), 0);
+    });
+}
+
 /**
  * Start a countdown on a button with localStorage persistence
  * @param {HTMLButtonElement} button - The button element

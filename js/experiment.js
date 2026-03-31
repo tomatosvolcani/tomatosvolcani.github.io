@@ -19,7 +19,7 @@ import {
     getDownloadURL,
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { showToast, showConfirmModal, showInfoModal } from "./toast.js";
+import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
 
 // =========================================
 // State
@@ -36,6 +36,12 @@ let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכ�
 let isSharedExperiment = false; // האם זה ניסוי שאני שותף בו
 let sharedSectionState = {};
 let isSyncingSharedToggle = false;
+let lastSavedFormSignature = '';
+let scrollPersistTimeoutId = null;
+let isNavigationStateReady = false;
+let hasUserEditedSinceSave = false;
+let isBrowserNavGuardInitialized = false;
+let skipNextPopstateGuard = false;
 
 const SHARED_VIEW_TO_SECTION = {
     crop: 'crop',
@@ -84,14 +90,230 @@ function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
 }
 
-function confirmDeferredDeletion(itemLabel) {
-    return showConfirmModal({
+function getComparableFormData(formData) {
+    const comparable = deepClone(formData) || {};
+    delete comparable.updatedAt;
+    return comparable;
+}
+
+function getFormSignatureFromData(formData) {
+    try {
+        return JSON.stringify(getComparableFormData(formData));
+    } catch (error) {
+        console.warn('Could not serialize form data signature:', error);
+        return '';
+    }
+}
+
+function getCurrentFormSignature() {
+    return getFormSignatureFromData(collectFormData());
+}
+
+function setLastSavedFormSignatureFromCurrent() {
+    lastSavedFormSignature = getCurrentFormSignature();
+    hasUserEditedSinceSave = false;
+}
+
+function markUserEdited() {
+    hasUserEditedSinceSave = true;
+}
+
+function hasUnsavedChanges() {
+    if (!hasUserEditedSinceSave) return false;
+    if (!lastSavedFormSignature) return false;
+    return getCurrentFormSignature() !== lastSavedFormSignature;
+}
+
+function getNavigationStateStorageKey() {
+    if (!currentExperimentId || !experimentOwnerUid) return null;
+    return `experiment-navigation-state:${experimentOwnerUid}:${currentExperimentId}`;
+}
+
+function isValidViewName(viewName) {
+    if (!viewName) return false;
+    return !!document.getElementById(`view-${viewName}`);
+}
+
+function persistNavigationState(force = false) {
+    if (!isNavigationStateReady && !force) return;
+
+    const key = getNavigationStateStorageKey();
+    if (!key) return;
+
+    const state = {
+        view: currentView,
+        treatmentIndex: currentTreatmentIndex,
+        scrollY: window.scrollY || window.pageYOffset || 0,
+        savedAt: Date.now()
+    };
+
+    try {
+        sessionStorage.setItem(key, JSON.stringify(state));
+    } catch (error) {
+        console.warn('Could not persist experiment navigation state:', error);
+    }
+}
+
+function schedulePersistNavigationState() {
+    if (scrollPersistTimeoutId) {
+        clearTimeout(scrollPersistTimeoutId);
+    }
+    scrollPersistTimeoutId = setTimeout(() => {
+        persistNavigationState();
+        scrollPersistTimeoutId = null;
+    }, 120);
+}
+
+function getSavedNavigationState() {
+    const key = getNavigationStateStorageKey();
+    if (!key) return null;
+
+    try {
+        const raw = sessionStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        console.warn('Could not read experiment navigation state:', error);
+        return null;
+    }
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+
+    const icon = hamburgerBtn?.querySelector('i');
+    if (icon) {
+        icon.classList.add('fa-bars');
+        icon.classList.remove('fa-times');
+    }
+}
+
+function restoreNavigationState(preferredSection = '') {
+    const safePreferredSection = isValidViewName(preferredSection) ? preferredSection : '';
+    const saved = getSavedNavigationState();
+    const savedView = isValidViewName(saved?.view) ? saved.view : '';
+    const targetView = safePreferredSection || savedView;
+
+    if (targetView && targetView !== currentView) {
+        switchView(targetView);
+    }
+
+    const shouldApplySavedPosition = !!saved && (!safePreferredSection || saved?.view === safePreferredSection);
+    if (shouldApplySavedPosition) {
+        const treatmentIndex = Number(saved?.treatmentIndex);
+        const count = getCurrentTreatmentsCount();
+
+        if (Number.isInteger(treatmentIndex) && treatmentIndex >= 0 && treatmentIndex < count && treatmentIndex !== currentTreatmentIndex) {
+            switchTreatmentTab(treatmentIndex);
+        }
+
+        const scrollY = Number(saved?.scrollY);
+        if (Number.isFinite(scrollY) && scrollY >= 0) {
+            setTimeout(() => window.scrollTo(0, scrollY), 0);
+        }
+    }
+
+    persistNavigationState(true);
+}
+
+async function requestViewSwitch(viewName) {
+    if (!viewName) return;
+
+    if (viewName === currentView) {
+        closeMobileSidebar();
+        return;
+    }
+
+    const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני מעבר למסך הבא?');
+    if (!canProceed) return;
+
+    switchView(viewName);
+    closeMobileSidebar();
+}
+
+async function confirmUnsavedChangesBeforeAction(
+    message = 'לא ביצעת שמירה. האם ברצונך לשמור לפני המשך פעולה?'
+) {
+    if (!hasUnsavedChanges()) return true;
+
+    const decision = await showThreeOptionModal({
+        title: 'שינויים לא נשמרו',
+        message,
+        confirmText: 'שמור',
+        alternateText: 'המשך בלי שמירה',
+        cancelText: 'ביטול',
+        tone: 'warning'
+    });
+
+    if (decision === 'cancel') return false;
+
+    if (decision === 'confirm') {
+        const saved = await saveExperiment();
+        return saved;
+    }
+
+    return true;
+}
+
+function pushBrowserNavGuardBufferState() {
+    const state = window.history.state || {};
+    if (state.__experimentNavGuardBuffer === true) return;
+
+    const bufferState = {
+        ...state,
+        __experimentNavGuardRoot: true,
+        __experimentNavGuardBuffer: true
+    };
+
+    window.history.pushState(bufferState, '', window.location.href);
+}
+
+function initBrowserNavigationGuard() {
+    if (isBrowserNavGuardInitialized) return;
+    isBrowserNavGuardInitialized = true;
+
+    const currentState = window.history.state || {};
+    if (currentState.__experimentNavGuardRoot !== true) {
+        window.history.replaceState({ ...currentState, __experimentNavGuardRoot: true }, '', window.location.href);
+    }
+
+    pushBrowserNavGuardBufferState();
+
+    window.addEventListener('popstate', async () => {
+        if (skipNextPopstateGuard) {
+            skipNextPopstateGuard = false;
+            return;
+        }
+
+        const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני חזרה/מעבר בדפדפן?');
+        if (canProceed) {
+            skipNextPopstateGuard = true;
+            window.history.back();
+            return;
+        }
+
+        pushBrowserNavGuardBufferState();
+    });
+}
+
+async function confirmDeferredDeletion(itemLabel) {
+    const confirmed = await showConfirmModal({
         title: 'אישור מחיקה',
         message: `האם למחוק את ${itemLabel}?\nהמחיקה בפועל תתרחש רק לאחר לחיצה על "שמירה".`,
         confirmText: 'מחק/י',
         cancelText: 'ביטול',
         tone: 'warning'
     });
+
+    if (confirmed) {
+        markUserEdited();
+    }
+
+    return confirmed;
 }
 
 function confirmImmediateDeletion(itemLabel) {
@@ -512,10 +734,11 @@ onAuthStateChanged(auth, async (user) => {
     await loadDynamicFieldOptions();
 
     if (currentExperimentId) {
+        isNavigationStateReady = false;
         await loadExperiment();
-        if (section) {
-            switchView(section);
-        }
+        restoreNavigationState(section);
+        isNavigationStateReady = true;
+        persistNavigationState(true);
     } else {
         window.location.href = "dashboard.html";
     }
@@ -690,6 +913,7 @@ async function loadExperiment() {
             initPartnersAutocomplete();
             // אתחל את יומן האירועים
             initEventsLog();
+            setLastSavedFormSignatureFromCurrent();
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -1405,6 +1629,7 @@ function switchTreatmentTab(index) {
     });
 
     loadCurrentSectionDataFromState();
+    persistNavigationState();
 }
 
 // =========================================
@@ -1493,6 +1718,8 @@ function switchView(viewName) {
         breadcrumbHTML += ` > <span class="breadcrumb-current">${viewNames[viewName] || viewName}</span>`;
         breadcrumb.innerHTML = breadcrumbHTML;
     }
+
+    persistNavigationState();
 }
 
 // =========================================
@@ -1741,7 +1968,7 @@ function collectFormData() {
 // Save Experiment
 // =========================================
 async function saveExperiment() {
-    if (!currentUser || !currentExperimentId || !experimentOwnerUid) return;
+    if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
     const formData = collectFormData();
 
@@ -1756,11 +1983,16 @@ async function saveExperiment() {
 
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
+        lastSavedFormSignature = getFormSignatureFromData(formData);
+        hasUserEditedSinceSave = false;
+        persistNavigationState();
 
         showToast('נשמר בהצלחה!', 'success');
+        return true;
     } catch (error) {
         console.error("Error saving experiment:", error);
         showToast('שגיאה בשמירת הניסוי: ' + error.message, 'error');
+        return false;
     }
 }
 
@@ -1918,6 +2150,8 @@ async function syncSharedExperiments(currentPartners, latestExperimentData = nul
 // Event Listeners
 // =========================================
 function initEventListeners() {
+    initBrowserNavigationGuard();
+
     // Hamburger menu (Mobile)
     const hamburgerBtn = document.getElementById('hamburger-btn');
     const sidebar = document.querySelector('.sidebar');
@@ -1952,11 +2186,21 @@ function initEventListeners() {
     const form = document.getElementById('experiment-form');
     if (form) {
         form.setAttribute('novalidate', 'novalidate');
+        form.addEventListener('input', () => markUserEdited());
+        form.addEventListener('change', () => markUserEdited());
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             await saveExperiment();
         });
     }
+
+    window.addEventListener('scroll', schedulePersistNavigationState, { passive: true });
+    window.addEventListener('beforeunload', persistNavigationState);
+    window.addEventListener('beforeunload', (event) => {
+        if (!hasUnsavedChanges()) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
 
 
     // Treatment count change
@@ -2122,14 +2366,28 @@ function initEventListeners() {
     document.querySelectorAll('.sub-sub-item[data-view]').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            switchView(item.dataset.view);
+            requestViewSwitch(item.dataset.view);
         });
     });
 
     document.querySelectorAll('.sub-item[data-view]').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            switchView(item.dataset.view);
+            requestViewSwitch(item.dataset.view);
+        });
+    });
+
+    document.querySelectorAll('.sidebar-nav a[href]:not([href="#"])').forEach(link => {
+        link.addEventListener('click', async (e) => {
+            const targetHref = link.getAttribute('href');
+            if (!targetHref) return;
+
+            e.preventDefault();
+            const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני יציאה מהעמוד?');
+            if (!canProceed) return;
+
+            persistNavigationState(true);
+            window.location.href = targetHref;
         });
     });
 
@@ -2149,6 +2407,9 @@ function initEventListeners() {
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
+            const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני התנתקות?');
+            if (!canProceed) return;
+
             await signOut(auth);
             window.location.href = "login.html";
         });
