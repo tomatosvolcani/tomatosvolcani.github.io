@@ -52,8 +52,7 @@ const SHARED_VIEW_TO_SECTION = {
     growth: 'growth',
     climate: 'climate',
     agrotechnics: 'agrotechnics',
-    'plant-protection': 'plantProtection',
-    yield: 'yield'
+    'plant-protection': 'plantProtection'
 };
 
 const SHARED_SECTION_IDS = Object.values(SHARED_VIEW_TO_SECTION);
@@ -1887,7 +1886,10 @@ function collectFormData() {
     const climateModel = buildSectionModelForSave('climate');
     const agrotechnicsModel = buildSectionModelForSave('agrotechnics');
     const plantProtectionModel = buildSectionModelForSave('plantProtection');
-    const yieldModel = buildSectionModelForSave('yield');
+    const yieldData = {
+        measures: collectProgressRows('yield-measure-tbody', YIELD_MEASURE_FIELDS),
+        damages: collectProgressRows('yield-damage-tbody', YIELD_DAMAGE_FIELDS)
+    };
 
     const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
     const experimentSiteOther = document.getElementById('experiment-site-other')?.value.trim() || '';
@@ -1946,7 +1948,7 @@ function collectFormData() {
         climateData: climateModel.data.climateData || [],
         agrotechnicsData: agrotechnicsModel.data.agrotechnicsData || [],
         plantProtectionData: plantProtectionModel.data.plantProtectionData || { pests: [], diseases: [], sprays: [], drenches: [] },
-        yieldData: yieldModel.data.yieldData || { measures: [], damages: [] },
+        yieldData,
         sectionSharedState: {
             crop: cropModel,
             structure: structureModel,
@@ -1956,8 +1958,7 @@ function collectFormData() {
             growth: growthModel,
             climate: climateModel,
             agrotechnics: agrotechnicsModel,
-            plantProtection: plantProtectionModel,
-            yield: yieldModel
+            plantProtection: plantProtectionModel
         },
         events: collectEventsData(),
         updatedAt: serverTimestamp()
@@ -4017,6 +4018,12 @@ function openGenericRowModal(config) {
         }
     }
 
+    if (visibleFields.includes('startDate') && visibleFields.includes('endDate')) {
+        syncModalDateRange('generic-modal-startDate', 'generic-modal-endDate');
+        const startInput = document.getElementById('generic-modal-startDate');
+        startInput?.addEventListener('change', () => syncModalDateRange('generic-modal-startDate', 'generic-modal-endDate'));
+    }
+
     openModal('generic-row-modal');
     setTimeout(() => {
         const firstInput = body.querySelector('input, select');
@@ -4082,6 +4089,11 @@ function saveGenericRow() {
         const el = document.getElementById(`generic-modal-${field}`);
         if (el) data[field] = el.value;
     });
+
+    if (data.startDate && data.endDate && data.endDate < data.startDate) {
+        showToast('תאריך הסיום חייב להיות מאוחר או שווה לתאריך ההתחלה', 'error');
+        return;
+    }
 
     _genericModalConfig.onSave(data);
     closeModal('generic-row-modal');
@@ -4175,7 +4187,7 @@ async function saveIrrigationFile() {
 
     let fileUrl = '';
     let filePath = '';
-    const today = new Date().toLocaleDateString('he-IL');
+    const today = new Date().toISOString().split('T')[0];
 
     if (file) {
         try {
@@ -4248,7 +4260,7 @@ async function saveFertilizationFile() {
 
     let fileUrl = '';
     let filePath = '';
-    const today = new Date().toLocaleDateString('he-IL');
+    const today = new Date().toISOString().split('T')[0];
 
     if (file) {
         try {

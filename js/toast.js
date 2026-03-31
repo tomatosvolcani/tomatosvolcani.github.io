@@ -96,6 +96,7 @@ export function showConfirmModal({
 } = {}) {
     return new Promise((resolve) => {
         const { overlay, dialog, actions } = createDialogBase({ title, message, tone });
+        let onKeyDown = null;
 
         const cancelBtn = document.createElement('button');
         cancelBtn.type = 'button';
@@ -113,6 +114,7 @@ export function showConfirmModal({
         const close = (result) => {
             if (!activeDialogResolver) return;
             activeDialogResolver = null;
+            if (onKeyDown) document.removeEventListener('keydown', onKeyDown);
             removeActiveDialog();
             resolve(result);
         };
@@ -125,7 +127,7 @@ export function showConfirmModal({
             if (e.target === overlay) close(false);
         });
 
-        const onKeyDown = (e) => {
+        onKeyDown = (e) => {
             if (!document.getElementById('app-dialog-overlay')) {
                 document.removeEventListener('keydown', onKeyDown);
                 return;
@@ -155,6 +157,7 @@ export function showInfoModal({
 } = {}) {
     return new Promise((resolve) => {
         const { overlay, actions } = createDialogBase({ title, message, tone });
+        let onKeyDown = null;
 
         const okBtn = document.createElement('button');
         okBtn.type = 'button';
@@ -165,6 +168,7 @@ export function showInfoModal({
         const close = () => {
             if (!activeDialogResolver) return;
             activeDialogResolver = null;
+            if (onKeyDown) document.removeEventListener('keydown', onKeyDown);
             removeActiveDialog();
             resolve();
         };
@@ -176,7 +180,7 @@ export function showInfoModal({
             if (e.target === overlay) close();
         });
 
-        const onKeyDown = (e) => {
+        onKeyDown = (e) => {
             if (!document.getElementById('app-dialog-overlay')) {
                 document.removeEventListener('keydown', onKeyDown);
                 return;
@@ -203,6 +207,7 @@ export function showThreeOptionModal({
 } = {}) {
     return new Promise((resolve) => {
         const { overlay, actions } = createDialogBase({ title, message, tone });
+        let onKeyDown = null;
 
         const cancelBtn = document.createElement('button');
         cancelBtn.type = 'button';
@@ -226,6 +231,7 @@ export function showThreeOptionModal({
         const close = (result) => {
             if (!activeDialogResolver) return;
             activeDialogResolver = null;
+            if (onKeyDown) document.removeEventListener('keydown', onKeyDown);
             removeActiveDialog();
             resolve(result);
         };
@@ -239,7 +245,7 @@ export function showThreeOptionModal({
             if (e.target === overlay) close('cancel');
         });
 
-        const onKeyDown = (e) => {
+        onKeyDown = (e) => {
             if (!document.getElementById('app-dialog-overlay')) {
                 document.removeEventListener('keydown', onKeyDown);
                 return;
