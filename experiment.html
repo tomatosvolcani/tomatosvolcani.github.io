@@ -722,7 +722,8 @@
                                     <tr>
                                         <th>שם הקובץ</th>
                                         <th>תאריך העלאה</th>
-                                        <th>תאריכי מדידה</th>
+                                        <th>תאריך התחלה</th>
+                                        <th>תאריך סיום</th>
                                         <th>סה"כ כמות מים (ליטר)</th>
                                         <th></th>
                                     </tr>
@@ -745,7 +746,8 @@
                                     <tr>
                                         <th>שם הקובץ</th>
                                         <th>תאריך העלאה</th>
-                                        <th>תאריכי מדידה</th>
+                                        <th>תאריך התחלה</th>
+                                        <th>תאריך סיום</th>
                                         <th>סוג הדשן</th>
                                         <th>חברה</th>
                                         <th>סה"כ כמות דשן</th>
@@ -798,7 +800,8 @@
                                         <th>מיקום מדידה</th>
                                         <th>מיקום חיישן במרחב</th>
                                         <th>גובה/עומק חיישן</th>
-                                        <th>תאריכי מדידה</th>
+                                        <th>תאריך התחלה</th>
+                                        <th>תאריך סיום</th>
                                         <th>קובץ מצורף</th>
                                         <th>הערות</th>
                                         <th></th>
@@ -1030,14 +1033,18 @@
     <div id="irrigation-file-modal" class="modal-overlay hidden">
         <div class="modal modal-progress">
             <h2>העלאת קובץ השקיה חדש</h2>
+            <div class="modal-form-row modal-form-row-single">
+                <label>שם הקובץ:</label>
+                <input type="text" id="irr-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+            </div>
             <div class="modal-form-grid">
                 <div class="modal-form-row">
-                    <label>שם הקובץ:</label>
-                    <input type="text" id="irr-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+                    <label>תאריך התחלה:</label>
+                    <input type="date" id="irr-modal-start-date" class="modal-input-sm">
                 </div>
                 <div class="modal-form-row">
-                    <label>טווח מדידות:</label>
-                    <input type="text" id="irr-modal-dates" class="modal-input-sm" placeholder="תאריכי מדידה">
+                    <label>תאריך סיום:</label>
+                    <input type="date" id="irr-modal-end-date" class="modal-input-sm">
                 </div>
             </div>
             <div class="modal-form-row modal-form-row-single">
@@ -1064,14 +1071,18 @@
     <div id="fertilization-file-modal" class="modal-overlay hidden">
         <div class="modal modal-progress">
             <h2>העלאת קובץ דישון חדש</h2>
+            <div class="modal-form-row modal-form-row-single">
+                <label>שם הקובץ:</label>
+                <input type="text" id="fert-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+            </div>
             <div class="modal-form-grid">
                 <div class="modal-form-row">
-                    <label>שם הקובץ:</label>
-                    <input type="text" id="fert-modal-filename" class="modal-input-sm" placeholder="שם הקובץ">
+                    <label>תאריך התחלה:</label>
+                    <input type="date" id="fert-modal-start-date" class="modal-input-sm">
                 </div>
                 <div class="modal-form-row">
-                    <label>טווח מדידות:</label>
-                    <input type="text" id="fert-modal-dates" class="modal-input-sm" placeholder="תאריכי מדידה">
+                    <label>תאריך סיום:</label>
+                    <input type="date" id="fert-modal-end-date" class="modal-input-sm">
                 </div>
             </div>
             <div class="modal-form-grid">

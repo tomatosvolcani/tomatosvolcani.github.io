@@ -1133,13 +1133,13 @@ function applySectionDataToDOM(sectionId, sectionData) {
             const irrigTbody = document.getElementById('irrigation-tbody');
             if (irrigTbody) {
                 irrigTbody.innerHTML = '';
-                (data.irrigationData || []).forEach((row) => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, row));
+                (data.irrigationData || []).forEach((row) => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, normalizeLegacyRangeDates(row)));
             }
 
             const fertTbody = document.getElementById('fertilization-tbody');
             if (fertTbody) {
                 fertTbody.innerHTML = '';
-                (data.fertilizationData || []).forEach((row) => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, row, {
+                (data.fertilizationData || []).forEach((row) => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, normalizeLegacyRangeDates(row), {
                     dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
                 }));
             }
@@ -3176,7 +3176,7 @@ function addProgressRow(tbody, fields, labels, data, options) {
                 let inputType = 'text';
                 if (options.inputTypes && options.inputTypes[field]) {
                     inputType = options.inputTypes[field];
-                } else if (field === 'date' || (field.endsWith('Date') && field !== 'measureDates')) {
+                } else if (field === 'date' || field.endsWith('Date')) {
                     inputType = 'date';
                 } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert'].includes(field)) {
                     inputType = 'number';
@@ -3358,13 +3358,34 @@ function collectProgressRows(tbodyId, fields) {
     return rows;
 }
 
+function normalizeLegacyRangeDates(row = {}) {
+    const normalized = { ...row };
+    const hasStart = Boolean(normalized.startDate);
+    const hasEnd = Boolean(normalized.endDate);
+    if (hasStart || hasEnd) return normalized;
+
+    const legacy = String(normalized.measureDates || '').trim();
+    if (!legacy) return normalized;
+
+    const isoDates = legacy.match(/\d{4}-\d{2}-\d{2}/g) || [];
+    if (isoDates.length >= 2) {
+        normalized.startDate = isoDates[0];
+        normalized.endDate = isoDates[1];
+    } else if (isoDates.length === 1) {
+        normalized.startDate = isoDates[0];
+        normalized.endDate = isoDates[0];
+    }
+
+    return normalized;
+}
+
 // =========================================
 // Irrigation & Fertilization
 // =========================================
-const IRRIGATION_FIELDS = ['fileName','uploadDate','measureDates','totalWater'];
-const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', totalWater:'סה"כ כמות מים (ליטר)' };
-const FERTILIZATION_FIELDS = ['fileName','uploadDate','measureDates','fertType','company','totalFert'];
-const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', measureDates:'תאריכי מדידה', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
+const IRRIGATION_FIELDS = ['fileName','uploadDate','startDate','endDate','totalWater'];
+const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', totalWater:'סה"כ כמות מים (ליטר)' };
+const FERTILIZATION_FIELDS = ['fileName','uploadDate','startDate','endDate','fertType','company','totalFert'];
+const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
 const FERTILIZATION_DYNAMIC_DATALISTS = { fertType: 'datalist-fertilizer-type', company: 'datalist-fertilizer-company' };
 
 // =========================================
@@ -3385,8 +3406,8 @@ function renderGrowthTable(rows) {
 // =========================================
 // Climate
 // =========================================
-const CLIMATE_FIELDS = ['name','location','sensorPosition','sensorDepth','measureDates','fileName','notes'];
-const CLIMATE_LABELS = { name:'נתון', location:'מיקום מדידה', sensorPosition:'מיקום חיישן במרחב', sensorDepth:'גובה/עומק חיישן', measureDates:'תאריכי מדידה', fileName:'קובץ מצורף', notes:'הערות' };
+const CLIMATE_FIELDS = ['name','location','sensorPosition','sensorDepth','startDate','endDate','fileName','notes'];
+const CLIMATE_LABELS = { name:'נתון', location:'מיקום מדידה', sensorPosition:'מיקום חיישן במרחב', sensorDepth:'גובה/עומק חיישן', startDate:'תאריך התחלה', endDate:'תאריך סיום', fileName:'קובץ מצורף', notes:'הערות' };
 const CLIMATE_NAME_OPTIONS = [...new Set(DEFAULT_CLIMATE_ROWS.map(item => item.name))];
 const CLIMATE_LOCATION_OPTIONS = ['חממה', 'קרקע'];
 
@@ -3416,7 +3437,7 @@ function renderClimateTable(rows) {
             tbody,
             CLIMATE_FIELDS,
             CLIMATE_LABELS,
-            row,
+            normalizeLegacyRangeDates(row),
             {
                 fieldOptions: {
                     name: CLIMATE_NAME_OPTIONS,
@@ -3502,12 +3523,15 @@ function addYieldDamageRow(data) {
 function populateProgressViews(data) {
     // Irrigation
     const irrigTbody = document.getElementById('irrigation-tbody');
-    if (irrigTbody) { irrigTbody.innerHTML = ''; (data.irrigationData || []).forEach(r => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, r)); }
+    if (irrigTbody) {
+        irrigTbody.innerHTML = '';
+        (data.irrigationData || []).forEach(r => addProgressRow(irrigTbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, normalizeLegacyRangeDates(r)));
+    }
     // Fertilization
     const fertTbody = document.getElementById('fertilization-tbody');
     if (fertTbody) {
         fertTbody.innerHTML = '';
-        (data.fertilizationData || []).forEach(r => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, r, {
+        (data.fertilizationData || []).forEach(r => addProgressRow(fertTbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, normalizeLegacyRangeDates(r), {
             dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
         }));
     }
@@ -3679,6 +3703,13 @@ function initProgressListeners() {
     // Dropzone visual
     initDropzone('irr-modal-dropzone', 'irr-modal-file', 'irr-modal-file-name');
     initDropzone('fert-modal-dropzone', 'fert-modal-file', 'fert-modal-file-name');
+
+    document.getElementById('irr-modal-start-date')?.addEventListener('change', () => {
+        syncModalDateRange('irr-modal-start-date', 'irr-modal-end-date');
+    });
+    document.getElementById('fert-modal-start-date')?.addEventListener('change', () => {
+        syncModalDateRange('fert-modal-start-date', 'fert-modal-end-date');
+    });
 }
 
 // =========================================
@@ -3760,7 +3791,7 @@ function _createGenericField(field, config) {
         row.appendChild(select);
     } else {
         const input = document.createElement('input');
-        if (field === 'date' || (field.endsWith('Date') && field !== 'measureDates')) {
+        if (field === 'date' || field.endsWith('Date')) {
             input.type = 'date';
         } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert','amount'].includes(field)) {
             input.type = 'number';
@@ -3826,28 +3857,58 @@ function initDropzone(dropzoneId, fileInputId, labelId) {
     });
 }
 
+function syncModalDateRange(startId, endId) {
+    const startInput = document.getElementById(startId);
+    const endInput = document.getElementById(endId);
+    if (!startInput || !endInput) return;
+
+    const startValue = startInput.value;
+    if (startValue) {
+        endInput.min = startValue;
+        if (endInput.value && endInput.value < startValue) {
+            endInput.value = startValue;
+        }
+    } else {
+        endInput.removeAttribute('min');
+    }
+}
+
 // =========================================
 // Irrigation Modal
 // =========================================
 function openIrrigationModal() {
     document.getElementById('irr-modal-filename').value = '';
-    document.getElementById('irr-modal-dates').value = '';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('irr-modal-start-date').value = today;
+    document.getElementById('irr-modal-end-date').value = today;
     document.getElementById('irr-modal-total').value = '';
     document.getElementById('irr-modal-file').value = '';
     document.getElementById('irr-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('irr-modal-progress')?.classList.add('hidden');
+    syncModalDateRange('irr-modal-start-date', 'irr-modal-end-date');
     openModal('irrigation-file-modal');
 }
 
 async function saveIrrigationFile() {
     const fileName = document.getElementById('irr-modal-filename').value.trim();
-    const measureDates = document.getElementById('irr-modal-dates').value.trim();
+    const startDate = document.getElementById('irr-modal-start-date').value;
+    const endDate = document.getElementById('irr-modal-end-date').value;
     const totalWater = document.getElementById('irr-modal-total').value.trim();
     const fileInput = document.getElementById('irr-modal-file');
     const file = fileInput?.files[0];
 
     if (!fileName) {
         showToast('יש להזין שם קובץ', 'error');
+        return;
+    }
+
+    if (!startDate || !endDate) {
+        showToast('יש לבחור תאריך התחלה ותאריך סיום', 'error');
+        return;
+    }
+
+    if (endDate < startDate) {
+        showToast('תאריך הסיום חייב להיות מאוחר או שווה לתאריך ההתחלה', 'error');
         return;
     }
 
@@ -3870,7 +3931,8 @@ async function saveIrrigationFile() {
     addProgressRow(tbody, IRRIGATION_FIELDS, IRRIGATION_LABELS, {
         fileName: fileName,
         uploadDate: today,
-        measureDates: measureDates,
+        startDate,
+        endDate,
         totalWater: totalWater,
         fileUrl: fileUrl || '',
         filePath: filePath || ''
@@ -3885,19 +3947,23 @@ async function saveIrrigationFile() {
 // =========================================
 function openFertilizationModal() {
     document.getElementById('fert-modal-filename').value = '';
-    document.getElementById('fert-modal-dates').value = '';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fert-modal-start-date').value = today;
+    document.getElementById('fert-modal-end-date').value = today;
     document.getElementById('fert-modal-type').value = '';
     document.getElementById('fert-modal-company').value = '';
     document.getElementById('fert-modal-total').value = '';
     document.getElementById('fert-modal-file').value = '';
     document.getElementById('fert-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('fert-modal-progress')?.classList.add('hidden');
+    syncModalDateRange('fert-modal-start-date', 'fert-modal-end-date');
     openModal('fertilization-file-modal');
 }
 
 async function saveFertilizationFile() {
     const fileName = document.getElementById('fert-modal-filename').value.trim();
-    const measureDates = document.getElementById('fert-modal-dates').value.trim();
+    const startDate = document.getElementById('fert-modal-start-date').value;
+    const endDate = document.getElementById('fert-modal-end-date').value;
     const fertType = document.getElementById('fert-modal-type').value.trim();
     const company = document.getElementById('fert-modal-company').value.trim();
     const totalFert = document.getElementById('fert-modal-total').value.trim();
@@ -3906,6 +3972,16 @@ async function saveFertilizationFile() {
 
     if (!fileName) {
         showToast('יש להזין שם קובץ', 'error');
+        return;
+    }
+
+    if (!startDate || !endDate) {
+        showToast('יש לבחור תאריך התחלה ותאריך סיום', 'error');
+        return;
+    }
+
+    if (endDate < startDate) {
+        showToast('תאריך הסיום חייב להיות מאוחר או שווה לתאריך ההתחלה', 'error');
         return;
     }
 
@@ -3931,7 +4007,8 @@ async function saveFertilizationFile() {
     addProgressRow(tbody, FERTILIZATION_FIELDS, FERTILIZATION_LABELS, {
         fileName: fileName,
         uploadDate: today,
-        measureDates: measureDates,
+        startDate,
+        endDate,
         fertType: fertType,
         company: company,
         totalFert: totalFert,
