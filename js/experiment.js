@@ -2451,6 +2451,8 @@ function initEventListeners() {
 let map = null;
 let marker = null;
 let selectedLocation = null;
+let locationSearchDebounceId = null;
+let locationSearchAbortController = null;
 
 function initLocationPicker() {
     const pickLocationBtn = document.getElementById('pick-location-btn');
@@ -2460,6 +2462,10 @@ function initLocationPicker() {
     const cancelBtn = document.getElementById('cancel-location');
     const confirmBtn = document.getElementById('confirm-location');
     const coordsInput = document.getElementById('site-coordinates');
+    const searchInput = document.getElementById('location-search-input');
+    const searchBtn = document.getElementById('location-search-btn');
+    const currentBtn = document.getElementById('location-current-btn');
+    const suggestionsContainer = document.getElementById('location-search-suggestions');
 
     if (!pickLocationBtn) return;
 
@@ -2480,6 +2486,39 @@ function initLocationPicker() {
     pickLocationBtn.addEventListener('click', () => {
         openLocationModal();
     });
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => searchLocationFromInput());
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim();
+            if (locationSearchDebounceId) {
+                clearTimeout(locationSearchDebounceId);
+            }
+
+            if (query.length < 2) {
+                hideLocationSuggestions();
+                return;
+            }
+
+            locationSearchDebounceId = setTimeout(() => {
+                showLocationAutocomplete(query);
+            }, 300);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchLocationFromInput();
+            }
+        });
+    }
+
+    if (currentBtn) {
+        currentBtn.addEventListener('click', () => setCurrentLocationOnMap());
+    }
 
     if (closeBtn) {
         closeBtn.addEventListener('click', closeLocationModal);
@@ -2502,6 +2541,15 @@ function initLocationPicker() {
         });
     }
 
+    document.addEventListener('click', (e) => {
+        if (!suggestionsContainer || !searchInput) return;
+        const clickedInsideSuggestions = suggestionsContainer.contains(e.target);
+        const clickedSearchInput = searchInput.contains(e.target);
+        if (!clickedInsideSuggestions && !clickedSearchInput) {
+            hideLocationSuggestions();
+        }
+    });
+
     // Watch for changes to coordinates
     if (coordsInput) {
         coordsInput.addEventListener('change', updateGoogleMapsButtonVisibility);
@@ -2514,6 +2562,8 @@ function openLocationModal() {
     if (!modal) return;
 
     modal.classList.remove('hidden');
+    updateLocationSearchStatus('');
+    hideLocationSuggestions();
 
     // Initialize map if not already initialized
     if (!map) {
@@ -2602,6 +2652,195 @@ function updateSelectedCoordinates(location) {
     if (coordsSpan) {
         coordsSpan.textContent = `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;
     }
+}
+
+function updateLocationSearchStatus(message = '', type = 'info') {
+    const statusEl = document.getElementById('location-search-status');
+    if (!statusEl) return;
+
+    statusEl.textContent = message;
+    if (!message) {
+        statusEl.style.color = '#666';
+        return;
+    }
+
+    if (type === 'error') {
+        statusEl.style.color = '#dc2626';
+    } else if (type === 'success') {
+        statusEl.style.color = '#15803d';
+    } else {
+        statusEl.style.color = '#666';
+    }
+}
+
+function hideLocationSuggestions() {
+    const suggestionsContainer = document.getElementById('location-search-suggestions');
+    if (!suggestionsContainer) return;
+    suggestionsContainer.style.display = 'none';
+    suggestionsContainer.innerHTML = '';
+}
+
+function renderLocationSuggestions(results) {
+    const suggestionsContainer = document.getElementById('location-search-suggestions');
+    if (!suggestionsContainer) return;
+
+    suggestionsContainer.innerHTML = '';
+    if (!Array.isArray(results) || results.length === 0) {
+        hideLocationSuggestions();
+        return;
+    }
+
+    results.forEach((result) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.style.width = '100%';
+        item.style.textAlign = 'right';
+        item.style.padding = '8px 10px';
+        item.style.border = 'none';
+        item.style.borderBottom = '1px solid #f1f5f9';
+        item.style.background = '#fff';
+        item.style.cursor = 'pointer';
+        item.style.fontSize = '13px';
+        item.textContent = result.display_name || `${result.lat}, ${result.lon}`;
+
+        item.addEventListener('mouseenter', () => {
+            item.style.background = '#f8fafc';
+        });
+        item.addEventListener('mouseleave', () => {
+            item.style.background = '#fff';
+        });
+        item.addEventListener('click', () => {
+            const searchInput = document.getElementById('location-search-input');
+            if (searchInput) searchInput.value = result.display_name || '';
+            setSelectedLocationOnMap(result.lat, result.lon);
+            hideLocationSuggestions();
+            updateLocationSearchStatus(`נבחר: ${result.display_name}`, 'success');
+        });
+
+        suggestionsContainer.appendChild(item);
+    });
+
+    const lastChild = suggestionsContainer.lastElementChild;
+    if (lastChild) {
+        lastChild.style.borderBottom = 'none';
+    }
+
+    suggestionsContainer.style.display = 'block';
+}
+
+async function fetchLocationSearchResults(query, limit = 5) {
+    if (locationSearchAbortController) {
+        locationSearchAbortController.abort();
+    }
+
+    locationSearchAbortController = new AbortController();
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${limit}&q=${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+        signal: locationSearchAbortController.signal,
+        headers: {
+            'Accept': 'application/json',
+            'Accept-Language': 'he'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const results = await response.json();
+    return Array.isArray(results) ? results : [];
+}
+
+async function showLocationAutocomplete(query) {
+    try {
+        const results = await fetchLocationSearchResults(query, 5);
+        renderLocationSuggestions(results);
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Location autocomplete failed:', error);
+        hideLocationSuggestions();
+    }
+}
+
+function setSelectedLocationOnMap(lat, lng, zoom = 15) {
+    if (!map || !marker) {
+        showToast('המפה עדיין בטעינה, נסה שוב בעוד רגע', 'warning');
+        return;
+    }
+
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+    if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return;
+
+    const position = L.latLng(parsedLat, parsedLng);
+    marker.setLatLng(position);
+    map.setView(position, zoom);
+    selectedLocation = { lat: parsedLat, lng: parsedLng };
+    updateSelectedCoordinates(selectedLocation);
+}
+
+async function searchLocationFromInput() {
+    const searchInput = document.getElementById('location-search-input');
+    const query = searchInput?.value.trim();
+
+    if (!query) {
+        updateLocationSearchStatus('יש להזין טקסט לחיפוש.', 'error');
+        return;
+    }
+
+    if (!map || !marker) {
+        updateLocationSearchStatus('המפה עדיין בטעינה, נסה שוב בעוד רגע.', 'error');
+        return;
+    }
+
+    updateLocationSearchStatus('מחפש מיקום...');
+    hideLocationSuggestions();
+
+    try {
+        const results = await fetchLocationSearchResults(query, 1);
+        if (!Array.isArray(results) || results.length === 0) {
+            updateLocationSearchStatus('לא נמצאו תוצאות לחיפוש.', 'error');
+            return;
+        }
+
+        const result = results[0];
+        setSelectedLocationOnMap(result.lat, result.lon);
+        updateLocationSearchStatus(`נמצא: ${result.display_name}`, 'success');
+    } catch (error) {
+        console.error('Location search failed:', error);
+        updateLocationSearchStatus('חיפוש נכשל. נסה שוב בעוד רגע.', 'error');
+    }
+}
+
+function setCurrentLocationOnMap() {
+    if (!navigator.geolocation) {
+        updateLocationSearchStatus('הדפדפן לא תומך בזיהוי מיקום.', 'error');
+        return;
+    }
+
+    if (!map || !marker) {
+        updateLocationSearchStatus('המפה עדיין בטעינה, נסה שוב בעוד רגע.', 'error');
+        return;
+    }
+
+    updateLocationSearchStatus('מאתר את המיקום הנוכחי...');
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            setSelectedLocationOnMap(latitude, longitude);
+            updateLocationSearchStatus('המיקום הנוכחי עודכן בהצלחה.', 'success');
+        },
+        (error) => {
+            console.error('Geolocation failed:', error);
+            updateLocationSearchStatus('לא ניתן לאתר את המיקום הנוכחי. בדוק הרשאות מיקום בדפדפן.', 'error');
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
 }
 
 function confirmLocation() {

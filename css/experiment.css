@@ -493,6 +493,11 @@
 .modal-large {
     max-width: 900px;
     width: 90%;
+    padding: 0;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .modal-header {
@@ -531,6 +536,7 @@
 
 .modal-body {
     padding: 20px;
+    overflow-y: auto;
 }
 
 .selected-coords {
@@ -545,6 +551,46 @@
 
 #map-container {
     border: 1px solid #ddd;
+    height: clamp(260px, 52vh, 500px) !important;
+}
+
+#location-picker-modal.modal-overlay {
+    align-items: flex-start;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+#location-picker-modal .modal-large {
+    margin: 8px auto;
+}
+
+@media (max-width: 768px) {
+    .modal-large {
+        width: 100%;
+        max-height: 96vh;
+        border-radius: 12px;
+    }
+
+    .modal-header {
+        padding: 14px;
+    }
+
+    .modal-header h2 {
+        font-size: 17px;
+    }
+
+    .modal-body {
+        padding: 14px;
+    }
+
+    #map-container {
+        height: clamp(220px, 45vh, 420px) !important;
+    }
+
+    #location-picker-modal .modal-actions {
+        padding: 10px 14px 14px;
+        background: #fff;
+    }
 }
 
 .input-with-btn {
