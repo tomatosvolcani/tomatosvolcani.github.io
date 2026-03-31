@@ -46,7 +46,8 @@ const SHARED_VIEW_TO_SECTION = {
     growth: 'growth',
     climate: 'climate',
     agrotechnics: 'agrotechnics',
-    'plant-protection': 'plantProtection'
+    'plant-protection': 'plantProtection',
+    yield: 'yield'
 };
 
 const SHARED_SECTION_IDS = Object.values(SHARED_VIEW_TO_SECTION);
@@ -208,6 +209,10 @@ function getLegacySectionDataFromExperiment(sectionId, data) {
         case 'plantProtection':
             return {
                 plantProtectionData: deepClone(data?.plantProtectionData || progressDefaults.plantProtection.plantProtectionData)
+            };
+        case 'yield':
+            return {
+                yieldData: deepClone(data?.yieldData || { measures: [], damages: [] })
             };
         default:
             return {};
@@ -1016,6 +1021,13 @@ function collectSectionDataFromDOM(sectionId) {
                     drenches: collectProgressRows('drench-tbody', PROTECTION_FIELDS)
                 }
             };
+        case 'yield':
+            return {
+                yieldData: {
+                    measures: collectProgressRows('yield-measure-tbody', YIELD_MEASURE_FIELDS),
+                    damages: collectProgressRows('yield-damage-tbody', YIELD_DAMAGE_FIELDS)
+                }
+            };
         default:
             return {};
     }
@@ -1141,6 +1153,22 @@ function applySectionDataToDOM(sectionId, sectionData) {
             if (drenchTbody) {
                 drenchTbody.innerHTML = '';
                 (pp.drenches || []).forEach((row) => addProtectionRow('drench-tbody', row));
+            }
+            break;
+        }
+        case 'yield': {
+            const yd = data.yieldData || {};
+
+            const ymTbody = document.getElementById('yield-measure-tbody');
+            if (ymTbody) {
+                ymTbody.innerHTML = '';
+                (yd.measures || []).forEach((row) => addYieldMeasureRow(row));
+            }
+
+            const ydTbody = document.getElementById('yield-damage-tbody');
+            if (ydTbody) {
+                ydTbody.innerHTML = '';
+                (yd.damages || []).forEach((row) => addYieldDamageRow(row));
             }
             break;
         }
