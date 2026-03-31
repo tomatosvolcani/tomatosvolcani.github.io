@@ -1594,6 +1594,7 @@ function collectFormData() {
     const climateModel = buildSectionModelForSave('climate');
     const agrotechnicsModel = buildSectionModelForSave('agrotechnics');
     const plantProtectionModel = buildSectionModelForSave('plantProtection');
+    const yieldModel = buildSectionModelForSave('yield');
 
     const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
     const experimentSiteOther = document.getElementById('experiment-site-other')?.value.trim() || '';
@@ -1652,6 +1653,7 @@ function collectFormData() {
         climateData: climateModel.data.climateData || [],
         agrotechnicsData: agrotechnicsModel.data.agrotechnicsData || [],
         plantProtectionData: plantProtectionModel.data.plantProtectionData || { pests: [], diseases: [], sprays: [], drenches: [] },
+        yieldData: yieldModel.data.yieldData || { measures: [], damages: [] },
         sectionSharedState: {
             crop: cropModel,
             structure: structureModel,
@@ -1661,7 +1663,8 @@ function collectFormData() {
             growth: growthModel,
             climate: climateModel,
             agrotechnics: agrotechnicsModel,
-            plantProtection: plantProtectionModel
+            plantProtection: plantProtectionModel,
+            yield: yieldModel
         },
         events: collectEventsData(),
         updatedAt: serverTimestamp()
