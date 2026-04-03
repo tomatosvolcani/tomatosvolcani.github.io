@@ -1,0 +1,189 @@
+/* =========================================
+   Flatpickr Custom Theme — מותאם למערכת ח"ץ
+   ========================================= */
+
+/* Calendar container */
+.flatpickr-calendar {
+    font-family: 'Heebo', 'Segoe UI', Tahoma, sans-serif !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid #e0e4ea !important;
+    overflow: hidden;
+    direction: rtl;
+}
+
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after {
+    display: none;
+}
+
+/* Month navigation header */
+.flatpickr-months {
+    background: linear-gradient(135deg, #0a2f72, #153d82) !important;
+    padding: 6px 0 !important;
+    border-radius: 0 !important;
+}
+
+.flatpickr-months .flatpickr-month {
+    height: 38px !important;
+}
+
+.flatpickr-current-month {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+    padding-top: 6px !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+    background: transparent !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    border: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months option {
+    background: #fff;
+    color: #333;
+}
+
+.flatpickr-current-month input.cur-year {
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+/* Navigation arrows */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    fill: #fff !important;
+    color: #fff !important;
+    padding: 8px 12px !important;
+    transition: opacity 0.2s !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+    opacity: 0.7 !important;
+}
+
+.flatpickr-months .flatpickr-prev-month svg,
+.flatpickr-months .flatpickr-next-month svg {
+    fill: #fff !important;
+    width: 12px !important;
+    height: 12px !important;
+}
+
+/* Weekday headers */
+.flatpickr-weekdays {
+    background: #f0f3f8 !important;
+    border-bottom: 1px solid #e0e4ea !important;
+}
+
+span.flatpickr-weekday {
+    color: #0a2f72 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+}
+
+/* Day cells */
+.flatpickr-day {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 36px !important;
+    height: 36px !important;
+    max-width: 36px !important;
+    margin: 1px !important;
+    transition: all 0.15s ease !important;
+    color: #333 !important;
+}
+
+.flatpickr-day:hover {
+    background: #e8edf5 !important;
+    border-color: #c5cfe0 !important;
+}
+
+/* Today */
+.flatpickr-day.today {
+    border-color: #0a2f72 !important;
+    color: #0a2f72 !important;
+    font-weight: 700 !important;
+    background: transparent !important;
+}
+
+.flatpickr-day.today:hover {
+    background: #e8edf5 !important;
+    color: #0a2f72 !important;
+}
+
+/* Selected day */
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected.inRange,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange:hover {
+    background: linear-gradient(135deg, #0a2f72, #153d82) !important;
+    border-color: #0a2f72 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(10, 47, 114, 0.3) !important;
+}
+
+/* In range */
+.flatpickr-day.inRange {
+    background: #e8edf5 !important;
+    border-color: #c5cfe0 !important;
+    box-shadow: none !important;
+}
+
+/* Disabled / other month days */
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+    color: #bcc5d3 !important;
+}
+
+.flatpickr-day.flatpickr-disabled:hover {
+    background: transparent !important;
+}
+
+/* Inner container spacing */
+.flatpickr-innerContainer {
+    padding: 4px !important;
+}
+
+.dayContainer {
+    padding: 2px 4px !important;
+}
+
+/* Alt-input field styling */
+.flatpickr-alt-input {
+    cursor: pointer !important;
+    direction: ltr !important;
+    text-align: center !important;
+    letter-spacing: 0.5px;
+}
+
+/* Calendar icon indicator on alt-input — no icon, just subtle bg effect */
+.flatpickr-alt-input:not(:placeholder-shown) {
+    font-weight: 500;
+}
+
+/* Mobile / small screen adjustments */
+@media (max-width: 640px) {
+    .flatpickr-calendar {
+        border-radius: 10px !important;
+    }
+
+    .flatpickr-day {
+        line-height: 32px !important;
+        height: 32px !important;
+        max-width: 32px !important;
+        font-size: 12px !important;
+    }
+}

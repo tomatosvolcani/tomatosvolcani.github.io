@@ -1,5 +1,6 @@
 // js/admin-users.js
 import { auth, db } from "./firebase-config.js";
+import { formatDateIL } from "./date-utils.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -177,7 +178,7 @@ function displayUsers() {
         const email = user.email || 'לא צוין';
         const role = getRoleText(user.role);
         const statusBadge = getStatusBadge(user);
-        const createdDate = formatDate(user.createdAt);
+        const createdDate = formatDateIL(user.createdAt, 'לא ידוע');
 
         row.innerHTML = `
             <td data-label="שם">${fullName}</td>
@@ -314,22 +315,13 @@ function viewUser(userId) {
 טלפון: ${user.phone || 'לא צוין'}
 תפקיד: ${getRoleText(user.role)}
 סטטוס: ${user.isApproved ? 'מאושר' : 'ממתין לאישור'}
-תאריך הרשמה: ${formatDate(user.createdAt)}
+תאריך הרשמה: ${formatDateIL(user.createdAt, 'לא ידוע')}
     `.trim();
 
     alert(details);
 }
 
-// פורמט תאריך
-function formatDate(timestamp) {
-    if (!timestamp) return 'לא ידוע';
-    try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleDateString('he-IL');
-    } catch {
-        return 'לא ידוע';
-    }
-}
+
 
 // התנתקות
 async function handleLogout() {

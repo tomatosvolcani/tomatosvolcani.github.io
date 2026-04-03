@@ -1,5 +1,6 @@
 // js/export.js
 // Client-side experiment export — Excel (SheetJS) and ZIP (JSZip + FileSaver)
+import { formatDateIL } from "./date-utils.js";
 import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
@@ -157,7 +158,7 @@ function createExportCard(exp) {
 
     const name = exp.data.experimentName || 'ניסוי ללא שם';
     const site = exp.data.experimentSite || '';
-    const dateStr = formatDate(exp.data.createdAt);
+    const dateStr = formatDateIL(exp.data.createdAt);
     const badge = exp.shared
         ? (isAdmin && exp.ownerUid !== currentUser.uid
             ? '<span class="export-badge shared"><i class="fas fa-user"></i> של משתמש אחר</span>'
@@ -673,10 +674,4 @@ function sanitizeFileName(name) {
     return name.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
 }
 
-function formatDate(timestamp) {
-    if (!timestamp) return '';
-    try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleDateString('he-IL');
-    } catch { return ''; }
-}
+

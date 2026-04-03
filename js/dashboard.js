@@ -1,5 +1,6 @@
 // js/dashboard.js
 import { auth, db } from "./firebase-config.js";
+import { formatDateIL } from "./date-utils.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     doc,
@@ -349,7 +350,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
             <i class="fas fa-flask"></i>
             ${data.experimentName || 'ניסוי ללא שם'}
         </h3>
-        <p class="date">${formatDate(data.createdAt)}</p>
+        <p class="date">${formatDateIL(data.createdAt)}</p>
         ${data.experimentSite ? `<p class="site">${data.experimentSite}</p>` : ''}
         ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
     `;
@@ -444,16 +445,7 @@ async function createNewExperiment() {
     }
 }
 
-// Format date helper
-function formatDate(timestamp) {
-    if (!timestamp) return '';
-    try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleDateString('he-IL');
-    } catch {
-        return '';
-    }
-}
+
 
 // Handle logout
 async function handleLogout() {

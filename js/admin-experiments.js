@@ -1,5 +1,6 @@
 // js/admin-experiments.js
 import { auth, db } from "./firebase-config.js";
+import { formatDateIL } from "./date-utils.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collectionGroup,
@@ -217,7 +218,7 @@ function displayExperiments() {
         const researcher = experiment.leadResearcher || 'לא צוין';
         const site = experiment.experimentSite || 'לא צוין';
         const year = experiment.experimentYear || '-';
-        const createdDate = formatDate(experiment.createdAt);
+        const createdDate = formatDateIL(experiment.createdAt, 'לא ידוע');
 
         row.innerHTML = `
             <td data-label="שם הניסוי"><strong>${name}</strong></td>
@@ -258,16 +259,7 @@ function viewExperiment(experimentId, ownerUid) {
     window.location.href = `experiment.html?id=${experimentId}&owner=${ownerUid}`;
 }
 
-// פורמט תאריך
-function formatDate(timestamp) {
-    if (!timestamp) return 'לא ידוע';
-    try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleDateString('he-IL');
-    } catch {
-        return 'לא ידוע';
-    }
-}
+
 
 // התנתקות
 async function handleLogout() {
