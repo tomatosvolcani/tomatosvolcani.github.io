@@ -51,8 +51,11 @@
                 // guard נגד אינסוף רקורסיה — flatpickr.setDate קורא ל-value= פנימית
                 if (!this._fpSetting && this._flatpickr) {
                     this._fpSetting = true;
-                    this._flatpickr.setDate(val, false); // false = don't trigger onChange
-                    this._fpSetting = false;
+                    try {
+                        this._flatpickr.setDate(val, false);
+                    } finally {
+                        this._fpSetting = false;
+                    }
                 }
             },
             configurable: true
