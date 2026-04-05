@@ -5,13 +5,169 @@
 (function () {
     'use strict';
 
+    var FP_MOBILE_MQ = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 768px)')
+        : { matches: false };
+
+    function isMobilePickerLayout() {
+        return FP_MOBILE_MQ.matches;
+    }
+
+    var fpBackdropLocks = 0;
+    var fpScrollLocks = 0;
+
+    function ensureFpBackdrop() {
+        var el = document.getElementById('fp-cal-backdrop');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'fp-cal-backdrop';
+            el.className = 'fp-cal-backdrop';
+            el.setAttribute('aria-hidden', 'true');
+            el.addEventListener('click', function () {
+                document.querySelectorAll('input.flatpickr-input').forEach(function (inp) {
+                    if (inp._flatpickr) {
+                        inp._flatpickr.close();
+                    }
+                });
+            });
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    function fpBackdropAcquire() {
+        fpBackdropLocks += 1;
+        if (fpBackdropLocks === 1) {
+            ensureFpBackdrop().classList.add('fp-cal-backdrop--active');
+        }
+    }
+
+    function fpBackdropRelease() {
+        fpBackdropLocks = Math.max(0, fpBackdropLocks - 1);
+        if (fpBackdropLocks === 0) {
+            var el = document.getElementById('fp-cal-backdrop');
+            if (el) {
+                el.classList.remove('fp-cal-backdrop--active');
+            }
+        }
+    }
+
+    function bodyScrollLockAcquire() {
+        fpScrollLocks += 1;
+        if (fpScrollLocks === 1) {
+            document.documentElement.classList.add('fp-cal-scroll-lock');
+            document.body.classList.add('fp-cal-scroll-lock');
+        }
+    }
+
+    function bodyScrollLockRelease() {
+        fpScrollLocks = Math.max(0, fpScrollLocks - 1);
+        if (fpScrollLocks === 0) {
+            document.documentElement.classList.remove('fp-cal-scroll-lock');
+            document.body.classList.remove('fp-cal-scroll-lock');
+        }
+    }
+
+    /** שומר את הלוח בתוך המסגרת בדסקטופ (אחרי חישוב המיקום של flatpickr) */
+    function clampCalendarToViewport(instance) {
+        if (isMobilePickerLayout()) {
+            return;
+        }
+        var cal = instance.calendarContainer;
+        if (!cal || !cal.classList.contains('open')) {
+            return;
+        }
+        var rect = cal.getBoundingClientRect();
+        var margin = 10;
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var top = rect.top;
+        var left = rect.left;
+
+        if (rect.right > vw - margin) {
+            left += vw - margin - rect.right;
+        }
+        if (left < margin) {
+            left = margin;
+        }
+        if (rect.bottom > vh - margin) {
+            top += vh - margin - rect.bottom;
+        }
+        if (top < margin) {
+            top = margin;
+        }
+
+        cal.style.top = top + 'px';
+        cal.style.left = left + 'px';
+    }
+
+    function onFlatpickrOpen(selectedDates, dateStr, instance) {
+        instance._fpUsedMobileChrome = isMobilePickerLayout();
+        if (instance._fpUsedMobileChrome) {
+            fpBackdropAcquire();
+            bodyScrollLockAcquire();
+            instance.calendarContainer.classList.add('fp-calendar--mobile');
+        } else {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    clampCalendarToViewport(instance);
+                });
+            });
+        }
+    }
+
+    function onFlatpickrClose(selectedDates, dateStr, instance) {
+        if (instance && instance._fpUsedMobileChrome) {
+            fpBackdropRelease();
+            bodyScrollLockRelease();
+            instance._fpUsedMobileChrome = false;
+        }
+        if (instance && instance.calendarContainer) {
+            instance.calendarContainer.classList.remove('fp-calendar--mobile');
+        }
+    }
+
     const FLATPICKR_CONFIG = {
         dateFormat: 'Y-m-d',      // הערך שנשמר (ISO — תואם ל-DB)
         altInput: true,            // שדה תצוגה נפרד
         altFormat: 'd/m/Y',       // הפורמט שהמשתמש רואה
         locale: 'he',
         allowInput: true,
-        disableMobile: true        // תמיד להשתמש ב-flatpickr גם במובייל
+        disableMobile: true,       // תמיד להשתמש ב-flatpickr גם במובייל
+        appendTo: document.body,   // מעל מודאלים וללא חיתוך מ-overflow
+        onOpen: onFlatpickrOpen,
+        onClose: onFlatpickrClose,
+        onReady: function(selectedDates, dateStr, instance) {
+            // הוספת פוטר עם כפתורי קיצור אם הוא לא קיים עדיין
+            if (!instance.calendarContainer.querySelector('.fp-footer')) {
+                const footer = document.createElement('div');
+                footer.className = 'fp-footer';
+
+                // כפתור "היום"
+                const todayBtn = document.createElement('button');
+                todayBtn.className = 'fp-btn fp-btn-today';
+                todayBtn.type = 'button';
+                todayBtn.innerText = 'היום';
+                todayBtn.addEventListener('click', () => {
+                    instance.setDate(new Date());
+                    instance.close();
+                });
+
+                // כפתור "נקה"
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'fp-btn fp-btn-clear';
+                clearBtn.type = 'button';
+                clearBtn.innerText = 'נקה';
+                clearBtn.addEventListener('click', () => {
+                    instance.clear();
+                    instance.close();
+                });
+
+                footer.appendChild(todayBtn);
+                footer.appendChild(clearBtn);
+                instance.calendarContainer.appendChild(footer);
+            }
+        }
     };
 
     // שמור reference ל-setter המקורי של input.value

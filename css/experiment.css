@@ -1608,8 +1608,8 @@
 
 .modal-input-sm:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    border-color: #0a2f72;
+    box-shadow: 0 0 0 2px rgba(10, 47, 114, 0.15);
 }
 
 .modal-select {

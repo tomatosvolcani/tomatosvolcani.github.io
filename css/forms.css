@@ -73,14 +73,7 @@
     cursor: pointer;
 }
 
-/* Flatpickr alt-input — inherit form styles, show dd/mm/yyyy centered */
-.form-group .flatpickr-alt-input,
-.soil-input.flatpickr-alt-input,
-.modal-input-sm.flatpickr-alt-input {
-    cursor: pointer;
-    direction: ltr;
-    text-align: center;
-}
+/* שדה תאריך (flatpickr alt-input): עיצוב ב-css/flatpickr-custom.css */
 
 /* Input with button */
 .input-with-btn {
