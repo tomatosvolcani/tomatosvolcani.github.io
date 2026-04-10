@@ -353,20 +353,29 @@
                             <label>זן:</label>
                             <input type="text" id="variety" list="datalist-variety">
                         </div>
-                        <div class="form-group">
-                            <label>צמח מורכב:</label>
-                            <select id="grafted-plant">
-                                <option value="">בחר</option>
-                                <option value="no">לא</option>
-                                <option value="yes">כן</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>סוג הזן:</label>
-                            <select id="variety-type">
-                                <option value="regular">רגיל</option>
-                                <option value="finishing">מסיים</option>
-                            </select>
+                        <div class="grafted-group" style="grid-column: 1 / -1;">
+                            <div class="grafted-group-fields">
+                                <div class="form-group grafted-inline-field">
+                                    <label>צמח מורכב:</label>
+                                    <select id="grafted-plant">
+                                        <option value="">בחר</option>
+                                        <option value="no">לא</option>
+                                        <option value="yes">כן</option>
+                                    </select>
+                                </div>
+                                <div class="form-group grafted-inline-field" id="variety-type-group" style="display: none;">
+                                    <label>סוג הזן:</label>
+                                    <select id="variety-type">
+                                        <option value="">בחר</option>
+                                        <option value="regular">רגיל</option>
+                                        <option value="finishing">מסיים</option>
+                                    </select>
+                                </div>
+                                <div class="form-group grafted-inline-field" id="preparation-name-group" style="display: none;">
+                                    <label>שם הכנה:</label>
+                                    <input type="text" id="preparation-name">
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>צמח מפוצל:</label>
@@ -395,10 +404,6 @@
                         <div class="form-group">
                             <label>שטח הניסוי (דונם):</label>
                             <input type="number" id="experiment-area" step="0.01">
-                        </div>
-                        <div class="form-group" id="preparation-name-group" style="display: none;">
-                            <label>שם הכנה:</label>
-                            <input type="text" id="preparation-name">
                         </div>
                     </div>
                     <div class="form-row full-width">

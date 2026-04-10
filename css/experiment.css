@@ -1063,6 +1063,38 @@
     margin-bottom: 20px;
 }
 
+/* Crop grafted group */
+.grafted-group {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.grafted-group-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.grafted-inline-field {
+    flex: 1 1 220px;
+    min-width: 180px;
+}
+
+.grafted-inline-field label {
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.grafted-inline-field select,
+.grafted-inline-field input {
+    width: 100%;
+}
+
 /* Adigan + כמות grouped card */
 .soil-adigan-group {
     background: #f0fdf4;

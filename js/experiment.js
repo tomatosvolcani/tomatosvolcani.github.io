@@ -2010,10 +2010,23 @@ function updateExperimentSiteOtherVisibility() {
 function updatePreparationNameVisibility() {
     const graftedPlantSelect = document.getElementById('grafted-plant');
     const preparationGroup = document.getElementById('preparation-name-group');
-    if (!graftedPlantSelect || !preparationGroup) return;
+    const varietyTypeGroup = document.getElementById('variety-type-group');
+    const varietyTypeSelect = document.getElementById('variety-type');
+    const preparationInput = document.getElementById('preparation-name');
+    if (!graftedPlantSelect || !preparationGroup || !varietyTypeGroup || !varietyTypeSelect) return;
 
-    const shouldShow = graftedPlantSelect.value === 'yes';
-    preparationGroup.style.display = shouldShow ? '' : 'none';
+    const showVarietyType = graftedPlantSelect.value === 'yes' || graftedPlantSelect.value === 'no';
+    const showPreparation = graftedPlantSelect.value === 'yes';
+
+    varietyTypeGroup.style.display = showVarietyType ? '' : 'none';
+    preparationGroup.style.display = showPreparation ? '' : 'none';
+
+    if (!showVarietyType) {
+        varietyTypeSelect.value = '';
+    }
+    if (!showPreparation && preparationInput) {
+        preparationInput.value = '';
+    }
 }
 
 function updateDetachedSubstrateVisibility() {
@@ -2957,6 +2970,7 @@ function initPartnersAutocomplete() {
         }
     });
 }
+
 
 function displaySuggestions(users, container) {
     if (users.length === 0) {
