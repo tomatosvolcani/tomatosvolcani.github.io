@@ -52,7 +52,8 @@ const SHARED_VIEW_TO_SECTION = {
     growth: 'growth',
     climate: 'climate',
     agrotechnics: 'agrotechnics',
-    'plant-protection': 'plantProtection'
+    'plant-protection': 'plantProtection',
+    yield: 'yield'
 };
 
 const SHARED_SECTION_IDS = Object.values(SHARED_VIEW_TO_SECTION);
@@ -87,6 +88,72 @@ function normalizeDynamicValue(value) {
 function deepClone(value) {
     if (value === undefined) return undefined;
     return JSON.parse(JSON.stringify(value));
+}
+
+function getTreatmentRepeatNumber(treatment, index = 0) {
+    const fromLabel = String(treatment?.repeatLabel || '').trim();
+    const labelMatch = fromLabel.match(/(\d+)/);
+    if (labelMatch) {
+        const fromRepeatLabel = parseInt(labelMatch[1]);
+        if (Number.isFinite(fromRepeatLabel) && fromRepeatLabel > 0) return fromRepeatLabel;
+    }
+
+    const parsed = parseInt(treatment?.repeatNumber);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+    const legacy = String(treatment?.pesticide || '').trim();
+    const match = legacy.match(/(\d+)/);
+    if (match) {
+        const fromLegacy = parseInt(match[1]);
+        if (Number.isFinite(fromLegacy) && fromLegacy > 0) return fromLegacy;
+    }
+
+    return index + 1;
+}
+
+function getTreatmentRepeatLabel(treatment, index = 0) {
+    const explicitLabel = String(treatment?.repeatLabel || '').trim();
+    if (explicitLabel) return explicitLabel;
+
+    return `חזרה ${getTreatmentRepeatNumber(treatment, index)}`;
+}
+
+function normalizeYieldData(rawYieldData = {}) {
+    return {
+        measures: Array.isArray(rawYieldData?.measures) ? deepClone(rawYieldData.measures) : [],
+        damages: Array.isArray(rawYieldData?.damages) ? deepClone(rawYieldData.damages) : []
+    };
+}
+
+function normalizeYieldSectionEntry(entry = {}) {
+    return {
+        yieldData: normalizeYieldData(entry?.yieldData || entry)
+    };
+}
+
+function getYieldDataForTreatment(data, treatmentIndex = 0) {
+    const sectionYield = data?.sectionSharedState?.yield;
+    if (sectionYield) {
+        if (sectionYield.shared !== false) {
+            return normalizeYieldData(
+                sectionYield.sharedData?.yieldData ||
+                sectionYield.data?.yieldData ||
+                sectionYield.sharedData ||
+                sectionYield.data ||
+                {}
+            );
+        }
+        const byTreatmentEntry = sectionYield.byTreatment?.[treatmentIndex] || sectionYield.byTreatment?.[0] || {};
+        return normalizeYieldData(byTreatmentEntry?.yieldData || byTreatmentEntry);
+    }
+
+    const rootYield = data?.yieldData || {};
+    if (Array.isArray(rootYield.byTreatment) && rootYield.byTreatment.length > 0) {
+        const byTreatmentEntry = rootYield.byTreatment[treatmentIndex] || rootYield.byTreatment[0] || {};
+        return normalizeYieldData(byTreatmentEntry?.yieldData || byTreatmentEntry);
+    }
+
+    return normalizeYieldData(rootYield);
 }
 
 function getComparableFormData(formData) {
@@ -462,7 +529,7 @@ function getLegacySectionDataFromExperiment(sectionId, data) {
             };
         case 'yield':
             return {
-                yieldData: deepClone(data?.yieldData || { measures: [], damages: [] })
+                yieldData: normalizeYieldData(data?.yieldData || {})
             };
         default:
             return {};
@@ -493,6 +560,17 @@ function normalizeSectionModel(sectionId, data, treatmentsCount) {
         shared = block.shared !== false;
         sharedData = deepClone(block.sharedData || block.data || {});
         byTreatment = Array.isArray(block.byTreatment) ? deepClone(block.byTreatment) : [];
+    } else if (sectionId === 'yield') {
+        const legacyYield = data?.yieldData || {};
+        shared = true;
+        sharedData = { yieldData: normalizeYieldData(legacyYield) };
+        byTreatment = [];
+
+        if (Array.isArray(legacyYield.byTreatment) && legacyYield.byTreatment.length > 0) {
+            shared = false;
+            byTreatment = legacyYield.byTreatment.map((entry) => normalizeYieldSectionEntry(entry));
+            sharedData = deepClone(byTreatment[0] || { yieldData: normalizeYieldData() });
+        }
     } else {
         shared = true;
         sharedData = getLegacySectionDataFromExperiment(sectionId, data);
@@ -1606,9 +1684,7 @@ function generateTreatmentTabs() {
         tab.className = 'tab-item' + (i === currentTreatmentIndex ? ' active' : '');
 
         const treatmentName = treatments[i]?.name || `טיפול ${i + 1}`;
-        const pesticideName = treatments[i]?.pesticide || '';
-
-        tab.textContent = pesticideName ? `${treatmentName} - ${pesticideName}` : treatmentName;
+        tab.textContent = treatmentName;
         tab.dataset.index = i;
 
         tab.addEventListener('click', () => switchTreatmentTab(i));
@@ -1664,7 +1740,7 @@ function switchView(viewName) {
     // Show/hide tabs and toggle
     const tabsContainer = document.getElementById('treatments-tabs');
     const toggleContainer = document.getElementById('shared-toggle-container');
-    const viewsWithTabs = ['crop', 'structure', 'soil', 'drip', 'irrigation', 'growth', 'climate', 'agrotechnics', 'plant-protection'];
+    const viewsWithTabs = ['crop', 'structure', 'soil', 'drip', 'irrigation', 'growth', 'climate', 'agrotechnics', 'plant-protection', 'yield'];
 
     if (viewsWithTabs.includes(viewName)) {
         if (tabsContainer) tabsContainer.style.display = 'block';
@@ -1732,12 +1808,14 @@ function generateTreatmentInputs(count, existingTreatments = []) {
 
     for (let i = 0; i < count; i++) {
         const existing = existingTreatments[i] || {};
+        const repeatLabel = getTreatmentRepeatLabel(existing, i);
+        const repeatNumber = getTreatmentRepeatNumber(existing, i);
         const item = document.createElement('div');
         item.className = 'treatment-item';
         item.innerHTML = `
             <label>שם לטיפול ${i + 1}:</label>
             <input type="text" class="treatment-name" data-index="${i}" value="${existing.name || ''}" placeholder="שם הטיפול">
-            <input type="text" class="treatment-pesticide" data-index="${i}" value="${existing.pesticide || ''}" placeholder="חומר הדברה">
+            <input type="text" class="treatment-repeat" data-index="${i}" value="${repeatLabel}" placeholder="חזרה ${repeatNumber}">
         `;
         container.appendChild(item);
     }
@@ -1849,11 +1927,14 @@ function collectFormData() {
     // Treatments
     const treatments = [];
     document.querySelectorAll('.treatment-name').forEach(input => {
-        const index = input.dataset.index;
-        const pesticideInput = document.querySelector(`.treatment-pesticide[data-index="${index}"]`);
+        const index = parseInt(input.dataset.index);
+        const repeatInput = document.querySelector(`.treatment-repeat[data-index="${index}"]`);
+        const repeatLabel = String(repeatInput?.value || '').trim() || `חזרה ${index + 1}`;
+        const repeatNumber = getTreatmentRepeatNumber({ repeatLabel }, index);
         treatments.push({
             name: input.value || '',
-            pesticide: pesticideInput ? pesticideInput.value : ''
+            repeatLabel,
+            repeatNumber: Number.isFinite(repeatNumber) && repeatNumber > 0 ? repeatNumber : index + 1
         });
     });
 
@@ -1886,9 +1967,13 @@ function collectFormData() {
     const climateModel = buildSectionModelForSave('climate');
     const agrotechnicsModel = buildSectionModelForSave('agrotechnics');
     const plantProtectionModel = buildSectionModelForSave('plantProtection');
+    const yieldModel = buildSectionModelForSave('yield');
     const yieldData = {
-        measures: collectProgressRows('yield-measure-tbody', YIELD_MEASURE_FIELDS),
-        damages: collectProgressRows('yield-damage-tbody', YIELD_DAMAGE_FIELDS)
+        ...normalizeYieldData(yieldModel.data?.yieldData || {}),
+        sharedData: normalizeYieldData(yieldModel.sharedData?.yieldData || yieldModel.sharedData || {}),
+        byTreatment: Array.isArray(yieldModel.byTreatment)
+            ? yieldModel.byTreatment.map((entry) => normalizeYieldData(entry?.yieldData || entry))
+            : []
     };
 
     const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
@@ -1958,7 +2043,8 @@ function collectFormData() {
             growth: growthModel,
             climate: climateModel,
             agrotechnics: agrotechnicsModel,
-            plantProtection: plantProtectionModel
+            plantProtection: plantProtectionModel,
+            yield: yieldModel
         },
         events: collectEventsData(),
         updatedAt: serverTimestamp()
@@ -2226,10 +2312,11 @@ function initEventListeners() {
             const existingTreatments = [];
             document.querySelectorAll('.treatment-name').forEach(input => {
                 const index = input.dataset.index;
-                const pesticideInput = document.querySelector(`.treatment-pesticide[data-index="${index}"]`);
+                const repeatInput = document.querySelector(`.treatment-repeat[data-index="${index}"]`);
                 existingTreatments.push({
                     name: input.value,
-                    pesticide: pesticideInput?.value || ''
+                    repeatLabel: String(repeatInput?.value || '').trim() || `חזרה ${parseInt(index) + 1}`,
+                    repeatNumber: getTreatmentRepeatNumber({ repeatLabel: repeatInput?.value }, parseInt(index))
                 });
             });
             generateTreatmentInputs(count, existingTreatments);
@@ -4012,10 +4099,10 @@ function addProtectionRow(tbodyId, data) {
 // =========================================
 // Yield
 // =========================================
-const YIELD_MEASURE_FIELDS = ['measureDate','fruitFloor','quality','quantity','fruitDesc','notes'];
-const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', fruitFloor:'קומת הפרי', quality:'איכות (לק"ג)', quantity:'כמות (ק"ג)', fruitDesc:'תיאור הפרי', notes:'הערות' };
-const YIELD_DAMAGE_FIELDS = ['measureDate','damage','damageIndex','damageValue','damageDesc'];
-const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
+const YIELD_MEASURE_FIELDS = ['measureDate','repeatCount','fruitFloor','quality','quantity','fruitDesc','notes'];
+const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'מספר חזרות', fruitFloor:'קומת הפרי', quality:'איכות (לק"ג)', quantity:'כמות (ק"ג)', fruitDesc:'תיאור הפרי', notes:'הערות' };
+const YIELD_DAMAGE_FIELDS = ['measureDate','repeatCount','damage','damageIndex','damageValue','damageDesc'];
+const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'מספר חזרות', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
 
 function addYieldMeasureRow(data) {
     addProgressRow(document.getElementById('yield-measure-tbody'), YIELD_MEASURE_FIELDS, YIELD_MEASURE_LABELS, data || {}, {
@@ -4065,7 +4152,7 @@ function populateProgressViews(data) {
     const drenchTbody = document.getElementById('drench-tbody');
     if (drenchTbody) { drenchTbody.innerHTML = ''; (pp.drenches || []).forEach(r => addProtectionRow('drench-tbody', r)); }
     // Yield
-    const yd = data.yieldData || {};
+    const yd = getYieldDataForTreatment(data, currentTreatmentIndex);
     const ymTbody = document.getElementById('yield-measure-tbody');
     if (ymTbody) { ymTbody.innerHTML = ''; (yd.measures || []).forEach(r => addYieldMeasureRow(r)); }
     const ydTbody = document.getElementById('yield-damage-tbody');

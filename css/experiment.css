@@ -1245,6 +1245,15 @@
     min-width: 120px;
 }
 
+#yield-measure-table .soil-input[data-field="measureDate"],
+#yield-measure-table .soil-input[data-field="measureDate"].flatpickr-alt-input {
+    min-width: 140px;
+    text-align: right !important;
+    direction: ltr;
+    padding-left: 12px !important;
+    padding-right: 32px !important;
+}
+
 .btn-del-soil-row {
     display: inline-flex;
     align-items: center;
@@ -1642,6 +1651,14 @@
     outline: none;
     border-color: #0a2f72;
     box-shadow: 0 0 0 2px rgba(10, 47, 114, 0.15);
+}
+
+.modal-form-row .modal-input-sm.flatpickr-alt-input,
+.modal-form-row-single .modal-input-sm.flatpickr-alt-input {
+    text-align: right !important;
+    padding-left: 14px !important;
+    padding-right: 34px !important;
+    min-width: 170px;
 }
 
 .modal-select {

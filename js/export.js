@@ -282,9 +282,36 @@ function buildExcelWorkbook(data) {
         if (value === undefined) return undefined;
         return JSON.parse(JSON.stringify(value));
     }
+    function getTreatmentRepeatNumber(treatment, index) {
+        const fromLabel = String(treatment?.repeatLabel || '').trim();
+        const labelMatch = fromLabel.match(/(\d+)/);
+        if (labelMatch) {
+            const fromRepeatLabel = parseInt(labelMatch[1]);
+            if (Number.isFinite(fromRepeatLabel) && fromRepeatLabel > 0) return fromRepeatLabel;
+        }
+        const parsed = parseInt(treatment?.repeatNumber);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        const legacy = String(treatment?.pesticide || '').trim();
+        const match = legacy.match(/(\d+)/);
+        if (match) {
+            const fromLegacy = parseInt(match[1]);
+            if (Number.isFinite(fromLegacy) && fromLegacy > 0) return fromLegacy;
+        }
+        return index + 1;
+    }
+    function getTreatmentRepeatLabel(treatment, index) {
+        const explicitLabel = String(treatment?.repeatLabel || '').trim();
+        if (explicitLabel) return explicitLabel;
+        return `חזרה ${getTreatmentRepeatNumber(treatment, index)}`;
+    }
+    function normalizeYieldData(rawYieldData = {}) {
+        return {
+            measures: Array.isArray(rawYieldData?.measures) ? deepClone(rawYieldData.measures) : [],
+            damages: Array.isArray(rawYieldData?.damages) ? deepClone(rawYieldData.damages) : []
+        };
+    }
     function getTreatmentTitle(index) {
         const t = data.treatments?.[index] || {};
-        if (t.name && t.pesticide) return `טיפול ${index + 1} - ${t.name} (${t.pesticide})`;
         if (t.name) return `טיפול ${index + 1} - ${t.name}`;
         return `טיפול ${index + 1}`;
     }
@@ -343,8 +370,8 @@ function buildExcelWorkbook(data) {
         rows.push([]);
         rows.push(['פרטי טיפולים:']);
         addTable(
-            ['מספר', 'שם הטיפול', 'חומר הדברה'],
-            data.treatments.map((t, i) => [i + 1, t.name || '', t.pesticide || ''])
+            ['מספר', 'שם הטיפול', 'חזרה'],
+            data.treatments.map((t, i) => [i + 1, t.name || '', getTreatmentRepeatLabel(t, i)])
         );
     }
 
@@ -569,13 +596,49 @@ function buildExcelWorkbook(data) {
     }
 
     // ── 11. נתוני יבול ──
-    const yd = data.yieldData || {};
+    const legacyYield = data.yieldData || {};
+    let yieldState = resolveSectionState('yield', true, {
+        yieldData: normalizeYieldData(legacyYield)
+    });
+    if (!data.sectionSharedState?.yield && Array.isArray(legacyYield.byTreatment) && legacyYield.byTreatment.length > 0) {
+        const byTreatment = legacyYield.byTreatment.map((entry) => ({
+            yieldData: normalizeYieldData(entry?.yieldData || entry)
+        }));
+        yieldState = {
+            shared: false,
+            sharedData: deepClone(byTreatment[0] || { yieldData: normalizeYieldData() }),
+            byTreatment
+        };
+    }
     addSection('נתוני יבול');
-    const measures = yd.measures || [];
-    if (measures.length > 0) { rows.push(['מדידות יבול:']); addTable(['תאריך מדידה', 'קומת הפרי', 'איכות (לק"ג)', 'כמות (ק"ג)', 'תיאור הפרי', 'הערות'], measures.map(r => [r.measureDate || '', r.fruitFloor || '', r.quality || '', r.quantity || '', r.fruitDesc || '', r.notes || ''])); }
-    const damages = yd.damages || [];
-    if (damages.length > 0) { rows.push(['נזקי יבול:']); addTable(['תאריך מדידה', 'הפגע הנמדד', 'מדד נזק (%/ס"מ/No.)', 'ערך הנזק', 'תיאור הנזק'], damages.map(r => [r.measureDate || '', r.damage || '', r.damageIndex || '', r.damageValue || '', r.damageDesc || ''])); }
-    if (measures.length === 0 && damages.length === 0) { addField('נתוני יבול', 'אין נתונים'); }
+    addField('נתונים משותפים לכל הטיפולים', yieldState.shared ? 'כן' : 'לא');
+    const renderYieldFields = (entry) => {
+        const yd = normalizeYieldData(entry?.yieldData || entry || {});
+        const measures = yd.measures || [];
+        if (measures.length > 0) {
+            rows.push(['מדידות יבול:']);
+            addTable(
+                ['תאריך מדידה', 'מספר חזרות', 'קומת הפרי', 'איכות (לק"ג)', 'כמות (ק"ג)', 'תיאור הפרי', 'הערות'],
+                measures.map(r => [r.measureDate || '', r.repeatCount || '', r.fruitFloor || '', r.quality || '', r.quantity || '', r.fruitDesc || '', r.notes || ''])
+            );
+        }
+        const damages = yd.damages || [];
+        if (damages.length > 0) {
+            rows.push(['נזקי יבול:']);
+            addTable(
+                ['תאריך מדידה', 'מספר חזרות', 'הפגע הנמדד', 'מדד נזק (%/ס"מ/No.)', 'ערך הנזק', 'תיאור הנזק'],
+                damages.map(r => [r.measureDate || '', r.repeatCount || '', r.damage || '', r.damageIndex || '', r.damageValue || '', r.damageDesc || ''])
+            );
+        }
+        if (measures.length === 0 && damages.length === 0) {
+            addField('נתוני יבול', 'אין נתונים');
+        }
+    };
+    if (yieldState.shared) {
+        renderYieldFields(yieldState.sharedData || yieldState.byTreatment[0] || {});
+    } else {
+        renderPerTreatment(yieldState, renderYieldFields);
+    }
 
     // ── 12. יומן אירועים ──
     const events = data.events || [];
