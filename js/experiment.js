@@ -4294,6 +4294,20 @@ function initProgressListeners() {
     document.getElementById('fert-modal-save')?.addEventListener('click', () => saveFertilizationFile());
     document.getElementById('growth-modal-cancel')?.addEventListener('click', () => closeModal('growth-data-modal'));
     document.getElementById('growth-modal-save')?.addEventListener('click', () => saveGrowthData());
+    document.getElementById('growth-modal-name')?.addEventListener('change', () => {
+        const nameSelect = document.getElementById('growth-modal-name');
+        const customRow = document.getElementById('growth-modal-custom-name-row');
+        const customInput = document.getElementById('growth-modal-custom-name');
+        if (!nameSelect || !customRow || !customInput) return;
+
+        if (nameSelect.value === 'other') {
+            customRow.classList.remove('hidden');
+            customInput.focus();
+        } else {
+            customRow.classList.add('hidden');
+            customInput.value = '';
+        }
+    });
 
     // Generic modal buttons
     document.getElementById('generic-modal-cancel')?.addEventListener('click', () => {
@@ -4640,15 +4654,28 @@ async function saveFertilizationFile() {
 // =========================================
 function openGrowthModal() {
     document.getElementById('growth-modal-name').value = '';
+    const customNameInput = document.getElementById('growth-modal-custom-name');
+    if (customNameInput) customNameInput.value = '';
     document.getElementById('growth-modal-date').value = '';
     document.getElementById('growth-modal-value').value = '';
+    document.getElementById('growth-modal-custom-name-row')?.classList.add('hidden');
     openModal('growth-data-modal');
 }
 
 function saveGrowthData() {
-    const name = document.getElementById('growth-modal-name').value;
+    let name = document.getElementById('growth-modal-name').value;
+    const customNameInput = document.getElementById('growth-modal-custom-name');
     const measureDate = document.getElementById('growth-modal-date').value;
     const value = document.getElementById('growth-modal-value').value.trim();
+
+    if (name === 'other') {
+        const customName = customNameInput?.value.trim() || '';
+        if (!customName) {
+            showToast('יש להזין שם נתון', 'error');
+            return;
+        }
+        name = customName;
+    }
 
     if (!name) {
         showToast('יש לבחור נתון', 'error');
