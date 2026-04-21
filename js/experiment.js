@@ -118,6 +118,71 @@ function getTreatmentRepeatLabel(treatment, index = 0) {
     return `חזרה ${getTreatmentRepeatNumber(treatment, index)}`;
 }
 
+const MAX_REPETITIONS_PER_TREATMENT = 100;
+
+function getCurrentRepetitionsCount() {
+    const repetitionsInput = document.getElementById('repetitions-count');
+    const fromInput = parseInt(document.getElementById('repetitions-count')?.value);
+    if (Number.isFinite(fromInput) && fromInput > 0) {
+        const clampedInput = Math.min(fromInput, MAX_REPETITIONS_PER_TREATMENT);
+        if (repetitionsInput && String(clampedInput) !== String(repetitionsInput.value)) {
+            repetitionsInput.value = String(clampedInput);
+        }
+        return clampedInput;
+    }
+
+    const fromData = parseInt(experimentData?.repetitionsCount);
+    if (Number.isFinite(fromData) && fromData > 0) {
+        return Math.min(fromData, MAX_REPETITIONS_PER_TREATMENT);
+    }
+
+    return 1;
+}
+
+function getTreatmentRepeatLabels(treatment, treatmentIndex = 0, repetitionsCount = getCurrentRepetitionsCount()) {
+    const count = Math.min(MAX_REPETITIONS_PER_TREATMENT, Math.max(1, parseInt(repetitionsCount) || 0));
+    const explicitLabels = Array.isArray(treatment?.repeatLabels) ? treatment.repeatLabels : [];
+    const labels = [];
+
+    for (let i = 0; i < count; i++) {
+        const explicitLabel = String(explicitLabels[i] ?? '').trim();
+        labels.push(explicitLabel || `חזרה ${i + 1}`);
+    }
+
+    if (!labels.length) {
+        labels.push(getTreatmentRepeatLabel(treatment, treatmentIndex));
+    }
+
+    return labels;
+}
+
+function collectTreatmentInputsFromDOM() {
+    const treatments = [];
+
+    document.querySelectorAll('.treatment-item').forEach((item) => {
+        const index = parseInt(item.dataset.index);
+        if (!Number.isFinite(index)) return;
+
+        const nameInput = item.querySelector('.treatment-name');
+        const repeatInputs = Array.from(item.querySelectorAll('.treatment-repeat'))
+            .sort((a, b) => parseInt(a.dataset.repeatIndex) - parseInt(b.dataset.repeatIndex));
+
+        const repeatLabels = repeatInputs.map((repeatInput, repeatIndex) => {
+            const fallbackLabel = `חזרה ${repeatIndex + 1}`;
+            return String(repeatInput?.value || '').trim() || fallbackLabel;
+        });
+
+        treatments[index] = {
+            name: nameInput?.value || '',
+            repeatLabels,
+            repeatLabel: repeatLabels[0] || '',
+            repeatNumber: repeatLabels.length || 1
+        };
+    });
+
+    return treatments.filter(Boolean);
+}
+
 function normalizeYieldData(rawYieldData = {}) {
     return {
         measures: Array.isArray(rawYieldData?.measures) ? deepClone(rawYieldData.measures) : [],
@@ -1098,7 +1163,7 @@ function populateForm() {
     setFieldValue('level-value', data.levelValue);
 
     // Treatments
-    generateTreatmentInputs(data.treatmentsCount || 3, data.treatments || []);
+    generateTreatmentInputs(data.treatmentsCount || 3, data.treatments || [], data.repetitionsCount);
 
     // Variables
     if (data.independentVariables) {
@@ -1800,22 +1865,32 @@ function switchView(viewName) {
 // =========================================
 // Dynamic Elements
 // =========================================
-function generateTreatmentInputs(count, existingTreatments = []) {
+function generateTreatmentInputs(count, existingTreatments = [], repetitionsCount = getCurrentRepetitionsCount()) {
     const container = document.getElementById('treatments-container');
     if (!container) return;
 
+    const safeCount = Math.max(1, parseInt(count) || 0);
+    const safeRepetitionsCount = Math.min(MAX_REPETITIONS_PER_TREATMENT, Math.max(1, parseInt(repetitionsCount) || 0));
+
     container.innerHTML = '';
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < safeCount; i++) {
         const existing = existingTreatments[i] || {};
-        const repeatLabel = getTreatmentRepeatLabel(existing, i);
-        const repeatNumber = getTreatmentRepeatNumber(existing, i);
+        const repeatLabels = getTreatmentRepeatLabels(existing, i, safeRepetitionsCount);
         const item = document.createElement('div');
         item.className = 'treatment-item';
+        item.dataset.index = i;
         item.innerHTML = `
             <label>שם לטיפול ${i + 1}:</label>
             <input type="text" class="treatment-name" data-index="${i}" value="${existing.name || ''}" placeholder="שם הטיפול">
-            <input type="text" class="treatment-repeat" data-index="${i}" value="${repeatLabel}" placeholder="חזרה ${repeatNumber}">
+            <div class="treatment-repeats">
+                ${repeatLabels.map((repeatLabel, repeatIndex) => `
+                    <div class="treatment-repeat-row">
+                        <label>חזרה ${repeatIndex + 1}:</label>
+                        <input type="text" class="treatment-repeat" data-index="${i}" data-repeat-index="${repeatIndex}" value="${repeatLabel}" placeholder="חזרה ${repeatIndex + 1}">
+                    </div>
+                `).join('')}
+            </div>
         `;
         container.appendChild(item);
     }
@@ -1926,15 +2001,23 @@ function collectFormData() {
 
     // Treatments
     const treatments = [];
-    document.querySelectorAll('.treatment-name').forEach(input => {
-        const index = parseInt(input.dataset.index);
-        const repeatInput = document.querySelector(`.treatment-repeat[data-index="${index}"]`);
-        const repeatLabel = String(repeatInput?.value || '').trim() || `חזרה ${index + 1}`;
-        const repeatNumber = getTreatmentRepeatNumber({ repeatLabel }, index);
+    document.querySelectorAll('.treatment-item').forEach(item => {
+        const index = parseInt(item.dataset.index);
+        if (!Number.isFinite(index)) return;
+
+        const nameInput = item.querySelector('.treatment-name');
+        const repeatInputs = Array.from(item.querySelectorAll('.treatment-repeat'))
+            .sort((a, b) => parseInt(a.dataset.repeatIndex) - parseInt(b.dataset.repeatIndex));
+        const repeatLabels = repeatInputs.map((repeatInput, repeatIndex) => {
+            const fallbackLabel = `חזרה ${repeatIndex + 1}`;
+            return String(repeatInput?.value || '').trim() || fallbackLabel;
+        });
+
         treatments.push({
-            name: input.value || '',
-            repeatLabel,
-            repeatNumber: Number.isFinite(repeatNumber) && repeatNumber > 0 ? repeatNumber : index + 1
+            name: nameInput?.value || '',
+            repeatLabels,
+            repeatLabel: repeatLabels[0] || '',
+            repeatNumber: repeatLabels.length || 1
         });
     });
 
@@ -1996,7 +2079,7 @@ function collectFormData() {
         experimentGoal: document.getElementById('experiment-goal')?.value || '',
         experimentSummary: document.getElementById('experiment-summary')?.value || '',
         treatmentsCount: parseInt(document.getElementById('treatments-count')?.value) || 0,
-        repetitionsCount: parseInt(document.getElementById('repetitions-count')?.value) || 0,
+        repetitionsCount: getCurrentRepetitionsCount(),
         treatments,
         independentVariables,
         levelsCount: parseInt(document.getElementById('levels-count')?.value) || 0,
@@ -2309,21 +2392,27 @@ function initEventListeners() {
         treatmentsCount.addEventListener('change', () => {
             persistCurrentSectionDataToState();
             const count = parseInt(treatmentsCount.value) || 0;
-            const existingTreatments = [];
-            document.querySelectorAll('.treatment-name').forEach(input => {
-                const index = input.dataset.index;
-                const repeatInput = document.querySelector(`.treatment-repeat[data-index="${index}"]`);
-                existingTreatments.push({
-                    name: input.value,
-                    repeatLabel: String(repeatInput?.value || '').trim() || `חזרה ${parseInt(index) + 1}`,
-                    repeatNumber: getTreatmentRepeatNumber({ repeatLabel: repeatInput?.value }, parseInt(index))
-                });
-            });
-            generateTreatmentInputs(count, existingTreatments);
+            const existingTreatments = collectTreatmentInputsFromDOM();
+            generateTreatmentInputs(count, existingTreatments, getCurrentRepetitionsCount());
             syncAllSectionTreatmentCounts();
             currentTreatmentIndex = Math.max(0, Math.min(currentTreatmentIndex, Math.max(count - 1, 0)));
             generateTreatmentTabs();
             loadCurrentSectionDataFromState();
+        });
+    }
+
+    const repetitionsCount = document.getElementById('repetitions-count');
+    if (repetitionsCount) {
+        repetitionsCount.addEventListener('change', () => {
+            persistCurrentSectionDataToState();
+            const existingTreatments = collectTreatmentInputsFromDOM();
+            const rawValue = parseInt(repetitionsCount.value);
+            const clampedRepetitionsCount = Math.min(MAX_REPETITIONS_PER_TREATMENT, Math.max(1, rawValue || 0));
+            if (Number.isFinite(rawValue) && rawValue > MAX_REPETITIONS_PER_TREATMENT) {
+                showToast(`המספר הוגבל ל־${MAX_REPETITIONS_PER_TREATMENT} כדי למנוע עומס על הדפדפן`, 'warning');
+            }
+            repetitionsCount.value = String(clampedRepetitionsCount);
+            generateTreatmentInputs(getCurrentTreatmentsCount(), existingTreatments, clampedRepetitionsCount);
         });
     }
 

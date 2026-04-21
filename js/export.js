@@ -304,6 +304,17 @@ function buildExcelWorkbook(data) {
         if (explicitLabel) return explicitLabel;
         return `חזרה ${getTreatmentRepeatNumber(treatment, index)}`;
     }
+    function getTreatmentRepeatDisplay(treatment, index) {
+        const labels = Array.isArray(treatment?.repeatLabels)
+            ? treatment.repeatLabels.map(label => String(label || '').trim()).filter(Boolean)
+            : [];
+
+        if (labels.length > 0) {
+            return labels.join(', ');
+        }
+
+        return getTreatmentRepeatLabel(treatment, index);
+    }
     function normalizeYieldData(rawYieldData = {}) {
         return {
             measures: Array.isArray(rawYieldData?.measures) ? deepClone(rawYieldData.measures) : [],
@@ -370,8 +381,8 @@ function buildExcelWorkbook(data) {
         rows.push([]);
         rows.push(['פרטי טיפולים:']);
         addTable(
-            ['מספר', 'שם הטיפול', 'חזרה'],
-            data.treatments.map((t, i) => [i + 1, t.name || '', getTreatmentRepeatLabel(t, i)])
+            ['מספר', 'שם הטיפול', 'חזרות'],
+            data.treatments.map((t, i) => [i + 1, t.name || '', getTreatmentRepeatDisplay(t, i)])
         );
     }
 
