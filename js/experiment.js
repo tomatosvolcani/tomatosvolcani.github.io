@@ -156,6 +156,14 @@ function getTreatmentRepeatLabels(treatment, treatmentIndex = 0, repetitionsCoun
     return labels;
 }
 
+function getYieldRepeatOptionsForTreatment(treatmentIndex = currentTreatmentIndex) {
+    const treatments = Array.isArray(experimentData?.treatments) ? experimentData.treatments : [];
+    const safeIndex = Number.isFinite(parseInt(treatmentIndex, 10)) ? parseInt(treatmentIndex, 10) : 0;
+    const treatment = treatments[safeIndex] || treatments[0] || null;
+
+    return normalizeUniqueValues(getTreatmentRepeatLabels(treatment, safeIndex, getCurrentRepetitionsCount()));
+}
+
 function collectTreatmentInputsFromDOM() {
     const treatments = [];
 
@@ -873,6 +881,17 @@ onAuthStateChanged(auth, async (user) => {
         isSharedExperiment = false;
     }
 
+    if (currentExperimentId && experimentOwnerUid) {
+        try {
+            localStorage.setItem(
+                'research-map-active-experiment-context',
+                JSON.stringify({ experimentId: currentExperimentId, ownerUid: experimentOwnerUid })
+            );
+        } catch (error) {
+            console.warn('Could not persist research map experiment context', error);
+        }
+    }
+
     await loadDynamicFieldOptions();
 
     if (currentExperimentId) {
@@ -1055,6 +1074,8 @@ async function loadExperiment() {
             initPartnersAutocomplete();
             // אתחל את יומן האירועים
             initEventsLog();
+            // אתחל את ניתוחים פיננסים
+            initFinancialLog();
             setLastSavedFormSignatureFromCurrent();
         } else {
             showToast('הניסוי לא נמצא', 'error');
@@ -1833,7 +1854,8 @@ function switchView(viewName) {
         'agrotechnics': 'אגרוטכניקה',
         'plant-protection': 'הגנת הצומח',
         'yield': 'נתוני יבול',
-        'events': 'יומן אירועים'
+        'events': 'יומן אירועים',
+        'financial-analysis': 'ניתוחים פיננסים'
     };
 
     // Views that belong to "הכנות לניסוי"
@@ -2130,6 +2152,7 @@ function collectFormData() {
             yield: yieldModel
         },
         events: collectEventsData(),
+        financialData: collectFinancialData(),
         updatedAt: serverTimestamp()
     };
 }
@@ -3570,6 +3593,334 @@ function collectEventsData() {
 }
 
 // =========================================
+// Financial Analysis Log (ניתוחים פיננסים)
+// =========================================
+let financialData = []; // מערך לשמירת נתונים פיננסיים
+
+function initFinancialLog() {
+    const addFinancialBtn = document.getElementById('add-financial-entry-btn');
+    if (addFinancialBtn) {
+        addFinancialBtn.addEventListener('click', () => openFinancialModal());
+    }
+
+    document.getElementById('financial-modal-cancel')?.addEventListener('click', () => closeModal('financial-modal'));
+    document.getElementById('financial-modal-save')?.addEventListener('click', () => saveFinancialFromModal());
+    initDropzone('financial-modal-dropzone', 'financial-modal-file', 'financial-modal-file-name');
+
+    loadFinancialData();
+}
+
+function loadFinancialData() {
+    financialData = experimentData?.financialData || [];
+    renderFinancialTable();
+}
+
+function renderFinancialTable() {
+    const tableBody = document.getElementById('financial-table-body');
+    const container = document.querySelector('#view-financial-analysis .events-table-container');
+
+    if (!tableBody || !container) return;
+
+    tableBody.innerHTML = '';
+
+    if (financialData.length === 0) {
+        container.classList.remove('has-events');
+        return;
+    }
+
+    container.classList.add('has-events');
+
+    financialData.forEach((entry, index) => {
+        const row = createFinancialRow(entry, index);
+        tableBody.appendChild(row);
+    });
+}
+
+function createFinancialRow(entry = {}, index) {
+    const row = document.createElement('tr');
+    row.dataset.financialIndex = index;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    row.innerHTML = `
+        <td data-label="תאריך">
+            <input type="date" class="financial-date" value="${entry.date || today}" data-index="${index}">
+        </td>
+        <td data-label="תיאור">
+            <textarea class="financial-description" placeholder="תיאור הנתון..." data-index="${index}">${entry.description || ''}</textarea>
+        </td>
+        <td data-label="קובץ">
+            <div class="file-upload-cell">
+                ${entry.fileUrl ? `
+                    <div class="file-info">
+                        <i class="fas fa-file"></i>
+                        <span class="file-name" title="${entry.fileName || 'קובץ'}">${truncateFileName(entry.fileName || 'קובץ')}</span>
+                        <button type="button" class="btn-file-action btn-download" title="הורד קובץ" data-url="${entry.fileUrl}">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button type="button" class="btn-file-action btn-delete-file" title="מחק קובץ" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                ` : `
+                    <div class="file-input-wrapper">
+                        <button type="button" class="btn-upload-file">
+                            <i class="fas fa-upload"></i>
+                            <span>בחר קובץ</span>
+                        </button>
+                        <input type="file" class="financial-file-input" data-index="${index}" accept="*/*">
+                    </div>
+                `}
+                <div class="upload-progress" style="display: none;" data-index="${index}">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text">0%</span>
+                </div>
+            </div>
+        </td>
+        <td data-label="פעולות">
+            <div class="events-actions">
+                <button type="button" class="btn-delete-event" title="מחק נתון" data-index="${index}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
+
+    const fileInput = row.querySelector('.financial-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => handleFinancialFileUpload(e, index));
+    }
+
+    const downloadBtn = row.querySelector('.btn-download');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const url = downloadBtn.dataset.url;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        });
+    }
+
+    const deleteFileBtn = row.querySelector('.btn-delete-file');
+    if (deleteFileBtn) {
+        deleteFileBtn.addEventListener('click', () => deleteFinancialFile(index));
+    }
+
+    const deleteFinancialBtn = row.querySelector('.btn-delete-event');
+    if (deleteFinancialBtn) {
+        deleteFinancialBtn.addEventListener('click', () => deleteFinancialEntry(index));
+    }
+
+    const dateInput = row.querySelector('.financial-date');
+    const descInput = row.querySelector('.financial-description');
+
+    if (dateInput) {
+        dateInput.addEventListener('change', () => updateFinancialEntryData(index));
+    }
+    if (descInput) {
+        descInput.addEventListener('blur', () => updateFinancialEntryData(index));
+    }
+
+    return row;
+}
+
+function openFinancialModal() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('financial-modal-date').value = today;
+    document.getElementById('financial-modal-description').value = '';
+    document.getElementById('financial-modal-file').value = '';
+    document.getElementById('financial-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה (עד 10MB)';
+    document.getElementById('financial-modal-progress')?.classList.add('hidden');
+    openModal('financial-modal');
+}
+
+async function saveFinancialFromModal() {
+    const date = document.getElementById('financial-modal-date').value;
+    const description = document.getElementById('financial-modal-description').value.trim();
+    const fileInput = document.getElementById('financial-modal-file');
+    const file = fileInput?.files[0];
+
+    if (!date && !description) {
+        showToast('יש להזין תאריך או תיאור', 'error');
+        return;
+    }
+
+    if (file) {
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        if (file.size > MAX_FILE_SIZE) {
+            showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
+            return;
+        }
+    }
+
+    let fileName = null, fileUrl = null, filePath = null;
+
+    if (file) {
+        try {
+            const result = await uploadProgressFile(file, 'financialData', 'financial-modal-progress', 'financial-modal-progress-fill', 'financial-modal-progress-text');
+            fileName = file.name;
+            fileUrl = result.url;
+            filePath = result.path;
+        } catch (err) {
+            showToast('שגיאה בהעלאת הקובץ: ' + err.message, 'error');
+            return;
+        }
+    }
+
+    financialData.push({
+        date,
+        description,
+        fileName,
+        fileUrl,
+        filePath,
+        createdAt: new Date().toISOString()
+    });
+
+    renderFinancialTable();
+    closeModal('financial-modal');
+    showToast('נתון פיננסי חדש נוסף בהצלחה', 'success');
+}
+
+function updateFinancialEntryData(index) {
+    const row = document.querySelector(`tr[data-financial-index="${index}"]`);
+    if (!row) return;
+
+    const dateInput = row.querySelector('.financial-date');
+    const descInput = row.querySelector('.financial-description');
+
+    if (financialData[index]) {
+        financialData[index].date = dateInput?.value || '';
+        financialData[index].description = descInput?.value || '';
+    }
+}
+
+async function handleFinancialFileUpload(e, financialIndex) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+        showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
+        e.target.value = '';
+        return;
+    }
+
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `users/${experimentOwnerUid}/experiments/${currentExperimentId}/financialData/${timestamp}_${safeName}`;
+
+    const storageRef = ref(storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    const progressContainer = document.querySelector(`tr[data-financial-index="${financialIndex}"] .upload-progress[data-index="${financialIndex}"]`);
+    const progressBarFill = progressContainer?.querySelector('.progress-bar-fill');
+    const progressText = progressContainer?.querySelector('.progress-text');
+
+    if (progressContainer) {
+        progressContainer.style.display = 'flex';
+    }
+
+    const uploadWrapper = document.querySelector(`tr[data-financial-index="${financialIndex}"] .file-input-wrapper`);
+    if (uploadWrapper) {
+        uploadWrapper.style.display = 'none';
+    }
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if (progressBarFill) {
+                progressBarFill.style.width = progress + '%';
+            }
+            if (progressText) {
+                progressText.textContent = Math.round(progress) + '%';
+            }
+        },
+        (error) => {
+            console.error('Upload error:', error);
+            showToast('שגיאה בהעלאת הקובץ: ' + error.message, 'error');
+
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+            if (uploadWrapper) {
+                uploadWrapper.style.display = 'block';
+            }
+        },
+        async () => {
+            try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+                financialData[financialIndex].fileName = file.name;
+                financialData[financialIndex].fileUrl = downloadURL;
+                financialData[financialIndex].filePath = filePath;
+
+                renderFinancialTable();
+
+                showToast('הקובץ הועלה בהצלחה!', 'success');
+            } catch (error) {
+                console.error('Error getting download URL:', error);
+                showToast('שגיאה בקבלת קישור לקובץ', 'error');
+            }
+        }
+    );
+}
+
+async function deleteFinancialFile(financialIndex) {
+    const entry = financialData[financialIndex];
+    if (!entry || !entry.filePath) return;
+
+    if (!(await confirmImmediateDeletion('הקובץ'))) return;
+
+    try {
+        const storageRef = ref(storage, entry.filePath);
+        await deleteObject(storageRef);
+
+        financialData[financialIndex].fileName = null;
+        financialData[financialIndex].fileUrl = null;
+        financialData[financialIndex].filePath = null;
+
+        renderFinancialTable();
+        showToast('הקובץ נמחק בהצלחה', 'success');
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        if (error.code === 'storage/object-not-found') {
+            financialData[financialIndex].fileName = null;
+            financialData[financialIndex].fileUrl = null;
+            financialData[financialIndex].filePath = null;
+            renderFinancialTable();
+        } else {
+            showToast('שגיאה במחיקת הקובץ: ' + error.message, 'error');
+        }
+    }
+}
+
+async function deleteFinancialEntry(financialIndex) {
+    const entry = financialData[financialIndex];
+
+    if (entry?.fileUrl) {
+        showToast('זוהה קובץ - יש למחוק את הקובץ המצורף לפני מחיקת הנתון', 'error');
+        return;
+    }
+
+    if (!(await confirmDeferredDeletion('הנתון הפיננסי'))) return;
+
+    financialData.splice(financialIndex, 1);
+
+    renderFinancialTable();
+    showToast('הנתון הפיננסי נמחק בהצלחה', 'success');
+}
+
+function collectFinancialData() {
+    financialData.forEach((_, index) => {
+        updateFinancialEntryData(index);
+    });
+
+    return financialData;
+}
+
+// =========================================
 // Soil Treatment – Dynamic Tables
 // =========================================
 
@@ -3844,12 +4195,17 @@ function addProgressRow(tbody, fields, labels, data, options) {
                 select.className = 'soil-input';
                 select.dataset.field = field;
 
+                const selectOptions = normalizeUniqueValues([
+                    ...fieldOptions,
+                    ...(data[field] !== undefined && data[field] !== null && String(data[field]).trim() ? [String(data[field]).trim()] : [])
+                ]);
+
                 const emptyOpt = document.createElement('option');
                 emptyOpt.value = '';
                 emptyOpt.textContent = `בחירת ${labels[field] || field}`;
                 select.appendChild(emptyOpt);
 
-                fieldOptions.forEach(opt => {
+                selectOptions.forEach(opt => {
                     const option = document.createElement('option');
                     option.value = opt;
                     option.textContent = opt;
@@ -4189,13 +4545,14 @@ function addProtectionRow(tbodyId, data) {
 // Yield
 // =========================================
 const YIELD_MEASURE_FIELDS = ['measureDate','repeatCount','fruitFloor','quality','quantity','fruitDesc','notes'];
-const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'מספר חזרות', fruitFloor:'קומת הפרי', quality:'איכות (לק"ג)', quantity:'כמות (ק"ג)', fruitDesc:'תיאור הפרי', notes:'הערות' };
+const YIELD_MEASURE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'חזרה', fruitFloor:'קומת הפרי', quality:'איכות (לק"ג)', quantity:'כמות (ק"ג)', fruitDesc:'תיאור הפרי', notes:'הערות' };
 const YIELD_DAMAGE_FIELDS = ['measureDate','repeatCount','damage','damageIndex','damageValue','damageDesc'];
-const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'מספר חזרות', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
+const YIELD_DAMAGE_LABELS = { measureDate:'תאריך מדידה', repeatCount:'חזרה', damage:'הפגע הנמדד', damageIndex:'מדד נזק (%/ס"מ/No.)', damageValue:'ערך הנזק', damageDesc:'תיאור הנזק' };
 
 function addYieldMeasureRow(data) {
     addProgressRow(document.getElementById('yield-measure-tbody'), YIELD_MEASURE_FIELDS, YIELD_MEASURE_LABELS, data || {}, {
         fieldOptions: {
+            repeatCount: getYieldRepeatOptionsForTreatment(),
             quality: ['מובחר', "סוג א'", "סוג ב'", "סוג ג'"]
         }
     });
@@ -4203,6 +4560,7 @@ function addYieldMeasureRow(data) {
 function addYieldDamageRow(data) {
     addProgressRow(document.getElementById('yield-damage-tbody'), YIELD_DAMAGE_FIELDS, YIELD_DAMAGE_LABELS, data || {}, {
         fieldOptions: {
+            repeatCount: getYieldRepeatOptionsForTreatment(),
             damageIndex: ['%', 'ס"מ', 'No.']
         }
     });
@@ -4360,7 +4718,10 @@ function initProgressListeners() {
             title: 'הוספת מדידה חדשה',
             fields: YIELD_MEASURE_FIELDS,
             labels: YIELD_MEASURE_LABELS,
-            fieldOptions: { quality: ['מובחר', "סוג א'", "סוג ב'", "סוג ג'"] },
+            fieldOptions: {
+                repeatCount: getYieldRepeatOptionsForTreatment(),
+                quality: ['מובחר', "סוג א'", "סוג ב'", "סוג ג'"]
+            },
             onSave: (data) => addYieldMeasureRow(data)
         })
     );
@@ -4371,7 +4732,10 @@ function initProgressListeners() {
             title: 'הוספת פגע חדש',
             fields: YIELD_DAMAGE_FIELDS,
             labels: YIELD_DAMAGE_LABELS,
-            fieldOptions: { damageIndex: ['%', 'ס"מ', 'No.'] },
+            fieldOptions: {
+                repeatCount: getYieldRepeatOptionsForTreatment(),
+                damageIndex: ['%', 'ס"מ', 'No.']
+            },
             onSave: (data) => addYieldDamageRow(data)
         })
     );

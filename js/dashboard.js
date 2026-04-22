@@ -17,6 +17,7 @@ import { showToast } from "./toast.js";
 
 let currentUser = null;
 let userData = null;
+const ACTIVE_EXPERIMENT_CONTEXT_KEY = 'research-map-active-experiment-context';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -355,6 +356,18 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
     `;
     card.addEventListener('click', () => {
+        try {
+            localStorage.setItem(
+                ACTIVE_EXPERIMENT_CONTEXT_KEY,
+                JSON.stringify({
+                    experimentId: id,
+                    ownerUid: isShared ? ownerUid : currentUser.uid
+                })
+            );
+        } catch (error) {
+            console.warn('Could not persist active experiment context', error);
+        }
+
         // מעביר גם את ownerUid לניסויים משותפים
         if (isShared) {
             window.location.href = `experiment.html?id=${id}&owner=${ownerUid}`;
@@ -433,6 +446,15 @@ async function createNewExperiment() {
         };
 
         const docRef = await addDoc(experimentsRef, newExperiment);
+
+        try {
+            localStorage.setItem(
+                ACTIVE_EXPERIMENT_CONTEXT_KEY,
+                JSON.stringify({ experimentId: docRef.id, ownerUid: currentUser.uid })
+            );
+        } catch (error) {
+            console.warn('Could not persist active experiment context', error);
+        }
 
         closeNewExperimentModal();
 

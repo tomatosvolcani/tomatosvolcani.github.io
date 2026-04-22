@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="css/experiment.css">
     <link rel="stylesheet" href="css/accessibility.css">
     <link rel="stylesheet" href="css/chatbot.css">
+    <link rel="stylesheet" href="css/research-map.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="css/flatpickr-custom.css">
@@ -91,6 +92,11 @@
                         <!-- יומן אירועים -->
                         <a href="#" class="sub-item" data-view="events">
                             <span>יומן אירועים</span>
+                        </a>
+
+                        <!-- ניתוחים פיננסים -->
+                        <a href="#" class="sub-item" data-view="financial-analysis">
+                            <span>ניתוחים פיננסים</span>
                         </a>
                     </div>
                 </div>
@@ -968,7 +974,7 @@
                                 <thead>
                                     <tr>
                                         <th>תאריך מדידה</th>
-                                        <th>מספר חזרות</th>
+                                        <th>חזרה</th>
                                         <th>קומת הפרי</th>
                                         <th>איכות (לק"ג)</th>
                                         <th>כמות (ק"ג)</th>
@@ -993,7 +999,7 @@
                                 <thead>
                                     <tr>
                                         <th>תאריך מדידה</th>
-                                        <th>מספר חזרות</th>
+                                        <th>חזרה</th>
                                         <th>הפגע הנמדד</th>
                                         <th>מדד נזק (%/ס"מ/No.)</th>
                                         <th>ערך הנזק</th>
@@ -1035,6 +1041,38 @@
                         <div id="no-events-message" class="no-events-message">
                             <i class="fas fa-calendar-plus"></i>
                             <p>אין אירועים עדיין. בחירה ב-"אירוע חדש +" תוסיף אירוע ראשון.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Financial Analysis (ניתוחים פיננסים) -->
+                <div id="view-financial-analysis" class="view-section">
+                    <h3 class="section-title">ניתוחים פיננסים</h3>
+
+                    <div class="events-toolbar">
+                        <button type="button" id="add-financial-entry-btn" class="btn-add-event">
+                            <i class="fas fa-plus"></i>
+                            <span>נתון פיננסי חדש</span>
+                        </button>
+                    </div>
+
+                    <div class="events-table-container">
+                        <table class="events-table" id="financial-table">
+                            <thead>
+                                <tr>
+                                    <th>תאריך</th>
+                                    <th>תיאור</th>
+                                    <th>קובץ</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="financial-table-body">
+                                <!-- שורות נתונים פיננסיים יתווספו כאן דינמית -->
+                            </tbody>
+                        </table>
+                        <div id="no-financial-message" class="no-events-message">
+                            <i class="fas fa-coins"></i>
+                            <p>אין נתונים פיננסיים עדיין. בחירה ב-"נתון פיננסי חדש +" תוסיף נתון ראשון.</p>
                         </div>
                     </div>
                 </div>
@@ -1203,6 +1241,34 @@
         </div>
     </div>
 
+    <!-- Modal: New Financial Entry (נתון פיננסי חדש) -->
+    <div id="financial-modal" class="modal-overlay hidden">
+        <div class="modal modal-progress">
+            <h2>הוספת נתון פיננסי חדש</h2>
+            <div class="modal-form-row modal-form-row-single">
+                <label>תאריך:</label>
+                <input type="date" id="financial-modal-date" class="modal-input-sm">
+            </div>
+            <div class="modal-form-row modal-form-row-single">
+                <label>תיאור הנתון:</label>
+                <textarea id="financial-modal-description" class="modal-input-sm" placeholder="תיאור הנתון..." rows="3" style="resize:vertical;min-height:60px;"></textarea>
+            </div>
+            <div class="modal-dropzone" id="financial-modal-dropzone">
+                <input type="file" id="financial-modal-file" class="modal-file-input" accept="*/*">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p id="financial-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה (עד 10MB)</p>
+            </div>
+            <div class="modal-upload-progress hidden" id="financial-modal-progress">
+                <div class="progress-bar"><div class="progress-bar-fill" id="financial-modal-progress-fill"></div></div>
+                <span class="progress-text" id="financial-modal-progress-text">0%</span>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="financial-modal-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="financial-modal-save" class="modal-btn modal-btn-primary">שמירה</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Generic Add Row Modal -->
     <div id="generic-row-modal" class="modal-overlay hidden">
         <div class="modal modal-progress">
@@ -1317,6 +1383,7 @@
     <script src="js/date-picker-init.js"></script>
     <script src="js/accessibility.js"></script>
     <script src="js/chatbot.js"></script>
+    <script type="module" src="js/research-map.js"></script>
     <script type="module" src="js/experiment.js"></script>
 </body>
 </html>
