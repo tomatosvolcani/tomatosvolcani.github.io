@@ -11,8 +11,8 @@
 /* Form Rows */
 .form-row {
     display: flex;
-    gap: 25px;
-    margin-bottom: 20px;
+    gap: 24px;
+    margin-bottom: 22px;
     flex-wrap: wrap;
     direction: rtl;
 }
@@ -31,9 +31,9 @@
 
 .form-group label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #333;
+    margin-bottom: 9px;
+    font-weight: 600;
+    color: #24364f;
     font-size: 14px;
     text-align: right;
 }
@@ -42,25 +42,32 @@
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    padding: 11px 13px;
+    border: 1px solid #d4deeb;
+    border-radius: 10px;
     font-size: 14px;
-    background: #fff;
-    transition: border-color 0.2s;
+    background: #ffffff;
+    color: #1f2937;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     direction: rtl;
     text-align: right;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #7a879b;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-    border-color: #888;
+    border-color: #18408d;
+    box-shadow: 0 0 0 3px rgba(24, 64, 141, 0.14);
 }
 
 .form-group input[readonly] {
-    background: #f5f5f5;
-    color: #666;
+    background: #f6f8fc;
+    color: #526178;
 }
 
 .form-group textarea {
@@ -92,9 +99,10 @@
    ========================================= */
 .btn {
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 10px;
     font-size: 14px;
-    transition: background 0.2s, transform 0.1s;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
     cursor: pointer;
 }
 
@@ -106,20 +114,22 @@
     background: #0a2f72;
     color: white;
     border: none;
+    box-shadow: 0 2px 8px rgba(10, 47, 114, 0.22);
 }
 
 .btn-primary:hover {
     background: #082354;
+    box-shadow: 0 5px 14px rgba(10, 47, 114, 0.28);
 }
 
 .btn-secondary {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    color: #555;
+    background: #f6f8fb;
+    border: 1px solid #d4deeb;
+    color: #40526d;
 }
 
 .btn-secondary:hover {
-    background: #eee;
+    background: #ebf0f8;
 }
 
 /* Icon Buttons */
@@ -127,19 +137,21 @@
     width: 34px;
     height: 34px;
     padding: 0;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    border: 1px solid #d4deeb;
+    border-radius: 10px;
     background: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
-    transition: background 0.2s;
+    color: #50607a;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
     cursor: pointer;
 }
 
 .btn-icon:hover {
-    background: #f5f5f5;
+    background: #f1f5fc;
+    border-color: #bed0ec;
+    color: #23447f;
 }
 
 .btn-icon.btn-delete:hover {
@@ -193,12 +205,12 @@
     line-height: 1;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(10, 47, 114, 0.25);
+    box-shadow: 0 4px 10px rgba(10, 47, 114, 0.24);
 }
 
 .btn-add:hover {
     background: #082354;
-    box-shadow: 0 3px 10px rgba(10, 47, 114, 0.35);
+    box-shadow: 0 7px 16px rgba(10, 47, 114, 0.32);
     transform: translateY(-1px);
 }
 
@@ -229,10 +241,12 @@
     background: #0a2f72;
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
     font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(10, 47, 114, 0.2);
 }
 
 .btn-save:hover {
@@ -249,6 +263,6 @@
     gap: 15px;
     margin-top: 30px;
     padding-top: 25px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #e4eaf4;
 }
 
