@@ -258,6 +258,19 @@
     transform: translateX(24px);
 }
 
+.study-type-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+}
+
+.toggle-option {
+    font-size: 13px;
+    color: #34465f;
+    font-weight: 500;
+}
+
 /* Treatments Grid */
 .treatments-grid {
     display: grid;

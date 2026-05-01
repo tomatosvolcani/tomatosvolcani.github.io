@@ -212,6 +212,18 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label>סוג המחקר:</label>
+                            <div class="study-type-toggle">
+                                <span class="toggle-option">מחקר שדה</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="study-type-toggle" aria-label="סוג המחקר">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-option">מחקר מעבדה</span>
+                            </div>
+                            <input type="hidden" id="study-type" value="field">
+                        </div>
+                        <div class="form-group">
                             <label>חבילת עבודה:</label>
                             <select id="work-package">
                                 <option value="">בחירת חבילה</option>
@@ -240,15 +252,20 @@
                             <input type="text" id="experiment-site-other" list="datalist-experiment-site-other" placeholder="הזן אתר ניסוי" style="display: none; margin-top: 8px;">
                         </div>
                         <div class="form-group">
-                            <label>קורדינטות אתר הניסוי:</label>
-                            <div class="input-with-btn">
-                                <input type="text" id="site-coordinates" placeholder="בחירת מיקום מהכפתור או הזנה ידנית (לדוגמה: 31.5, 34.75)">
-                                <button type="button" id="pick-location-btn" class="btn-icon" title="בחירת מיקום ממפה">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                </button>
-                                <button type="button" id="open-google-maps-btn" class="btn-icon btn-google-maps" title="פתיחה בגוגל מפות" style="display: none;">
-                                    <i class="fab fa-google"></i>
-                                </button>
+                            <label id="site-field-label">קורדינטות אתר הניסוי:</label>
+                            <div id="site-coordinates-group">
+                                <div class="input-with-btn">
+                                    <input type="text" id="site-coordinates" placeholder="בחירת מיקום מהכפתור או הזנה ידנית (לדוגמה: 31.5, 34.75)">
+                                    <button type="button" id="pick-location-btn" class="btn-icon" title="בחירת מיקום ממפה">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </button>
+                                    <button type="button" id="open-google-maps-btn" class="btn-icon btn-google-maps" title="פתיחה בגוגל מפות" style="display: none;">
+                                        <i class="fab fa-google"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="lab-cell-number-group" style="display:none;">
+                                <input type="text" id="lab-cell-number" placeholder="הזנת מס' תא">
                             </div>
                         </div>
                     </div>
@@ -357,6 +374,14 @@
                             <input type="date" id="planting-date">
                         </div>
                         <div class="form-group">
+                            <label>מועד הדבקה 1:</label>
+                            <input type="date" id="inoculation-date-1">
+                        </div>
+                        <div class="form-group">
+                            <label>מועד הדבקה 2:</label>
+                            <input type="date" id="inoculation-date-2">
+                        </div>
+                        <div class="form-group">
                             <label>סוג גידול:</label>
                             <input type="text" id="crop-type" list="datalist-crop-type">
                         </div>
@@ -404,9 +429,17 @@
                             <label>כמות שתילים:</label>
                             <input type="number" id="seedlings-count">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="planting-density-group">
                             <label>עומד שתילה:</label>
                             <input type="number" id="planting-density" step="any">
+                        </div>
+                        <div class="form-group" id="pots-count-group" style="display:none;">
+                            <label>מס' עציצים:</label>
+                            <input type="number" id="pots-count" step="1" min="0">
+                        </div>
+                        <div class="form-group" id="seedlings-per-pot-group" style="display:none;">
+                            <label>מס' שתילים בעציץ:</label>
+                            <input type="number" id="seedlings-per-pot" step="1" min="0">
                         </div>
                         <div class="form-group">
                             <label>מבנה שתילה:</label>
@@ -438,23 +471,13 @@
                                 <option value="מנהרות">מנהרות</option>
                                 <option value="שטחים פתוחים">שטחים פתוחים</option>
                                 <option value="קרנטינה">קרנטינה</option>
+                                <option value="מעבדה">מעבדה</option>
+                                <option value="תא גידול">תא גידול</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>גודל מבנה (דונם):</label>
+                            <label>גודל מבנה (מטר):</label>
                             <input type="number" id="structure-size" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label>מספר גמלונים:</label>
-                            <input type="number" id="structure-tunnels">
-                        </div>
-                        <div class="form-group">
-                            <label>אורך שלוחה (מ'):</label>
-                            <input type="number" id="structure-length">
-                        </div>
-                        <div class="form-group">
-                            <label>רוחב גמלון (מ'):</label>
-                            <input type="number" id="structure-width">
                         </div>
                         <div class="form-group">
                             <label>חיפוי גג:</label>
@@ -466,12 +489,24 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>שטיפת רשתות:</label>
-                            <select id="net-washing">
+                            <label>טמפ' תא:</label>
+                            <select id="cell-temp-mode">
                                 <option value="">בחירת ערך</option>
-                                <option value="לא">לא</option>
-                                <option value="כן">כן</option>
+                                <option value="קבועה">קבועה</option>
+                                <option value="משתנה">משתנה</option>
                             </select>
+                        </div>
+                        <div class="form-group" id="cell-temp-fixed-group" style="display:none;">
+                            <label>טמפ':</label>
+                            <input type="number" id="cell-temp-fixed" step="any">
+                        </div>
+                        <div class="form-group" id="cell-temp-min-group" style="display:none;">
+                            <label>מינימום (לילה):</label>
+                            <input type="number" id="cell-temp-min-night" step="any">
+                        </div>
+                        <div class="form-group" id="cell-temp-max-group" style="display:none;">
+                            <label>מקסימום (יום):</label>
+                            <input type="number" id="cell-temp-max-day" step="any">
                         </div>
                         <div class="form-group">
                             <label>מפנה המבנה:</label>
@@ -516,32 +551,13 @@
                                 <input type="text" id="substrate-type" list="datalist-substrate-type" placeholder="סוג המצע">
                             </div>
                             <div class="form-group soil-inline-field">
-                                <label>נפח המצע:</label>
+                                <label>נפח המצע לעציץ:</label>
                                 <input type="number" id="substrate-volume" step="any" placeholder="נפח">
                             </div>
                         </div>
                     </div>
 
-                    <!-- חיפוי קרקע + חיטוי סולרי -->
-                    <div class="form-grid soil-main-grid">
-                        <div class="form-group">
-                            <label>חיפוי קרקע:</label>
-                            <select id="soil-mulch">
-                                <option value="">בחירת ערך</option>
-                                <option value="כסף">כסף</option>
-                                <option value="שחור">שחור</option>
-                                <option value="ללא">ללא</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>חיטוי סולרי:</label>
-                            <select id="soil-solarization">
-                                <option value="">בחר</option>
-                                <option value="כן">כן</option>
-                                <option value="לא">לא</option>
-                            </select>
-                        </div>
-                    </div>
+                    <div class="form-grid soil-main-grid"></div>
 
                     <!-- חיטוי בהמטרה אדיגן + כמות - grouped card -->
                     <div class="soil-adigan-group">
@@ -589,29 +605,6 @@
                                     </tr>
                                 </thead>
                                 <tbody id="compost-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ריסוס מונע הצצה -->
-                    <div class="soil-dynamic-section">
-                        <div class="soil-section-header">
-                            <button type="button" class="btn-add-soil-row" id="add-spray-row">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            <span class="soil-section-title">ריסוס מונע הצצה</span>
-                        </div>
-                        <div class="soil-table-wrapper">
-                            <table class="soil-table" id="spray-table">
-                                <thead>
-                                    <tr>
-                                        <th>תאריך</th>
-                                        <th>כמות</th>
-                                        <th>אופן יישום</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="spray-tbody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -669,6 +662,16 @@
                                 <input type="number" id="drip-pipe-diameter" class="drip-number-input" step="any">
                             </div>
                         </div>
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">סוג:</label>
+                            <div class="drip-field-value">
+                                <select id="drip-type">
+                                    <option value="">בחירת ערך</option>
+                                    <option value="נעץ">נעץ</option>
+                                    <option value="כפתור">כפתור</option>
+                                </select>
+                            </div>
+                        </div>
 
                         <!-- מרחק בין טפטפות -->
                         <div class="drip-field-row">
@@ -691,6 +694,25 @@
                                 <input type="number" id="drip-flow-rate" class="drip-number-input" step="any">
                             </div>
                         </div>
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">משך השקייה (דקות):</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-irrigation-duration-minutes" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-irrigation-duration-minutes" class="drip-number-input" step="1" min="0">
+                            </div>
+                        </div>
+                        <div class="drip-field-row">
+                            <label class="drip-field-label">מס' השקיות ביום:</label>
+                            <div class="drip-field-value drip-editable">
+                                <button type="button" class="drip-edit-btn" data-target="drip-irrigations-per-day" title="ערוך">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <input type="number" id="drip-irrigations-per-day" class="drip-number-input" step="1" min="0">
+                            </div>
+                        </div>
+                        <div id="drip-irrigation-times-container"></div>
 
                         <!-- מס' שלוחות -->
                         <div class="drip-field-row">
@@ -703,27 +725,6 @@
                             </div>
                         </div>
 
-                        <!-- מרחק בין שלוחות טפטוף -->
-                        <div class="drip-field-row">
-                            <label class="drip-field-label">מרחק בין שלוחות טפטוף (ס"מ):</label>
-                            <div class="drip-field-value drip-editable">
-                                <button type="button" class="drip-edit-btn" data-target="drip-lines-spacing" title="ערוך">
-                                    <i class="fas fa-pen"></i>
-                                </button>
-                                <input type="number" id="drip-lines-spacing" class="drip-number-input" step="any">
-                            </div>
-                        </div>
-
-                        <!-- מרחק בין מרכז ערוגות -->
-                        <div class="drip-field-row">
-                            <label class="drip-field-label">מרחק בין מרכז ערוגות (מטר):</label>
-                            <div class="drip-field-value drip-editable">
-                                <button type="button" class="drip-edit-btn" data-target="drip-bed-spacing" title="ערוך">
-                                    <i class="fas fa-pen"></i>
-                                </button>
-                                <input type="number" id="drip-bed-spacing" class="drip-number-input" step="any">
-                            </div>
-                        </div>
 
                     </div>
                 </div>
@@ -849,6 +850,7 @@
                                 <thead>
                                     <tr>
                                         <th>פעולה</th>
+                                        <th>פירוט פעולה</th>
                                         <th>תאריך ביצוע הפעולה</th>
                                         <th>כמות שעות לפעולה</th>
                                         <th>כמות עובדים לפעולה</th>
@@ -876,8 +878,11 @@
                             <table class="soil-table" id="pest-table">
                                 <thead>
                                     <tr>
-                                        <th>מפגע שאובחן</th>
+                                        <th>מפגע</th>
                                         <th>תאריך</th>
+                                        <th>סוג האילוח</th>
+                                        <th>שיטת האילוח</th>
+                                        <th>כמות האילוח</th>
                                         <th>הערות</th>
                                         <th></th>
                                     </tr>
@@ -898,8 +903,11 @@
                             <table class="soil-table" id="disease-table">
                                 <thead>
                                     <tr>
-                                        <th>מפגע שאובחן</th>
+                                        <th>מפגע</th>
                                         <th>תאריך</th>
+                                        <th>סוג האילוח</th>
+                                        <th>שיטת האילוח</th>
+                                        <th>כמות האילוח</th>
                                         <th>הערות</th>
                                         <th></th>
                                     </tr>

@@ -364,9 +364,11 @@ function buildExcelWorkbook(data) {
     addField('שנת ניסוי', data.experimentYear);
     addField('חודש ניסוי', data.experimentMonth);
     addField('תאריך תחילה', data.startDate);
+    addField('סוג מחקר', data.studyType === 'lab' ? 'מחקר מעבדה' : 'מחקר שדה');
     addField('חבילת עבודה', data.workPackage);
     addField('אתר הניסוי', data.experimentSite);
-    addField('קורדינטות', data.siteCoordinates);
+    addField('קורדינטות', data.studyType === 'field' ? data.siteCoordinates : '');
+    addField("מס' תא", data.studyType === 'lab' ? data.labCellNumber : '');
     addField('מטרת הניסוי', data.experimentGoal);
     addField('תקציר', data.experimentSummary);
     addField('מספר טיפולים', data.treatmentsCount);
@@ -390,8 +392,11 @@ function buildExcelWorkbook(data) {
     const cropState = resolveSectionState('crop', data.cropDetails?.shared, data.cropDetails?.data || {});
     addSection('הכנות לניסוי > פרטי הגידול');
     addField('נתונים משותפים לכל הטיפולים', cropState.shared ? 'כן' : 'לא');
+    const isLabStudy = data.studyType === 'lab';
     const renderCropFields = (crop) => {
         addField('מועד שתילה', crop.plantingDate);
+        addField('מועד הדבקה 1', crop.inoculationDate1);
+        addField('מועד הדבקה 2', crop.inoculationDate2);
         addField('סוג גידול', crop.cropType);
         addField('זן', crop.variety);
         addField('צמח מורכב', crop.graftedPlant);
@@ -399,7 +404,12 @@ function buildExcelWorkbook(data) {
         addField('צמח מפוצל', crop.splitPlant);
         addField('משתלה', crop.nursery);
         addField('כמות שתילים', crop.seedlingsCount);
-        addField('עומד שתילה', crop.plantingDensity);
+        if (isLabStudy) {
+            addField("מס' עציצים", crop.potsCount);
+            addField("מס' שתילים בעציץ", crop.seedlingsPerPot);
+        } else {
+            addField('עומד שתילה', crop.plantingDensity);
+        }
         addField('מבנה שתילה', crop.plantingStructure);
         addField('שטח הניסוי (דונם)', crop.experimentArea);
         addField('שם הכנה', crop.preparationName);
@@ -417,12 +427,12 @@ function buildExcelWorkbook(data) {
     addField('נתונים משותפים לכל הטיפולים', structureState.shared ? 'כן' : 'לא');
     const renderStructureFields = (structure) => {
         addField('סוג המבנה', structure.type);
-        addField('גודל מבנה (דונם)', structure.size);
-        addField('מספר גמלונים', structure.tunnels);
-        addField('אורך שלוחה (מ\')', structure.length);
-        addField('רוחב גמלון (מ\')', structure.width);
+        addField('גודל מבנה (מטר)', structure.size);
         addField('חיפוי גג', structure.roofCovering);
-        addField('שטיפת רשתות', structure.netWashing);
+        addField("טמפ' תא - מצב", structure.cellTempMode);
+        addField("טמפ' תא - קבועה", structure.cellTempFixed);
+        addField("טמפ' תא - מינימום (לילה)", structure.cellTempMinNight);
+        addField("טמפ' תא - מקסימום (יום)", structure.cellTempMaxDay);
         addField('מפנה המבנה', structure.direction);
         addField('פעולות חריגות', structure.notes);
     };
@@ -440,19 +450,13 @@ function buildExcelWorkbook(data) {
         addField('מצע מנותק', soil.detachedSubstrate);
         addField('סוג החברה', soil.substrateCompany);
         addField('סוג המצע', soil.substrateType);
-        addField('נפח המצע', soil.substrateVolume);
-        addField('חיפוי קרקע/כסף', soil.mulch);
-        addField('חיטוי סולרי', soil.solarization);
+        addField('נפח המצע לעציץ', soil.substrateVolume);
         addField('חיטוי בהמטרה אדיגן', soil.disinfectionAdigan);
         addField('כמות אדיגן', soil.adiganAmount);
 
         if (soil.compostRows?.length > 0) {
             rows.push([]); rows.push(['פיזור קומפוסט:']);
             addTable(['תאריך', 'כמות', 'אופן יישום'], soil.compostRows.map(r => [r.date || '', r.amount || '', r.method || '']));
-        }
-        if (soil.sprayRows?.length > 0) {
-            rows.push(['ריסוס מונע הצצה:']);
-            addTable(['תאריך', 'כמות', 'אופן יישום'], soil.sprayRows.map(r => [r.date || '', r.amount || '', r.method || '']));
         }
         if (soil.disinfectRows?.length > 0) {
             rows.push(['חיטוי קרקע:']);
@@ -472,11 +476,13 @@ function buildExcelWorkbook(data) {
     const renderDripFields = (drip) => {
         addField('שלוחה בודדת/כפולה', drip.singleDouble);
         addField('קוטר צינור טפטוף', drip.pipeDiameter);
+        addField('סוג', drip.type);
         addField('מרחק בין טפטפות (ס"מ)', drip.emitterSpacing);
         addField('ספיקה (ליטר/שעה)', drip.flowRate);
+        addField('משך השקייה (דקות)', drip.irrigationDurationMinutes);
+        addField("מס' השקיות ביום", drip.irrigationsPerDay);
+        addField('שעות השקיה', Array.isArray(drip.irrigationTimes) ? drip.irrigationTimes.join(', ') : '');
         addField('מס\' שלוחות (יח\')', drip.linesCount);
-        addField('מרחק בין שלוחות טפטוף (ס"מ)', drip.linesSpacing);
-        addField('מרחק בין מרכז ערוגות (מטר)', drip.bedSpacing);
     };
     if (dripState.shared) {
         renderDripFields(dripState.sharedData || dripState.byTreatment[0] || {});
@@ -568,7 +574,7 @@ function buildExcelWorkbook(data) {
         if (agroData.length > 0) {
             addTable(
                 ['פעולה', 'תאריך ביצוע הפעולה', 'כמות שעות לפעולה', 'כמות עובדים לפעולה'],
-                agroData.map(r => [r.action || '', r.actionDate || '', r.hours || '', r.workers || ''])
+                agroData.map(r => [r.action === 'אחר' ? `${r.action} - ${r.actionOther || ''}` : (r.action || ''), r.actionDate || '', r.hours || '', r.workers || ''])
             );
         } else {
             addField('אגרוטכניקה', 'אין נתונים');
@@ -589,9 +595,9 @@ function buildExcelWorkbook(data) {
     const renderPlantProtection = (sectionData) => {
         const pp = sectionData.plantProtectionData || {};
         const pests = pp.pests || [];
-        if (pests.length > 0) { rows.push(['מזיקים:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], pests.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
+        if (pests.length > 0) { rows.push(['מזיקים:']); addTable(['מפגע', 'תאריך', 'סוג האילוח', 'שיטת האילוח', 'כמות האילוח', 'הערות'], pests.map(r => [r.pest || '', r.date || '', r.inoculationType || '', r.inoculationMethod || '', r.inoculationAmount || '', r.notes || ''])); }
         const diseases = pp.diseases || [];
-        if (diseases.length > 0) { rows.push(['מחלות:']); addTable(['מפגע שאובחן', 'תאריך', 'הערות'], diseases.map(r => [r.pest || '', r.date || '', r.notes || ''])); }
+        if (diseases.length > 0) { rows.push(['מחלות:']); addTable(['מפגע', 'תאריך', 'סוג האילוח', 'שיטת האילוח', 'כמות האילוח', 'הערות'], diseases.map(r => [r.pest || '', r.date || '', r.inoculationType || '', r.inoculationMethod || '', r.inoculationAmount || '', r.notes || ''])); }
         const sprays = pp.sprays || [];
         if (sprays.length > 0) { rows.push(['ריסוסים:']); addTable(['חומר', 'תאריך', 'מינון לטיפול', 'משולב עם חומרים נוספים', 'הערות'], sprays.map(r => [r.material || '', r.date || '', r.dosage || '', r.combined || '', r.notes || ''])); }
         const drenches = pp.drenches || [];

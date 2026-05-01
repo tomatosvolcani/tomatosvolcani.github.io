@@ -59,6 +59,7 @@ const SHARED_VIEW_TO_SECTION = {
 const SHARED_SECTION_IDS = Object.values(SHARED_VIEW_TO_SECTION);
 
 const SITE_PRESET_VALUES = ['volcani-bet-dagan', 'mop-darom', 'gilat'];
+const STUDY_TYPES = ['field', 'lab'];
 const DYNAMIC_FIELD_CONFIG = {
     experimentSiteOther: { datalistId: 'datalist-experiment-site-other' },
     cropType: { datalistId: 'datalist-crop-type' },
@@ -83,6 +84,27 @@ function getDefaultDynamicFieldOptions() {
 function normalizeDynamicValue(value) {
     if (value === null || value === undefined) return '';
     return String(value).trim();
+}
+
+function hasValue(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '';
+}
+
+function getCurrentStudyType() {
+    const value = document.getElementById('study-type')?.value;
+    return STUDY_TYPES.includes(value) ? value : 'field';
+}
+
+function setStudyTypeValue(nextValue) {
+    const input = document.getElementById('study-type');
+    if (!input) return;
+    input.value = STUDY_TYPES.includes(nextValue) ? nextValue : 'field';
+}
+
+function syncStudyTypeToggle() {
+    const toggle = document.getElementById('study-type-toggle');
+    if (!toggle) return;
+    toggle.checked = getCurrentStudyType() === 'lab';
 }
 
 function deepClone(value) {
@@ -1173,9 +1195,11 @@ function populateForm() {
     setFieldValue('experiment-year', data.experimentYear);
     setFieldValue('experiment-month', data.experimentMonth);
     setFieldValue('research-period', data.researchPeriod || data.startDate || '');
+    setFieldValue('study-type', STUDY_TYPES.includes(data.studyType) ? data.studyType : 'field');
     setFieldValue('work-package', data.workPackage);
     setExperimentSiteFromData(data.experimentSite, data.experimentSiteSelection, data.experimentSiteOther);
     setFieldValue('site-coordinates', data.siteCoordinates);
+    setFieldValue('lab-cell-number', data.labCellNumber);
     setFieldValue('experiment-goal', data.experimentGoal);
     setFieldValue('experiment-summary', data.experimentSummary);
     setFieldValue('treatments-count', data.treatmentsCount || 3);
@@ -1211,6 +1235,8 @@ function populateForm() {
         if (mappedSplitPlant === 'no') mappedSplitPlant = 'לא';
 
         setFieldValue('planting-date', crop.plantingDate);
+        setFieldValue('inoculation-date-1', crop.inoculationDate1);
+        setFieldValue('inoculation-date-2', crop.inoculationDate2);
         setFieldValue('crop-type', crop.cropType);
         setFieldValue('variety', crop.variety);
         setFieldValue('grafted-plant', crop.graftedPlant);
@@ -1219,6 +1245,8 @@ function populateForm() {
         setFieldValue('nursery', crop.nursery);
         setFieldValue('seedlings-count', crop.seedlingsCount);
         setFieldValue('planting-density', crop.plantingDensity);
+        setFieldValue('pots-count', crop.potsCount);
+        setFieldValue('seedlings-per-pot', crop.seedlingsPerPot);
         setFieldValue('planting-structure', crop.plantingStructure);
         setFieldValue('experiment-area', crop.experimentArea);
         setFieldValue('preparation-name', crop.preparationName);
@@ -1229,17 +1257,13 @@ function populateForm() {
     // Structure details
     if (data.structureDetails && data.structureDetails.data) {
         const structure = data.structureDetails.data;
-        let mappedNetWashing = structure.netWashing || '';
-        if (mappedNetWashing === 'nylon' || mappedNetWashing === 'net') {
-            mappedNetWashing = 'כן';
-        }
         setFieldValue('structure-type', structure.type);
         setFieldValue('structure-size', structure.size);
-        setFieldValue('structure-tunnels', structure.tunnels);
-        setFieldValue('structure-length', structure.length);
-        setFieldValue('structure-width', structure.width);
         setFieldValue('roof-covering', structure.roofCovering);
-        setFieldValue('net-washing', mappedNetWashing);
+        setFieldValue('cell-temp-mode', structure.cellTempMode);
+        setFieldValue('cell-temp-fixed', structure.cellTempFixed);
+        setFieldValue('cell-temp-min-night', structure.cellTempMinNight);
+        setFieldValue('cell-temp-max-day', structure.cellTempMaxDay);
         setFieldValue('structure-direction', structure.direction);
         setFieldValue('structure-notes', structure.notes);
     }
@@ -1251,17 +1275,10 @@ function populateForm() {
         setFieldValue('substrate-company', soil.substrateCompany);
         setFieldValue('substrate-type', soil.substrateType);
         setFieldValue('substrate-volume', soil.substrateVolume);
-        // Backward compatibility: map old mulch values to new options
-        let mulchVal = soil.mulch || '';
-        if (mulchVal === 'אין') mulchVal = 'ללא';
-        if (mulchVal === 'קיים') mulchVal = 'כסף'; // ערך ישן – ממופה לכסף כברירת מחדל
-        setFieldValue('soil-mulch', mulchVal);
         setFieldValue('soil-disinfection-adigan', soil.disinfectionAdigan);
         setAdiganAmountFromData(soil.adiganAmount);
-        setFieldValue('soil-solarization', soil.solarization);
         // Dynamic tables
         renderSoilTable('compost-tbody', soil.compostRows || [], ['date','amount','method']);
-        renderSoilTable('spray-tbody', soil.sprayRows || [], ['date','amount','method']);
         renderSoilDisinfectTable('disinfect-tbody', soil.disinfectRows || []);
     }
 
@@ -1272,9 +1289,11 @@ function populateForm() {
         setFieldValue('drip-pipe-diameter', drip.pipeDiameter);
         setFieldValue('drip-emitter-spacing', drip.emitterSpacing);
         setFieldValue('drip-flow-rate', drip.flowRate);
+        setFieldValue('drip-type', drip.type);
+        setFieldValue('drip-irrigation-duration-minutes', drip.irrigationDurationMinutes);
+        setFieldValue('drip-irrigations-per-day', drip.irrigationsPerDay);
         setFieldValue('drip-lines-count', drip.linesCount);
-        setFieldValue('drip-lines-spacing', drip.linesSpacing);
-        setFieldValue('drip-bed-spacing', drip.bedSpacing);
+        renderDripIrrigationTimes(drip.irrigationTimes || []);
     }
 
     // Progress views (מהלך הניסוי + נתוני יבול)
@@ -1362,6 +1381,8 @@ function collectSectionDataFromDOM(sectionId) {
         case 'crop':
             return {
                 plantingDate: document.getElementById('planting-date')?.value || '',
+                inoculationDate1: document.getElementById('inoculation-date-1')?.value || '',
+                inoculationDate2: document.getElementById('inoculation-date-2')?.value || '',
                 cropType: document.getElementById('crop-type')?.value || '',
                 variety: document.getElementById('variety')?.value || '',
                 graftedPlant: document.getElementById('grafted-plant')?.value || '',
@@ -1370,6 +1391,8 @@ function collectSectionDataFromDOM(sectionId) {
                 nursery: document.getElementById('nursery')?.value || '',
                 seedlingsCount: document.getElementById('seedlings-count')?.value || '',
                 plantingDensity: document.getElementById('planting-density')?.value || '',
+                potsCount: document.getElementById('pots-count')?.value || '',
+                seedlingsPerPot: document.getElementById('seedlings-per-pot')?.value || '',
                 plantingStructure: document.getElementById('planting-structure')?.value || '',
                 experimentArea: document.getElementById('experiment-area')?.value || '',
                 preparationName: document.getElementById('preparation-name')?.value || '',
@@ -1379,11 +1402,11 @@ function collectSectionDataFromDOM(sectionId) {
             return {
                 type: document.getElementById('structure-type')?.value || '',
                 size: document.getElementById('structure-size')?.value || '',
-                tunnels: document.getElementById('structure-tunnels')?.value || '',
-                length: document.getElementById('structure-length')?.value || '',
-                width: document.getElementById('structure-width')?.value || '',
                 roofCovering: document.getElementById('roof-covering')?.value || '',
-                netWashing: document.getElementById('net-washing')?.value || '',
+                cellTempMode: document.getElementById('cell-temp-mode')?.value || '',
+                cellTempFixed: document.getElementById('cell-temp-fixed')?.value || '',
+                cellTempMinNight: document.getElementById('cell-temp-min-night')?.value || '',
+                cellTempMaxDay: document.getElementById('cell-temp-max-day')?.value || '',
                 direction: document.getElementById('structure-direction')?.value || '',
                 notes: document.getElementById('structure-notes')?.value || ''
             };
@@ -1393,23 +1416,22 @@ function collectSectionDataFromDOM(sectionId) {
                 substrateCompany: document.getElementById('substrate-company')?.value || '',
                 substrateType: document.getElementById('substrate-type')?.value || '',
                 substrateVolume: document.getElementById('substrate-volume')?.value || '',
-                mulch: document.getElementById('soil-mulch')?.value || '',
                 disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
                 adiganAmount: getResolvedAdiganAmount(),
-                solarization: document.getElementById('soil-solarization')?.value || '',
                 compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
-                sprayRows: collectSoilTableRows('spray-tbody', ['date','amount','method']),
                 disinfectRows: collectSoilDisinfectRows('disinfect-tbody')
             };
         case 'drip':
             return {
                 singleDouble: document.getElementById('drip-single-double')?.value || '',
                 pipeDiameter: document.getElementById('drip-pipe-diameter')?.value || '',
+                type: document.getElementById('drip-type')?.value || '',
                 emitterSpacing: document.getElementById('drip-emitter-spacing')?.value || '',
                 flowRate: document.getElementById('drip-flow-rate')?.value || '',
+                irrigationDurationMinutes: document.getElementById('drip-irrigation-duration-minutes')?.value || '',
+                irrigationsPerDay: document.getElementById('drip-irrigations-per-day')?.value || '',
+                irrigationTimes: collectDripIrrigationTimes(),
                 linesCount: document.getElementById('drip-lines-count')?.value || '',
-                linesSpacing: document.getElementById('drip-lines-spacing')?.value || '',
-                bedSpacing: document.getElementById('drip-bed-spacing')?.value || ''
             };
         case 'irrigation':
             return {
@@ -1461,6 +1483,8 @@ function applySectionDataToDOM(sectionId, sectionData) {
             if (mappedSplitPlant === 'no') mappedSplitPlant = 'לא';
 
             setFieldValue('planting-date', data.plantingDate);
+            setFieldValue('inoculation-date-1', data.inoculationDate1);
+            setFieldValue('inoculation-date-2', data.inoculationDate2);
             setFieldValue('crop-type', data.cropType);
             setFieldValue('variety', data.variety);
             setFieldValue('grafted-plant', data.graftedPlant);
@@ -1469,6 +1493,8 @@ function applySectionDataToDOM(sectionId, sectionData) {
             setFieldValue('nursery', data.nursery);
             setFieldValue('seedlings-count', data.seedlingsCount);
             setFieldValue('planting-density', data.plantingDensity);
+            setFieldValue('pots-count', data.potsCount);
+            setFieldValue('seedlings-per-pot', data.seedlingsPerPot);
             setFieldValue('planting-structure', data.plantingStructure);
             setFieldValue('experiment-area', data.experimentArea);
             setFieldValue('preparation-name', data.preparationName);
@@ -1476,15 +1502,13 @@ function applySectionDataToDOM(sectionId, sectionData) {
             break;
         }
         case 'structure': {
-            let mappedNetWashing = data.netWashing || '';
-            if (mappedNetWashing === 'nylon' || mappedNetWashing === 'net') mappedNetWashing = 'כן';
             setFieldValue('structure-type', data.type);
             setFieldValue('structure-size', data.size);
-            setFieldValue('structure-tunnels', data.tunnels);
-            setFieldValue('structure-length', data.length);
-            setFieldValue('structure-width', data.width);
             setFieldValue('roof-covering', data.roofCovering);
-            setFieldValue('net-washing', mappedNetWashing);
+            setFieldValue('cell-temp-mode', data.cellTempMode);
+            setFieldValue('cell-temp-fixed', data.cellTempFixed);
+            setFieldValue('cell-temp-min-night', data.cellTempMinNight);
+            setFieldValue('cell-temp-max-day', data.cellTempMaxDay);
             setFieldValue('structure-direction', data.direction);
             setFieldValue('structure-notes', data.notes);
             break;
@@ -1494,26 +1518,22 @@ function applySectionDataToDOM(sectionId, sectionData) {
             setFieldValue('substrate-company', data.substrateCompany);
             setFieldValue('substrate-type', data.substrateType);
             setFieldValue('substrate-volume', data.substrateVolume);
-            let mulchVal = data.mulch || '';
-            if (mulchVal === 'אין') mulchVal = 'ללא';
-            if (mulchVal === 'קיים') mulchVal = 'כסף';
-            setFieldValue('soil-mulch', mulchVal);
             setFieldValue('soil-disinfection-adigan', data.disinfectionAdigan);
             setAdiganAmountFromData(data.adiganAmount);
-            setFieldValue('soil-solarization', data.solarization);
             renderSoilTable('compost-tbody', data.compostRows || [], ['date','amount','method']);
-            renderSoilTable('spray-tbody', data.sprayRows || [], ['date','amount','method']);
             renderSoilDisinfectTable('disinfect-tbody', data.disinfectRows || []);
             break;
         }
         case 'drip': {
             setFieldValue('drip-single-double', data.singleDouble);
             setFieldValue('drip-pipe-diameter', data.pipeDiameter);
+            setFieldValue('drip-type', data.type);
             setFieldValue('drip-emitter-spacing', data.emitterSpacing);
             setFieldValue('drip-flow-rate', data.flowRate);
+            setFieldValue('drip-irrigation-duration-minutes', data.irrigationDurationMinutes);
+            setFieldValue('drip-irrigations-per-day', data.irrigationsPerDay);
             setFieldValue('drip-lines-count', data.linesCount);
-            setFieldValue('drip-lines-spacing', data.linesSpacing);
-            setFieldValue('drip-bed-spacing', data.bedSpacing);
+            renderDripIrrigationTimes(data.irrigationTimes || []);
             break;
         }
         case 'irrigation': {
@@ -1714,6 +1734,30 @@ function buildSectionModelForSave(sectionId) {
     };
 }
 
+function getSectionValidationEntries(sectionDetails) {
+    const entries = [];
+    if (!sectionDetails) return entries;
+
+    const byTreatment = Array.isArray(sectionDetails.byTreatment)
+        ? sectionDetails.byTreatment.filter(Boolean)
+        : [];
+
+    if (sectionDetails.shared === false) {
+        entries.push(...byTreatment);
+    } else {
+        const sharedData = sectionDetails.sharedData && Object.keys(sectionDetails.sharedData).length
+            ? sectionDetails.sharedData
+            : sectionDetails.data;
+        if (sharedData) entries.push(sharedData);
+    }
+
+    if (entries.length === 0 && sectionDetails.data) {
+        entries.push(sectionDetails.data);
+    }
+
+    return entries;
+}
+
 function hasFilePathInValue(value, targetFilePath) {
     if (!value || !targetFilePath) return false;
 
@@ -1742,9 +1786,12 @@ function isFilePathSharedAcrossTreatments(sectionId, filePath, currentIndex = cu
 function updateGoogleMapsButtonVisibility() {
     const openGoogleMapsBtn = document.getElementById('open-google-maps-btn');
     const coordsInput = document.getElementById('site-coordinates');
+    const isLab = getCurrentStudyType() === 'lab';
 
     if (openGoogleMapsBtn && coordsInput) {
-        if (coordsInput.value && coordsInput.value.trim()) {
+        if (isLab) {
+            openGoogleMapsBtn.style.display = 'none';
+        } else if (coordsInput.value && coordsInput.value.trim()) {
             openGoogleMapsBtn.style.display = 'block';
         } else {
             openGoogleMapsBtn.style.display = 'none';
@@ -2083,6 +2130,8 @@ function collectFormData() {
 
     const experimentSiteSelection = document.getElementById('experiment-site')?.value || '';
     const experimentSiteOther = document.getElementById('experiment-site-other')?.value.trim() || '';
+    const studyType = getCurrentStudyType();
+    const labCellNumber = document.getElementById('lab-cell-number')?.value.trim() || '';
     const resolvedExperimentSite = experimentSiteSelection === 'other'
         ? experimentSiteOther
         : experimentSiteSelection;
@@ -2093,11 +2142,13 @@ function collectFormData() {
         experimentYear: document.getElementById('experiment-year')?.value || '',
         experimentMonth: document.getElementById('experiment-month')?.value || '',
         researchPeriod: document.getElementById('research-period')?.value || '',
+        studyType,
         workPackage: document.getElementById('work-package')?.value || '',
         experimentSite: resolvedExperimentSite,
         experimentSiteSelection,
         experimentSiteOther: experimentSiteSelection === 'other' ? experimentSiteOther : '',
-        siteCoordinates: document.getElementById('site-coordinates')?.value || '',
+        siteCoordinates: studyType === 'field' ? (document.getElementById('site-coordinates')?.value || '') : '',
+        labCellNumber: studyType === 'lab' ? labCellNumber : '',
         experimentGoal: document.getElementById('experiment-goal')?.value || '',
         experimentSummary: document.getElementById('experiment-summary')?.value || '',
         treatmentsCount: parseInt(document.getElementById('treatments-count')?.value) || 0,
@@ -2164,6 +2215,34 @@ async function saveExperiment() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
     const formData = collectFormData();
+    if (formData.studyType === 'lab' && !formData.labCellNumber) {
+        showToast("במחקר מעבדה חובה להזין מס' תא", 'warning');
+        return false;
+    }
+
+    const structureEntries = getSectionValidationEntries(formData.structureDetails);
+    for (const entry of structureEntries) {
+        if (entry?.cellTempMode === 'קבועה' && !hasValue(entry.cellTempFixed)) {
+            showToast("בטמפ' תא קבועה חובה להזין טמפ'", 'warning');
+            return false;
+        }
+        if (entry?.cellTempMode === 'משתנה'
+            && (!hasValue(entry.cellTempMinNight) || !hasValue(entry.cellTempMaxDay))) {
+            showToast("בטמפ' תא משתנה חובה להזין מינימום ומקסימום", 'warning');
+            return false;
+        }
+    }
+
+    const plantProtection = formData.plantProtectionData || {};
+    const inoculationRows = [
+        ...(plantProtection.pests || []),
+        ...(plantProtection.diseases || [])
+    ];
+    const missingMethod = inoculationRows.find(row => row?.inoculationType === 'מלאכותי' && !hasValue(row?.inoculationMethod));
+    if (missingMethod) {
+        showToast('כאשר סוג האילוח הוא מלאכותי חובה לבחור שיטת אילוח', 'warning');
+        return false;
+    }
 
     try {
         // שמור לבעלים של הניסוי
@@ -2197,6 +2276,80 @@ function updateExperimentSiteOtherVisibility() {
     const shouldShow = siteSelect.value === 'other';
     siteOtherInput.style.display = shouldShow ? 'block' : 'none';
     if (!shouldShow) siteOtherInput.value = '';
+}
+
+function updateStudyTypeVisibility() {
+    const isLab = getCurrentStudyType() === 'lab';
+    const siteLabel = document.getElementById('site-field-label');
+    const coordinatesGroup = document.getElementById('site-coordinates-group');
+    const labCellGroup = document.getElementById('lab-cell-number-group');
+    const pickLocationBtn = document.getElementById('pick-location-btn');
+    const plantingDensityGroup = document.getElementById('planting-density-group');
+    const potsCountGroup = document.getElementById('pots-count-group');
+    const seedlingsPerPotGroup = document.getElementById('seedlings-per-pot-group');
+
+    syncStudyTypeToggle();
+
+    if (siteLabel) siteLabel.textContent = isLab ? "מס' תא:" : 'קורדינטות אתר הניסוי:';
+    if (coordinatesGroup) coordinatesGroup.style.display = isLab ? 'none' : 'block';
+    if (labCellGroup) labCellGroup.style.display = isLab ? 'block' : 'none';
+    if (pickLocationBtn) pickLocationBtn.disabled = isLab;
+
+    if (plantingDensityGroup) plantingDensityGroup.style.display = isLab ? 'none' : '';
+    if (potsCountGroup) potsCountGroup.style.display = isLab ? '' : 'none';
+    if (seedlingsPerPotGroup) seedlingsPerPotGroup.style.display = isLab ? '' : 'none';
+
+    updateGoogleMapsButtonVisibility();
+}
+
+function updateStructureTemperatureVisibility() {
+    const mode = document.getElementById('cell-temp-mode')?.value || '';
+    const fixedGroup = document.getElementById('cell-temp-fixed-group');
+    const minGroup = document.getElementById('cell-temp-min-group');
+    const maxGroup = document.getElementById('cell-temp-max-group');
+    const fixedInput = document.getElementById('cell-temp-fixed');
+    const minInput = document.getElementById('cell-temp-min-night');
+    const maxInput = document.getElementById('cell-temp-max-day');
+
+    if (fixedGroup) fixedGroup.style.display = mode === 'קבועה' ? '' : 'none';
+    if (minGroup) minGroup.style.display = mode === 'משתנה' ? '' : 'none';
+    if (maxGroup) maxGroup.style.display = mode === 'משתנה' ? '' : 'none';
+
+    if (mode !== 'קבועה' && fixedInput) fixedInput.value = '';
+    if (mode !== 'משתנה') {
+        if (minInput) minInput.value = '';
+        if (maxInput) maxInput.value = '';
+    }
+}
+
+function renderDripIrrigationTimes(times = []) {
+    const container = document.getElementById('drip-irrigation-times-container');
+    if (!container) return;
+    container.innerHTML = '';
+    times.forEach((time, index) => {
+        const row = document.createElement('div');
+        row.className = 'drip-field-row';
+        row.innerHTML = `
+            <label class="drip-field-label">שעת השקיה ${index + 1}:</label>
+            <div class="drip-field-value">
+                <input type="time" class="drip-irrigation-time" value="${time || ''}">
+            </div>
+        `;
+        container.appendChild(row);
+    });
+}
+
+function updateDripIrrigationTimesCount() {
+    const count = Math.max(0, parseInt(document.getElementById('drip-irrigations-per-day')?.value || '0', 10) || 0);
+    const current = collectDripIrrigationTimes();
+    const next = Array.from({ length: count }, (_, idx) => current[idx] || '');
+    renderDripIrrigationTimes(next);
+}
+
+function collectDripIrrigationTimes() {
+    return Array.from(document.querySelectorAll('.drip-irrigation-time'))
+        .map((el) => el.value || '')
+        .filter((value) => Boolean(value));
 }
 
 function updatePreparationNameVisibility() {
@@ -2258,8 +2411,11 @@ function updateAdiganAmountVisibility() {
 }
 
 function updateConditionalFieldVisibility() {
+    updateStudyTypeVisibility();
     updateExperimentSiteOtherVisibility();
     updatePreparationNameVisibility();
+    updateStructureTemperatureVisibility();
+    updateDripIrrigationTimesCount();
     updateDetachedSubstrateVisibility();
     updateAdiganAmountVisibility();
 }
@@ -2646,7 +2802,15 @@ function initEventListeners() {
     });
 
     document.getElementById('experiment-site')?.addEventListener('change', updateExperimentSiteOtherVisibility);
+    document.getElementById('study-type')?.addEventListener('change', updateStudyTypeVisibility);
+    document.getElementById('study-type-toggle')?.addEventListener('change', (event) => {
+        const isLab = event.target.checked;
+        setStudyTypeValue(isLab ? 'lab' : 'field');
+        updateStudyTypeVisibility();
+    });
     document.getElementById('grafted-plant')?.addEventListener('change', updatePreparationNameVisibility);
+    document.getElementById('cell-temp-mode')?.addEventListener('change', updateStructureTemperatureVisibility);
+    document.getElementById('drip-irrigations-per-day')?.addEventListener('change', updateDripIrrigationTimesCount);
     document.getElementById('detached-substrate')?.addEventListener('change', updateDetachedSubstrateVisibility);
     document.getElementById('soil-disinfection-adigan')?.addEventListener('change', updateAdiganAmountVisibility);
     document.getElementById('soil-adigan-amount')?.addEventListener('change', updateAdiganAmountVisibility);
@@ -3968,7 +4132,42 @@ function addSoilTableRow(tbody, fields, data = {}) {
     });
     tdDel.appendChild(delBtn);
     tr.appendChild(tdDel);
+    wireProgressRowConditionalLogic(tr);
     tbody.appendChild(tr);
+}
+
+function updateAgroActionOtherRowVisibility(row) {
+    const actionSelect = row.querySelector('[data-field="action"]');
+    const otherInput = row.querySelector('[data-field="actionOther"]');
+    if (!actionSelect || !otherInput) return;
+    const otherCell = otherInput.closest('td');
+    const shouldShow = actionSelect.value === 'אחר';
+    if (otherCell) otherCell.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) otherInput.value = '';
+}
+
+function updateInoculationMethodRowVisibility(row) {
+    const typeSelect = row.querySelector('[data-field="inoculationType"]');
+    const methodSelect = row.querySelector('[data-field="inoculationMethod"]');
+    if (!typeSelect || !methodSelect) return;
+    const methodCell = methodSelect.closest('td');
+    const shouldShow = typeSelect.value === 'מלאכותי';
+    if (methodCell) methodCell.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) methodSelect.value = '';
+}
+
+function wireProgressRowConditionalLogic(row) {
+    const actionSelect = row.querySelector('[data-field="action"]');
+    if (actionSelect) {
+        actionSelect.addEventListener('change', () => updateAgroActionOtherRowVisibility(row));
+        updateAgroActionOtherRowVisibility(row);
+    }
+
+    const inoculationTypeSelect = row.querySelector('[data-field="inoculationType"]');
+    if (inoculationTypeSelect) {
+        inoculationTypeSelect.addEventListener('change', () => updateInoculationMethodRowVisibility(row));
+        updateInoculationMethodRowVisibility(row);
+    }
 }
 
 function renderSoilDisinfectTable(tbodyId, rows) {
@@ -4036,7 +4235,6 @@ function collectSoilDisinfectRows(tbodyId) {
 
 function initSoilTableListeners() {
     const compostTbody = document.getElementById('compost-tbody');
-    const sprayTbody = document.getElementById('spray-tbody');
     const disinfectTbody = document.getElementById('disinfect-tbody');
     const SOIL_LABELS = { date: 'תאריך', amount: 'כמות', method: 'אופן יישום', material: 'חומר החיטוי' };
 
@@ -4047,16 +4245,6 @@ function initSoilTableListeners() {
             fields: ['date', 'amount', 'method'],
             labels: SOIL_LABELS,
             onSave: (data) => addSoilTableRow(compostTbody, ['date', 'amount', 'method'], data)
-        })
-    );
-
-    // Spray pre-emergence – popup modal (spec: פופ אפ)
-    document.getElementById('add-spray-row')?.addEventListener('click', () =>
-        openGenericRowModal({
-            title: 'הוספת ריסוס מונע הצצה',
-            fields: ['date', 'amount', 'method'],
-            labels: SOIL_LABELS,
-            onSave: (data) => addSoilTableRow(sprayTbody, ['date', 'amount', 'method'], data)
         })
     );
 
@@ -4500,9 +4688,9 @@ function renderClimateTable(rows) {
 // =========================================
 // Agrotechnics
 // =========================================
-const AGRO_FIELDS = ['action','actionDate','hours','workers'];
-const AGRO_LABELS = { action:'פעולה', actionDate:'תאריך ביצוע הפעולה', hours:'כמות שעות לפעולה', workers:'כמות עובדים לפעולה' };
-const AGRO_ACTION_OPTIONS = ['שוצים', 'הדליות', 'עישוב', 'גיזום', 'עקירה'];
+const AGRO_FIELDS = ['action','actionOther','actionDate','hours','workers'];
+const AGRO_LABELS = { action:'פעולה', actionOther:'פירוט פעולה', actionDate:'תאריך ביצוע הפעולה', hours:'כמות שעות לפעולה', workers:'כמות עובדים לפעולה' };
+const AGRO_ACTION_OPTIONS = ['שוצים', 'הדליות', 'עישוב', 'גיזום', 'עקירה', 'אחר'];
 
 function renderAgroTable(rows) {
     const tbody = document.getElementById('agro-tbody');
@@ -4520,13 +4708,25 @@ function renderAgroTable(rows) {
 // =========================================
 // Plant Protection
 // =========================================
-const PEST_FIELDS = ['pest','date','notes'];
-const PEST_LABELS = { pest:'מפגע שאובחן', date:'תאריך', notes:'הערות' };
+const PEST_FIELDS = ['pest','date','inoculationType','inoculationMethod','inoculationAmount','notes'];
+const PEST_LABELS = {
+    pest:'מפגע',
+    date:'תאריך',
+    inoculationType:'סוג האילוח',
+    inoculationMethod:'שיטת האילוח',
+    inoculationAmount:'כמות האילוח',
+    notes:'הערות'
+};
 const PROTECTION_FIELDS = ['material','date','dosage','combined','notes'];
 const PROTECTION_LABELS = { material:'חומר', date:'תאריך', dosage:'מינון לטיפול', combined:'משולב עם חומרים נוספים', notes:'הערות' };
 
 function addPestRow(tbodyId, data) {
-    addProgressRow(document.getElementById(tbodyId), PEST_FIELDS, PEST_LABELS, data || {});
+    addProgressRow(document.getElementById(tbodyId), PEST_FIELDS, PEST_LABELS, data || {}, {
+        fieldOptions: {
+            inoculationType: ['טבעי', 'מלאכותי'],
+            inoculationMethod: ['ערבוב בקרקע', 'ריסוס', 'שחרור (חרקים)', 'טבילה', 'שפשוף', 'דקירה', 'אחר']
+        }
+    });
 }
 function addProtectionRow(tbodyId, data) {
     registerDynamicOption('plantProtectionMaterial', data?.material);
@@ -4674,6 +4874,10 @@ function initProgressListeners() {
             title: 'הוספת מזיק חדש',
             fields: PEST_FIELDS,
             labels: PEST_LABELS,
+            fieldOptions: {
+                inoculationType: ['טבעי', 'מלאכותי'],
+                inoculationMethod: ['ערבוב בקרקע', 'ריסוס', 'שחרור (חרקים)', 'טבילה', 'שפשוף', 'דקירה', 'אחר']
+            },
             onSave: (data) => addPestRow('pest-tbody', data)
         })
     );
@@ -4684,6 +4888,10 @@ function initProgressListeners() {
             title: 'הוספת מחלה חדשה',
             fields: PEST_FIELDS,
             labels: PEST_LABELS,
+            fieldOptions: {
+                inoculationType: ['טבעי', 'מלאכותי'],
+                inoculationMethod: ['ערבוב בקרקע', 'ריסוס', 'שחרור (חרקים)', 'טבילה', 'שפשוף', 'דקירה', 'אחר']
+            },
             onSave: (data) => addPestRow('disease-tbody', data)
         })
     );
@@ -4831,11 +5039,47 @@ function openGenericRowModal(config) {
         startInput?.addEventListener('change', () => syncModalDateRange('generic-modal-startDate', 'generic-modal-endDate'));
     }
 
+    wireGenericModalConditionalLogic();
+
     openModal('generic-row-modal');
     setTimeout(() => {
         const firstInput = body.querySelector('input, select');
         if (firstInput) firstInput.focus();
     }, 100);
+}
+
+function updateModalActionOtherVisibility() {
+    const actionSelect = document.getElementById('generic-modal-action');
+    const otherInput = document.getElementById('generic-modal-actionOther');
+    if (!actionSelect || !otherInput) return;
+    const otherRow = otherInput.closest('.modal-form-row');
+    const shouldShow = actionSelect.value === 'אחר';
+    if (otherRow) otherRow.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) otherInput.value = '';
+}
+
+function updateModalInoculationMethodVisibility() {
+    const typeSelect = document.getElementById('generic-modal-inoculationType');
+    const methodSelect = document.getElementById('generic-modal-inoculationMethod');
+    if (!typeSelect || !methodSelect) return;
+    const methodRow = methodSelect.closest('.modal-form-row');
+    const shouldShow = typeSelect.value === 'מלאכותי';
+    if (methodRow) methodRow.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) methodSelect.value = '';
+}
+
+function wireGenericModalConditionalLogic() {
+    const actionSelect = document.getElementById('generic-modal-action');
+    if (actionSelect) {
+        actionSelect.addEventListener('change', updateModalActionOtherVisibility);
+        updateModalActionOtherVisibility();
+    }
+
+    const inoculationTypeSelect = document.getElementById('generic-modal-inoculationType');
+    if (inoculationTypeSelect) {
+        inoculationTypeSelect.addEventListener('change', updateModalInoculationMethodVisibility);
+        updateModalInoculationMethodVisibility();
+    }
 }
 
 function _createGenericField(field, config) {
@@ -4899,6 +5143,11 @@ function saveGenericRow() {
 
     if (data.startDate && data.endDate && data.endDate < data.startDate) {
         showToast('תאריך הסיום חייב להיות מאוחר או שווה לתאריך ההתחלה', 'error');
+        return;
+    }
+
+    if (data.inoculationType === 'מלאכותי' && !hasValue(data.inoculationMethod)) {
+        showToast('יש לבחור שיטת אילוח כאשר סוג האילוח הוא מלאכותי', 'error');
         return;
     }
 
