@@ -213,13 +213,9 @@
                         </div>
                         <div class="form-group">
                             <label>סוג המחקר:</label>
-                            <div class="study-type-toggle">
-                                <span class="toggle-option">מחקר שדה</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="study-type-toggle" aria-label="סוג המחקר">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                                <span class="toggle-option">מחקר מעבדה</span>
+                            <div class="study-type-toggle" role="group" aria-label="סוג המחקר">
+                                <button type="button" class="study-type-option" data-study-type="field">מחקר שדה</button>
+                                <button type="button" class="study-type-option" data-study-type="lab">מחקר מעבדה</button>
                             </div>
                             <input type="hidden" id="study-type" value="field">
                         </div>

@@ -99,12 +99,16 @@ function setStudyTypeValue(nextValue) {
     const input = document.getElementById('study-type');
     if (!input) return;
     input.value = STUDY_TYPES.includes(nextValue) ? nextValue : 'field';
+    syncStudyTypeToggle();
 }
 
 function syncStudyTypeToggle() {
-    const toggle = document.getElementById('study-type-toggle');
-    if (!toggle) return;
-    toggle.checked = getCurrentStudyType() === 'lab';
+    const current = getCurrentStudyType();
+    document.querySelectorAll('.study-type-option').forEach((button) => {
+        const isActive = button.dataset.studyType === current;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+    });
 }
 
 function deepClone(value) {
@@ -2803,10 +2807,13 @@ function initEventListeners() {
 
     document.getElementById('experiment-site')?.addEventListener('change', updateExperimentSiteOtherVisibility);
     document.getElementById('study-type')?.addEventListener('change', updateStudyTypeVisibility);
-    document.getElementById('study-type-toggle')?.addEventListener('change', (event) => {
-        const isLab = event.target.checked;
-        setStudyTypeValue(isLab ? 'lab' : 'field');
-        updateStudyTypeVisibility();
+    document.querySelectorAll('.study-type-option').forEach((button) => {
+        button.addEventListener('click', () => {
+            const selectedType = button.dataset.studyType;
+            if (!selectedType) return;
+            setStudyTypeValue(selectedType);
+            updateStudyTypeVisibility();
+        });
     });
     document.getElementById('grafted-plant')?.addEventListener('change', updatePreparationNameVisibility);
     document.getElementById('cell-temp-mode')?.addEventListener('change', updateStructureTemperatureVisibility);
@@ -4650,39 +4657,20 @@ function renderClimateTable(rows) {
     const tbody = document.getElementById('climate-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (!rows || rows.length === 0) {
-        DEFAULT_CLIMATE_ROWS.forEach(def => {
-            addProgressRow(
-                tbody,
-                CLIMATE_FIELDS,
-                CLIMATE_LABELS,
-                { name: def.name, location: def.location },
-                {
-                    fieldOptions: {
-                        name: CLIMATE_NAME_OPTIONS,
-                        location: CLIMATE_LOCATION_OPTIONS
-                    },
-                    enableFileUpload: true,
-                    uploadFolder: 'climate'
-                }
-            );
-        });
-    } else {
-        rows.forEach(row => addProgressRow(
-            tbody,
-            CLIMATE_FIELDS,
-            CLIMATE_LABELS,
-            normalizeLegacyRangeDates(row),
-            {
-                fieldOptions: {
-                    name: CLIMATE_NAME_OPTIONS,
-                    location: CLIMATE_LOCATION_OPTIONS
-                },
-                enableFileUpload: true,
-                uploadFolder: 'climate'
-            }
-        ));
-    }
+    (rows || []).forEach(row => addProgressRow(
+        tbody,
+        CLIMATE_FIELDS,
+        CLIMATE_LABELS,
+        normalizeLegacyRangeDates(row),
+        {
+            fieldOptions: {
+                name: CLIMATE_NAME_OPTIONS,
+                location: CLIMATE_LOCATION_OPTIONS
+            },
+            enableFileUpload: true,
+            uploadFolder: 'climate'
+        }
+    ));
 }
 
 // =========================================
@@ -4696,13 +4684,7 @@ function renderAgroTable(rows) {
     const tbody = document.getElementById('agro-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (!rows || rows.length === 0) {
-        DEFAULT_AGRO_ROWS.forEach(action => {
-            addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, { action }, { fieldOptions: { action: AGRO_ACTION_OPTIONS } });
-        });
-    } else {
-        rows.forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { fieldOptions: { action: AGRO_ACTION_OPTIONS } }));
-    }
+    (rows || []).forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { fieldOptions: { action: AGRO_ACTION_OPTIONS } }));
 }
 
 // =========================================
