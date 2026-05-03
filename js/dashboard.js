@@ -14,6 +14,7 @@ import {
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
+import { initSystemTour } from "./system-tour.js";
 
 let currentUser = null;
 let userData = null;
@@ -480,3 +481,6 @@ async function handleLogout() {
         console.error("Error signing out:", error);
     }
 }
+document.addEventListener('DOMContentLoaded', () => {
+    initSystemTour();
+});

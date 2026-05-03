@@ -20,6 +20,12 @@ import {
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
+import { initExperimentTour } from "./experiment-tour.js";
+
+document.addEventListener('DOMContentLoaded', () => {
+    initExperimentTour();
+});
+
 
 // =========================================
 // State
@@ -2219,10 +2225,6 @@ async function saveExperiment() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
     const formData = collectFormData();
-    if (formData.studyType === 'lab' && !formData.labCellNumber) {
-        showToast("במחקר מעבדה חובה להזין מס' תא", 'warning');
-        return false;
-    }
 
     const structureEntries = getSectionValidationEntries(formData.structureDetails);
     for (const entry of structureEntries) {

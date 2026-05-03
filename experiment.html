@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>תוכנית הניסוי - מיזם ח"ץ</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/forms.css">
-    <link rel="stylesheet" href="css/experiment.css">
-    <link rel="stylesheet" href="css/accessibility.css">
-    <link rel="stylesheet" href="css/chatbot.css">
-    <link rel="stylesheet" href="css/research-map.css">
+    <link rel="stylesheet" href="css/main.css?v=20260503-1">
+    <link rel="stylesheet" href="css/layout.css?v=20260503-1">
+    <link rel="stylesheet" href="css/forms.css?v=20260503-1">
+    <link rel="stylesheet" href="css/experiment.css?v=20260503-1">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260503-1">
+    <link rel="stylesheet" href="css/chatbot.css?v=20260503-1">
+    <link rel="stylesheet" href="css/research-map.css?v=20260503-1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="css/flatpickr-custom.css">
+    <link rel="stylesheet" href="css/flatpickr-custom.css?v=20260503-1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
 </head>
 <body data-page-context="experiment">
     <!-- Hamburger Menu Button (Mobile) -->
@@ -44,6 +45,10 @@
                 <a href="my-bi.html" class="nav-item">
                     <i class="fas fa-chart-pie"></i>
                     <span>הסטטיסטיקה שלי</span>
+                </a>
+                <a href="#" class="nav-item" id="btn-start-experiment-tour">
+                    <i class="fas fa-circle-question"></i>
+                    <span>סיור בניסוי</span>
                 </a>
 
                 <!-- Current Experiment -->
@@ -370,20 +375,20 @@
                             <input type="date" id="planting-date">
                         </div>
                         <div class="form-group">
-                            <label>מועד הדבקה 1:</label>
-                            <input type="date" id="inoculation-date-1">
-                        </div>
-                        <div class="form-group">
-                            <label>מועד הדבקה 2:</label>
-                            <input type="date" id="inoculation-date-2">
-                        </div>
-                        <div class="form-group">
                             <label>סוג גידול:</label>
                             <input type="text" id="crop-type" list="datalist-crop-type">
                         </div>
                         <div class="form-group">
                             <label>זן:</label>
                             <input type="text" id="variety" list="datalist-variety">
+                        </div>
+                        <div class="form-group">
+                            <label>מועד הדבקה 1:</label>
+                            <input type="date" id="inoculation-date-1">
+                        </div>
+                        <div class="form-group">
+                            <label>מועד הדבקה 2:</label>
+                            <input type="date" id="inoculation-date-2">
                         </div>
                         <div class="grafted-group" style="grid-column: 1 / -1;">
                             <div class="grafted-group-fields">
@@ -1384,10 +1389,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/he.js"></script>
-    <script src="js/date-picker-init.js"></script>
-    <script src="js/accessibility.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script type="module" src="js/research-map.js"></script>
-    <script type="module" src="js/experiment.js"></script>
+    <script src="js/date-picker-init.js?v=20260503-1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <script src="js/accessibility.js?v=20260503-1"></script>
+    <script src="js/chatbot.js?v=20260503-1"></script>
+    <script type="module" src="js/research-map.js?v=20260503-1"></script>
+    <script type="module" src="js/experiment.js?v=20260503-1"></script>
 </body>
 </html>

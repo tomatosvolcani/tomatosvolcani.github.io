@@ -403,3 +403,51 @@ button.btn-countdown .countdown-text {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* התאמות למדריך הניסוי */
+.driver-popover {
+    font-family: 'Heebo', sans-serif !important;
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+.driver-popover-title {
+    color: #0a2f72 !important;
+    font-weight: 700 !important;
+}
+
+.driver-popover-footer {
+    display: flex !important;
+    flex-direction: row-reverse !important; /* הופך את כפתורי הניווט להתאמה לעברית */
+    justify-content: space-between !important;
+}
+
+.driver-popover-next-btn {
+    background-color: #0a2f72 !important;
+    color: white !important;
+    border: none !important;
+    text-shadow: none !important;
+}
+
+.driver-popover-prev-btn {
+    background-color: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+.driver-popover-progress-text {
+    color: #6b7280 !important;
+}
