@@ -175,7 +175,7 @@ export function initSystemTour() {
             {
                 element: '.dashboard-main h1',
                 popover: {
-                    title: '👋 ברוכים הבאים למיזם ח"ץ!',
+                    title: '👋 ברוכים הבאים למערכת איגום נתונים - למיזם ח"ץ!',
                     description: `
                         זהו <span class="tour-accent">מסך הבית</span> שלכם — כאן מוצגים כל הניסויים שלכם,
                         גם אלו שיצרתם וגם כאלו שחוקרים אחרים שיתפו איתכם.
