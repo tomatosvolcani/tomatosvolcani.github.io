@@ -2163,16 +2163,9 @@ function collectFormData() {
     const privateUntilStr = document.getElementById('private-until-date')?.value;
     let privateUntilTimestamp = null;
     
-    if (visibility === 'private') {
-        if (!privateUntilStr) {
-            throw new Error("חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כפרטי.");
-        }
-        const selectedDate = new Date(privateUntilStr + 'T23:59:59');
-        if (selectedDate <= new Date()) {
-            throw new Error("תאריך סיום פרטיות חייב להיות עתידי.");
-        }
+    if (visibility === 'private' && privateUntilStr) {
         // המרה ל-Firestore Timestamp (נקבע לסוף אותו יום)
-        privateUntilTimestamp = Timestamp.fromDate(selectedDate);
+        privateUntilTimestamp = Timestamp.fromDate(new Date(privateUntilStr + 'T23:59:59'));
     }
 
     return {
@@ -2255,12 +2248,19 @@ function collectFormData() {
 async function saveExperiment() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
-    let formData;
-    try {
-        formData = collectFormData();
-    } catch(e) {
-        showToast(e.message, 'warning');
-        return false;
+    const formData = collectFormData();
+
+    // ולידציית שדות פרטיות
+    if (formData.visibility === 'private') {
+        if (!formData.privateUntil) {
+            showToast('חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כפרטי.', 'warning');
+            return false;
+        }
+        const privateUntilDate = formData.privateUntil.toDate();
+        if (privateUntilDate <= new Date()) {
+            showToast('תאריך סיום פרטיות חייב להיות עתידי.', 'warning');
+            return false;
+        }
     }
 
     const structureEntries = getSectionValidationEntries(formData.structureDetails);
