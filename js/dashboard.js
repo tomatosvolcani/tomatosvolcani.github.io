@@ -341,6 +341,27 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         card.classList.add('shared-experiment');
     }
 
+    // חישוב חשיפה לפי זמן נוכחי (לצורך תצוגת UI מקומית)
+    let isPrivate = false;
+    if (data.visibility === 'private' && data.privateUntil) {
+        let untilDate;
+        if (typeof data.privateUntil.toDate === 'function') {
+            untilDate = data.privateUntil.toDate();
+        } else if (data.privateUntil.seconds) {
+            untilDate = new Date(data.privateUntil.seconds * 1000);
+        } else {
+            untilDate = new Date(data.privateUntil);
+        }
+        
+        if (untilDate > new Date()) {
+            isPrivate = true; // עדיין לא פג תוקפו
+        }
+    }
+    
+    const visClass = isPrivate ? 'private' : 'public';
+    const visIcon = isPrivate ? 'fa-lock' : 'fa-globe';
+    const visText = isPrivate ? 'פרטי' : 'ציבורי';
+
     // סמל לציון האם זה ניסוי שלי או שאני שותף בו
     const ownershipIcon = isShared
         ? '<span class="ownership-badge shared" title="ניסוי שאני שותף בו"><i class="fas fa-users"></i></span>'
@@ -355,6 +376,10 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         <p class="date">${formatDateIL(data.createdAt)}</p>
         ${data.experimentSite ? `<p class="site">${data.experimentSite}</p>` : ''}
         ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
+        
+        <div class="visibility-badge-card ${visClass}">
+            <i class="fas ${visIcon}"></i> ${visText}
+        </div>
     `;
     card.addEventListener('click', () => {
         try {

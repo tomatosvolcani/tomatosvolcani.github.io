@@ -11,7 +11,8 @@ import {
     collection,
     getDocs,
     query,
-    limit
+    limit,
+    Timestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref,
@@ -1212,6 +1213,18 @@ function populateForm() {
     setFieldValue('lab-cell-number', data.labCellNumber);
     setFieldValue('experiment-goal', data.experimentGoal);
     setFieldValue('experiment-summary', data.experimentSummary);
+
+    // תוספת חשיפה
+    setFieldValue('experiment-visibility', data.visibility || 'public');
+    if (data.privateUntil && data.privateUntil.toDate) {
+        const dateObj = data.privateUntil.toDate();
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        setFieldValue('private-until-date', `${yyyy}-${mm}-${dd}`);
+    } else {
+        setFieldValue('private-until-date', '');
+    }
     setFieldValue('treatments-count', data.treatmentsCount || 3);
     setFieldValue('repetitions-count', data.repetitionsCount);
     setFieldValue('levels-count', data.levelsCount);
@@ -2146,7 +2159,21 @@ function collectFormData() {
         ? experimentSiteOther
         : experimentSiteSelection;
 
+    const visibility = document.getElementById('experiment-visibility')?.value || 'public';
+    const privateUntilStr = document.getElementById('private-until-date')?.value;
+    let privateUntilTimestamp = null;
+    
+    if (visibility === 'private') {
+        if (!privateUntilStr) {
+            throw new Error("חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כפרטי.");
+        }
+        // המרה ל-Firestore Timestamp (נקבע לסוף אותו יום)
+        privateUntilTimestamp = Timestamp.fromDate(new Date(privateUntilStr + 'T23:59:59'));
+    }
+
     return {
+        visibility: visibility,
+        privateUntil: privateUntilTimestamp,
         leadResearcher: document.getElementById('lead-researcher')?.value || '',
         partners,
         experimentYear: document.getElementById('experiment-year')?.value || '',
@@ -2224,7 +2251,13 @@ function collectFormData() {
 async function saveExperiment() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
-    const formData = collectFormData();
+    let formData;
+    try {
+        formData = collectFormData();
+    } catch(e) {
+        showToast(e.message, 'warning');
+        return false;
+    }
 
     const structureEntries = getSectionValidationEntries(formData.structureDetails);
     for (const entry of structureEntries) {
@@ -2424,6 +2457,19 @@ function updateConditionalFieldVisibility() {
     updateDripIrrigationTimesCount();
     updateDetachedSubstrateVisibility();
     updateAdiganAmountVisibility();
+    updateVisibilityFields();
+}
+
+function updateVisibilityFields() {
+    const visibilitySelect = document.getElementById('experiment-visibility');
+    const privateUntilGroup = document.getElementById('private-until-group');
+    if(visibilitySelect && privateUntilGroup) {
+        visibilitySelect.addEventListener('change', () => {
+            privateUntilGroup.style.display = visibilitySelect.value === 'private' ? 'block' : 'none';
+        });
+        // הפעלה ראשונית
+        privateUntilGroup.style.display = visibilitySelect.value === 'private' ? 'block' : 'none';
+    }
 }
 
 // =========================================

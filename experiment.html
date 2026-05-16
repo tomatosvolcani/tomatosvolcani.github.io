@@ -157,6 +157,21 @@
 
                     <!-- View: Basic Info (תוכנית הניסוי) -->
                     <div id="view-basic" class="view-section active">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>חשיפת הניסוי:</label>
+                            <select id="experiment-visibility">
+                                <option value="public">ציבורי (כולם יכולים לראות)</option>
+                                <option value="private">פרטי (רק שותפים ומנהלים)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="private-until-group" style="display:none;">
+                            <label>הניסוי פרטי עד תאריך:</label>
+                            <input type="date" id="private-until-date" required>
+                        </div>
+                    </div>
+
                     <!-- Lead Researcher -->
                     <div class="form-row">
                         <div class="form-group">
