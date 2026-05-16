@@ -15,6 +15,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { initSystemTour } from "./system-tour.js";
+import { initServerTime, getTrustedNow } from "./server-time.js";
 
 let currentUser = null;
 let userData = null;
@@ -124,6 +125,9 @@ onAuthStateChanged(auth, async (user) => {
     if (!isApproved) {
         return; // checkUserApproval מטפל בהודעה ובניתוב
     }
+
+    // אתחול זמן שרת כדי לא להסתמך על שעון המחשב
+    await initServerTime(db, currentUser);
 
     await loadUserData();
     await loadExperiments();
@@ -353,7 +357,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
             untilDate = new Date(data.privateUntil);
         }
         
-        if (untilDate > new Date()) {
+        if (untilDate > getTrustedNow()) {
             isPrivate = true; // עדיין לא פג תוקפו
         }
     }

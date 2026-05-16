@@ -10,6 +10,7 @@ import {
     ref, listAll, getBlob
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast } from "./toast.js";
+import { initServerTime, getTrustedNow } from "./server-time.js";
 
 let currentUser = null;
 let userData = null;
@@ -55,6 +56,9 @@ onAuthStateChanged(auth, async (user) => {
 
     const displayName = document.getElementById('user-display-name');
     if (displayName) displayName.textContent = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || currentUser.email;
+
+    // אתחול זמן שרת
+    await initServerTime(db, currentUser);
 
     await checkAndDisplayAdminMenu();
     await loadExperimentsForExport();
@@ -113,7 +117,7 @@ async function loadExperimentsForExport() {
                     } else {
                         untilDate = new Date(data.privateUntil);
                     }
-                    if (untilDate > new Date()) isPrivate = true;
+                    if (untilDate > getTrustedNow()) isPrivate = true;
                 }
 
                 // דלג על ניסויים פרטיים (אלא אם אתה הבעלים)

@@ -22,6 +22,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
 import { initExperimentTour } from "./experiment-tour.js";
+import { initServerTime, getTrustedNow } from "./server-time.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     initExperimentTour();
@@ -889,6 +890,9 @@ onAuthStateChanged(auth, async (user) => {
     if (!isApproved) {
         return; // checkUserApproval מטפל בהודעה ובניתוב
     }
+
+    // אתחול זמן שרת
+    await initServerTime(db, currentUser);
 
     await loadUserData();
 
@@ -2257,7 +2261,7 @@ async function saveExperiment() {
             return false;
         }
         const privateUntilDate = formData.privateUntil.toDate();
-        if (privateUntilDate <= new Date()) {
+        if (privateUntilDate <= getTrustedNow()) {
             showToast('תאריך סיום פרטיות חייב להיות עתידי.', 'warning');
             return false;
         }
