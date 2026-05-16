@@ -443,6 +443,31 @@
     padding: 20px;
     cursor: pointer;
     transition: box-shadow 0.22s, transform 0.22s, border-color 0.22s;
+    position: relative;
+    padding-bottom: 45px;
+}
+
+.visibility-badge-card {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.visibility-badge-card.public {
+    background: #eef2ff;
+    color: #3b82f6;
+    border: 1px solid #c7d2fe;
+}
+.visibility-badge-card.private {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
 }
 
 .experiment-card:hover {

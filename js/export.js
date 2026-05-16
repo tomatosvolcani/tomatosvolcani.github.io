@@ -96,15 +96,33 @@ async function loadExperimentsForExport() {
             const allSnap = await getDocs(allQuery);
 
             allSnap.forEach(docSnap => {
+                const data = docSnap.data();
                 // חילוץ ownerUid מה-path: users/{ownerUid}/experiments/{id}
                 const pathParts = docSnap.ref.path.split('/');
                 const ownerUid = pathParts[1];
                 const isOwn = ownerUid === currentUser.uid;
 
+                // סינון פרטיים שפג תוקפם - רק אם המשתמש הוא לא הבעלים
+                let isPrivate = false;
+                if (data.visibility === 'private' && data.privateUntil) {
+                    let untilDate;
+                    if (typeof data.privateUntil.toDate === 'function') {
+                        untilDate = data.privateUntil.toDate();
+                    } else if (data.privateUntil.seconds) {
+                        untilDate = new Date(data.privateUntil.seconds * 1000);
+                    } else {
+                        untilDate = new Date(data.privateUntil);
+                    }
+                    if (untilDate > new Date()) isPrivate = true;
+                }
+
+                // דלג על ניסויים פרטיים (אלא אם אתה הבעלים)
+                if (isPrivate && !isOwn) return;
+
                 experiments.push({
                     id: docSnap.id,
                     ownerUid: ownerUid,
-                    data: docSnap.data(),
+                    data: data,
                     shared: !isOwn
                 });
             });
