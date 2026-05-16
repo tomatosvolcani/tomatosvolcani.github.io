@@ -470,7 +470,9 @@ async function createNewExperiment() {
             cropDetails: { shared: true, data: {} },
             structureDetails: { shared: true, data: {} },
             soilDetails: { shared: true, data: {} },
-            dripDetails: { shared: true, data: {} }
+            dripDetails: { shared: true, data: {} },
+            visibility: 'public',
+            privateUntil: null
         };
 
         const docRef = await addDoc(experimentsRef, newExperiment);

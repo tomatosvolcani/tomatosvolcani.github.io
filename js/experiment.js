@@ -2167,8 +2167,12 @@ function collectFormData() {
         if (!privateUntilStr) {
             throw new Error("חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כפרטי.");
         }
+        const selectedDate = new Date(privateUntilStr + 'T23:59:59');
+        if (selectedDate <= new Date()) {
+            throw new Error("תאריך סיום פרטיות חייב להיות עתידי.");
+        }
         // המרה ל-Firestore Timestamp (נקבע לסוף אותו יום)
-        privateUntilTimestamp = Timestamp.fromDate(new Date(privateUntilStr + 'T23:59:59'));
+        privateUntilTimestamp = Timestamp.fromDate(selectedDate);
     }
 
     return {
@@ -2464,10 +2468,14 @@ function updateVisibilityFields() {
     const visibilitySelect = document.getElementById('experiment-visibility');
     const privateUntilGroup = document.getElementById('private-until-group');
     if(visibilitySelect && privateUntilGroup) {
-        visibilitySelect.addEventListener('change', () => {
-            privateUntilGroup.style.display = visibilitySelect.value === 'private' ? 'block' : 'none';
-        });
-        // הפעלה ראשונית
+        // מניעת הוספת listener כפול
+        if (!visibilitySelect.dataset.listenerAttached) {
+            visibilitySelect.addEventListener('change', () => {
+                privateUntilGroup.style.display = visibilitySelect.value === 'private' ? 'block' : 'none';
+            });
+            visibilitySelect.dataset.listenerAttached = 'true';
+        }
+        // סנכרון מצב נוכחי
         privateUntilGroup.style.display = visibilitySelect.value === 'private' ? 'block' : 'none';
     }
 }
