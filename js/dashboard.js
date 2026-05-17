@@ -16,6 +16,7 @@ import {
 import { showToast } from "./toast.js";
 import { initSystemTour } from "./system-tour.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
+import { getRole, isExperimentPublic } from "./permissions-utils.js";
 
 let currentUser = null;
 let userData = null;
@@ -343,6 +344,8 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
     card.className = 'experiment-card';
     if (isShared) {
         card.classList.add('shared-experiment');
+    } else {
+        card.classList.add('my-experiment');
     }
 
     // חישוב חשיפה לפי זמן נוכחי (לצורך תצוגת UI מקומית)
@@ -371,6 +374,12 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         ? '<span class="ownership-badge shared" title="ניסוי שאני שותף בו"><i class="fas fa-users"></i></span>'
         : '<span class="ownership-badge owner" title="ניסוי שהקמתי"><i class="fas fa-user-check"></i></span>';
 
+    const role = getRole(data, currentUser, userData, ownerUid);
+    let permissionLabel = '';
+    if (role === 'admin') permissionLabel = 'מנהל';
+    else if (role === 'editor') permissionLabel = 'עורך';
+    else if (role === 'viewer') permissionLabel = 'צפייה בלבד';
+
     card.innerHTML = `
         ${ownershipIcon}
         <h3>
@@ -378,6 +387,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
             ${data.experimentName || 'ניסוי ללא שם'}
         </h3>
         <p class="date">${formatDateIL(data.createdAt)}</p>
+        ${permissionLabel ? `<span class="permission-badge">${permissionLabel}</span>` : ''}
         ${data.experimentSite ? `<p class="site">${data.experimentSite}</p>` : ''}
         ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
         
@@ -476,7 +486,17 @@ async function createNewExperiment() {
             soilDetails: { shared: true, data: {} },
             dripDetails: { shared: true, data: {} },
             visibility: 'public',
-            privateUntil: null
+            privateUntil: null,
+            ownerUid: currentUser.uid,
+            publicAccess: {
+                canRead: true,
+                canWrite: false
+            },
+            permissions: {},
+            privacyUpdatedAt: serverTimestamp(),
+            privacyUpdatedBy: currentUser.uid,
+            permissionsUpdatedAt: serverTimestamp(),
+            permissionsUpdatedBy: currentUser.uid
         };
 
         const docRef = await addDoc(experimentsRef, newExperiment);

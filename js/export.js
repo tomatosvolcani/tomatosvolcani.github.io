@@ -11,6 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
+import { canRead } from "./permissions-utils.js";
 
 let currentUser = null;
 let userData = null;
@@ -222,6 +223,11 @@ function createExportCard(exp) {
 // Handle Export
 // ══════════════════════════════════════════
 async function handleExport(e, exp, type) {
+    // Enforce read permission before exporting
+    if (!canRead(exp.data, currentUser, userData, getTrustedNow(), exp.ownerUid)) {
+        showToast('אין הרשאה לצפות בניסוי זה', 'error');
+        return;
+    }
     const btn = e.currentTarget;
     const card = btn.closest('.export-card');
     const progressEl = card.querySelector('.export-progress');

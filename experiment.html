@@ -158,17 +158,138 @@
                     <!-- View: Basic Info (תוכנית הניסוי) -->
                     <div id="view-basic" class="view-section active">
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>חשיפת הניסוי:</label>
-                            <select id="experiment-visibility">
-                                <option value="public">ציבורי (כולם יכולים לראות)</option>
-                                <option value="private">פרטי (רק שותפים ומנהלים)</option>
-                            </select>
+                    <!-- ============================================================
+                         אזור חשיפה והרשאות
+                         ============================================================ -->
+                    <section id="permissions-section" class="permissions-section collapsible-section">
+                        <button type="button" class="permissions-section-header" id="permissions-toggle-btn" aria-expanded="false">
+                            <h3 class="permissions-section-title">
+                                <i class="fas fa-shield-halved"></i>
+                                חשיפה והרשאות
+                            </h3>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        
+                        <div class="permissions-section-content" id="permissions-section-content" style="display: none;">
+                        <!-- Role Badge (viewer-only notice) -->
+                        <div id="viewer-notice" class="viewer-notice" style="display:none;">
+                            <i class="fas fa-eye"></i>
+                            <span>יש לך הרשאת <strong>צפייה בלבד</strong> בניסוי זה. לא ניתן לערוך.</span>
                         </div>
-                        <div class="form-group" id="private-until-group" style="display:none;">
-                            <label>הניסוי פרטי עד תאריך:</label>
-                            <input type="date" id="private-until-date" required>
+
+                        <!-- Visibility Radio -->
+                        <div class="perm-group">
+                            <label class="perm-label">חשיפת הניסוי:</label>
+                            <div class="visibility-radios" id="visibility-radio-group">
+                                <label class="radio-option" id="radio-label-public">
+                                    <input type="radio" name="experiment-visibility" id="visibility-public" value="public">
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-text">
+                                        <i class="fas fa-globe-asia"></i>
+                                        ציבורי
+                                        <small>כל משתמש מאושר במערכת יכול לצפות</small>
+                                    </span>
+                                </label>
+                                <label class="radio-option" id="radio-label-private">
+                                    <input type="radio" name="experiment-visibility" id="visibility-private" value="private">
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-text">
+                                        <i class="fas fa-lock"></i>
+                                        פרטי
+                                        <small>רק שותפים ומנהלים יכולים לצפות</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Private Until (shown when private) -->
+                        <div id="private-until-panel" class="perm-panel" style="display:none;">
+                            <label class="perm-label" for="private-until-date">
+                                <i class="fas fa-calendar-xmark"></i>
+                                הניסוי פרטי עד תאריך:
+                            </label>
+                            <input type="date" id="private-until-date">
+                            <small class="perm-hint">לאחר תאריך זה הניסוי יחשב ציבורי אוטומטית.</small>
+                        </div>
+
+                        <!-- Public Access Options (shown when public) -->
+                        <div id="public-access-panel" class="perm-panel">
+                            <div class="perm-checkbox-row">
+                                <label class="perm-checkbox-label">
+                                    <input type="checkbox" id="public-can-read" checked disabled>
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-eye"></i>
+                                        כל משתמש מאושר במערכת יכול לצפות
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="perm-checkbox-row danger-row">
+                                <label class="perm-checkbox-label">
+                                    <input type="checkbox" id="public-can-write">
+                                    <span class="checkbox-text">
+                                        <i class="fas fa-pen-to-square"></i>
+                                        כל משתמש מאושר במערכת יכול לערוך
+                                    </span>
+                                </label>
+                                <div class="perm-warning" id="public-write-warning" style="display:none;">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    אזהרה: הפעלה תאפשר לכל משתמש מאושר במערכת לערוך את הניסוי ולהעלות/לעדכן קבצים.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Partners & Permissions Table -->
+                        <div id="partners-permissions-panel" class="perm-panel">
+                            <div class="perm-partners-header">
+                                <h4 class="perm-sub-title">
+                                    <i class="fas fa-users"></i>
+                                    שותפים והרשאות
+                                </h4>
+                                <!-- Add Partner with Role -->
+                                <div id="add-permission-partner-area" class="add-permission-area">
+                                    <div class="autocomplete-wrapper perm-search-wrapper">
+                                        <input type="text" id="permission-partner-search" placeholder="חיפוש לפי שם או אימייל..." autocomplete="off">
+                                        <div id="permission-partner-suggestions" class="autocomplete-suggestions"></div>
+                                    </div>
+                                    <select id="permission-role-select" class="perm-role-select">
+                                        <option value="viewer">צפייה בלבד</option>
+                                        <option value="editor">עריכה</option>
+                                    </select>
+                                    <button type="button" id="add-permission-partner-btn" class="btn-perm-add">
+                                        <i class="fas fa-plus"></i>
+                                        הוספה
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="permissions-table-container">
+                                <table class="permissions-table">
+                                    <thead>
+                                        <tr>
+                                            <th>שם</th>
+                                            <th>אימייל</th>
+                                            <th>הרשאה</th>
+                                            <th>פעולות</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="permissions-table-body">
+                                        <!-- נמלא דינמית -->
+                                    </tbody>
+                                </table>
+                                <div id="permissions-empty-state" class="permissions-empty" style="display:none;">
+                                    <i class="fas fa-users-slash"></i>
+                                    <span>אין שותפים עם הרשאות ספציפיות</span>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+
+                    <!-- Legacy partners (hidden, for backward compatibility) -->
+                    <input type="hidden" id="experiment-visibility">
+                    <div style="display:none;">
+                        <div id="private-until-group">
+                            <input type="date" id="private-until-date-legacy">
                         </div>
                     </div>
 
@@ -180,19 +301,16 @@
                         </div>
                     </div>
 
-                    <!-- Partners -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>שותפים:</label>
-                            <div class="partners-add-container">
-                                <div class="autocomplete-wrapper">
-                                    <input type="text" id="partner-search" placeholder="חיפוש שותף (שם או אימייל)..." autocomplete="off">
-                                    <div id="partner-suggestions" class="autocomplete-suggestions"></div>
-                                </div>
-                                <button type="button" id="add-partner" class="btn-add"><i class="fas fa-plus"></i></button>
+                    <!-- Legacy Partners (hidden - kept for syncSharedExperiments backward compat) -->
+                    <div style="display:none;">
+                        <div class="partners-add-container">
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="partner-search" placeholder="חיפוש שותף (שם או אימייל)..." autocomplete="off">
+                                <div id="partner-suggestions" class="autocomplete-suggestions"></div>
                             </div>
-                            <div class="partners-container" id="partners-container"></div>
+                            <button type="button" id="add-partner" class="btn-add"><i class="fas fa-plus"></i></button>
                         </div>
+                        <div class="partners-container" id="partners-container"></div>
                     </div>
 
                     <!-- Year & Month -->

@@ -23,6 +23,12 @@ import {
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
 import { initExperimentTour } from "./experiment-tour.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
+import {
+    canRead,
+    canEdit,
+    canManage,
+    getRole
+} from "./permissions-utils.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     initExperimentTour();
@@ -41,6 +47,12 @@ let currentTreatmentIndex = 0;
 let allUsers = []; // All users for partner selection
 let selectedPartner = null; // Currently selected partner from autocomplete
 let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
+let permissionsState = {
+    canRead: false,
+    canEdit: false,
+    canManage: false,
+    role: 'none'
+};
 let isSharedExperiment = false; // האם זה ניסוי שאני שותף בו
 let sharedSectionState = {};
 let isSyncingSharedToggle = false;
@@ -1114,6 +1126,22 @@ async function loadExperiment() {
             // אתחל את ניתוחים פיננסים
             initFinancialLog();
             setLastSavedFormSignatureFromCurrent();
+                // Calculate permissions state for the loaded experiment
+                try {
+                    const trustedNow = getTrustedNow();
+                    permissionsState = {
+                        canRead: canRead(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+                        canEdit: canEdit(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+                        canManage: canManage(experimentData, currentUser, userData, experimentOwnerUid),
+                        role: getRole(experimentData, currentUser, userData, experimentOwnerUid)
+                    };
+                } catch (err) {
+                    console.warn('Could not evaluate permissions state', err);
+                    permissionsState = { canRead: false, canEdit: false, canManage: false, role: 'none' };
+                }
+
+                // Apply permissions to UI
+                try { applyPermissions(); } catch (e) { console.warn('applyPermissions failed', e); }
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -1713,6 +1741,7 @@ function applySharedReadonlyForCurrentView() {
     }
 }
 
+
 function persistCurrentSectionDataToState() {
     const sectionId = getSectionIdByView();
     if (!sectionId) return;
@@ -2163,18 +2192,14 @@ function collectFormData() {
         ? experimentSiteOther
         : experimentSiteSelection;
 
-    const visibility = document.getElementById('experiment-visibility')?.value || 'public';
-    const privateUntilStr = document.getElementById('private-until-date')?.value;
-    let privateUntilTimestamp = null;
-    
-    if (visibility === 'private' && privateUntilStr) {
-        // המרה ל-Firestore Timestamp (נקבע לסוף אותו יום)
-        privateUntilTimestamp = Timestamp.fromDate(new Date(privateUntilStr + 'T23:59:59'));
-    }
+    const visibility = getVisibilityFromUI ? getVisibilityFromUI() : (document.getElementById('experiment-visibility')?.value || 'public');
+    const privateUntilTimestamp = getPrivateUntilFromUI ? getPrivateUntilFromUI() : null;
+    const publicAccess = getPublicAccessFromUI ? getPublicAccessFromUI() : { canRead: true, canWrite: false };
 
     return {
         visibility: visibility,
         privateUntil: privateUntilTimestamp,
+        publicAccess: publicAccess,
         leadResearcher: document.getElementById('lead-researcher')?.value || '',
         partners,
         experimentYear: document.getElementById('experiment-year')?.value || '',
@@ -2252,6 +2277,11 @@ function collectFormData() {
 async function saveExperiment() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
 
+    if (!permissionsState?.canEdit) {
+        showToast('אין הרשאת עריכה', 'error');
+        return false;
+    }
+
     const formData = collectFormData();
 
     // ולידציית שדות פרטיות
@@ -2292,13 +2322,37 @@ async function saveExperiment() {
     }
 
     try {
+        // אם אין הרשאת ניהול - אל נשנה גרעין הרשאות/פרטיות
+        if (!permissionsState?.canManage) {
+            formData.permissions = experimentData?.permissions || {};
+            formData.visibility = experimentData?.visibility || formData.visibility;
+            formData.publicAccess = experimentData?.publicAccess || formData.publicAccess;
+        } else {
+            // מנהל/בעלים יכולים לעדכן הרשאות מתוך ה-UI
+            formData.permissions = collectPermissionsFromUI() || formData.permissions;
+        }
+
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         await updateDoc(experimentRef, formData);
         await persistDynamicFieldOptions(formData);
 
         // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
-        const syncResult = await syncSharedExperiments(formData.partners, formData);
+        // Build combined partners list from new permissions + legacy partners
+        const newPermissionsPartners = Object.keys(permissionsUIData)
+            .map(uid => {
+                const user = allUsers.find(u => u.uid === uid);
+                return user ? { email: user.email, name: user.fullName || user.email } : null;
+            })
+            .filter(Boolean);
+        const allPartners = [...newPermissionsPartners];
+        // Add legacy partners that might not be in permissions
+        (formData.partners || []).forEach(p => {
+            if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
+                allPartners.push(p);
+            }
+        });
+        const syncResult = await syncSharedExperiments(allPartners, formData);
 
         experimentData = { ...experimentData, ...formData };
         generateTreatmentTabs();
@@ -2485,8 +2539,427 @@ function updateVisibilityFields() {
 }
 
 // =========================================
+// Permissions UI – state
+// =========================================
+let permissionsUIData = {}; // uid → { role, addedAt, addedBy }
+let selectedPermissionUser = null; // user object chosen from autocomplete
+
+// =========================================
+// populatePermissionsUI – runs after loadExperiment
+// =========================================
+function populatePermissionsUI(data) {
+    // --- visibility radios ---
+    const vis = data.visibility || 'public';
+    const radioPublic  = document.getElementById('visibility-public');
+    const radioPrivate = document.getElementById('visibility-private');
+    if (radioPublic)  radioPublic.checked  = vis === 'public';
+    if (radioPrivate) radioPrivate.checked = vis === 'private';
+
+    // Show/hide panels
+    syncVisibilityPanels(vis);
+
+    // --- private-until date ---
+    const privateUntilInput = document.getElementById('private-until-date');
+    if (privateUntilInput) {
+        if (data.privateUntil) {
+            const d = data.privateUntil.toDate
+                ? data.privateUntil.toDate()
+                : new Date(data.privateUntil.seconds * 1000);
+            privateUntilInput.value = d.toISOString().slice(0, 10);
+        } else {
+            privateUntilInput.value = '';
+        }
+    }
+
+    // --- publicAccess.canWrite ---
+    const canWriteChk = document.getElementById('public-can-write');
+    if (canWriteChk) {
+        canWriteChk.checked = data.publicAccess?.canWrite === true;
+        syncPublicWriteWarning(canWriteChk.checked);
+    }
+
+    // --- permissions table ---
+    // Start from existing permissions map; merge in legacy partners as editors
+    permissionsUIData = {};
+
+    if (data.permissions && typeof data.permissions === 'object') {
+        Object.entries(data.permissions).forEach(([uid, perm]) => {
+            permissionsUIData[uid] = {
+                role:    perm.role    || 'viewer',
+                addedAt: perm.addedAt || null,
+                addedBy: perm.addedBy || 'migration'
+            };
+        });
+    }
+
+    // Legacy: partners array → treat as editors if not already in permissions
+    if (Array.isArray(data.partners)) {
+        data.partners.forEach(partner => {
+            if (!partner.email) return;
+            const u = allUsers.find(u => u.email?.toLowerCase() === partner.email?.toLowerCase());
+            if (u && u.uid && !permissionsUIData[u.uid]) {
+                permissionsUIData[u.uid] = { role: 'editor', addedAt: null, addedBy: 'legacy' };
+            }
+        });
+    }
+
+    renderPermissionsTable();
+}
+
+// =========================================
+// renderPermissionsTable
+// =========================================
+function renderPermissionsTable() {
+    const tbody = document.getElementById('permissions-table-body');
+    const emptyState = document.getElementById('permissions-empty-state');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    const entries = Object.entries(permissionsUIData);
+
+    if (entries.length === 0) {
+        if (emptyState) emptyState.style.display = 'flex';
+        return;
+    }
+    if (emptyState) emptyState.style.display = 'none';
+
+    entries.forEach(([uid, perm]) => {
+        const user = allUsers.find(u => u.uid === uid);
+        const name  = user?.fullName || user?.email || uid;
+        const email = user?.email || '';
+        const role  = perm.role || 'viewer';
+
+        const tr = document.createElement('tr');
+
+        // Name
+        const tdName = document.createElement('td');
+        tdName.textContent = name;
+        tr.appendChild(tdName);
+
+        // Email
+        const tdEmail = document.createElement('td');
+        tdEmail.textContent = email;
+        tdEmail.style.direction = 'ltr';
+        tdEmail.style.textAlign = 'left';
+        tr.appendChild(tdEmail);
+
+        // Role
+        const tdRole = document.createElement('td');
+        if (permissionsState.canManage) {
+            const sel = document.createElement('select');
+            sel.className = 'perm-inline-role-select';
+            sel.dataset.uid = uid;
+            [['viewer', 'צפייה בלבד'], ['editor', 'עריכה']].forEach(([val, label]) => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = label;
+                if (val === role) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', () => {
+                if (permissionsUIData[uid]) {
+                    permissionsUIData[uid].role = sel.value;
+                }
+                markUserEdited();
+            });
+            tdRole.appendChild(sel);
+        } else {
+            const badge = document.createElement('span');
+            badge.className = `role-badge badge-${role}`;
+            badge.textContent = role === 'editor' ? 'עריכה' : 'צפייה בלבד';
+            tdRole.appendChild(badge);
+        }
+        tr.appendChild(tdRole);
+
+        // Actions
+        const tdActions = document.createElement('td');
+        if (permissionsState.canManage) {
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-remove-perm';
+            removeBtn.innerHTML = '<i class="fas fa-user-minus"></i> הסרה';
+            removeBtn.addEventListener('click', async () => {
+                const confirmed = await showConfirmModal({
+                    title: 'הסרת שותף',
+                    message: `האם להסיר את הגישה של ${name}?`,
+                    confirmText: 'הסרה',
+                    cancelText: 'ביטול',
+                    tone: 'warning'
+                });
+                if (!confirmed) return;
+                delete permissionsUIData[uid];
+                renderPermissionsTable();
+                markUserEdited();
+            });
+            tdActions.appendChild(removeBtn);
+        } else {
+            tdActions.textContent = '—';
+        }
+        tr.appendChild(tdActions);
+
+        tbody.appendChild(tr);
+    });
+}
+
+// =========================================
+// collectPermissionsFromUI
+// =========================================
+function collectPermissionsFromUI() {
+    // Read changes from inline role selects (they already update permissionsUIData on change)
+    // Also ensure any pending select values are captured
+    document.querySelectorAll('.perm-inline-role-select').forEach(sel => {
+        const uid = sel.dataset.uid;
+        if (uid && permissionsUIData[uid]) {
+            permissionsUIData[uid].role = sel.value;
+        }
+    });
+
+    // Convert to Firestore-ready format
+    const result = {};
+    Object.entries(permissionsUIData).forEach(([uid, perm]) => {
+        result[uid] = {
+            role:    perm.role || 'viewer',
+            addedAt: perm.addedAt || Timestamp.now(),
+            addedBy: perm.addedBy || currentUser?.uid || 'unknown'
+        };
+    });
+    return result;
+}
+
+// =========================================
+// getVisibilityFromUI
+// =========================================
+function getVisibilityFromUI() {
+    return document.getElementById('visibility-private')?.checked ? 'private' : 'public';
+}
+
+// =========================================
+// getPublicAccessFromUI
+// =========================================
+function getPublicAccessFromUI() {
+    const vis = getVisibilityFromUI();
+    return {
+        canRead:  true,
+        canWrite: vis === 'public' && document.getElementById('public-can-write')?.checked === true
+    };
+}
+
+// =========================================
+// getPrivateUntilFromUI
+// =========================================
+function getPrivateUntilFromUI() {
+    const vis = getVisibilityFromUI();
+    const val = document.getElementById('private-until-date')?.value;
+    if (vis === 'private' && val) {
+        return Timestamp.fromDate(new Date(val + 'T23:59:59'));
+    }
+    return null;
+}
+
+// =========================================
+// syncVisibilityPanels – show/hide based on radio
+// =========================================
+function syncVisibilityPanels(vis) {
+    const privatePanel = document.getElementById('private-until-panel');
+    const publicPanel  = document.getElementById('public-access-panel');
+    if (privatePanel) privatePanel.style.display = vis === 'private' ? 'block' : 'none';
+    if (publicPanel)  publicPanel.style.display  = vis === 'public'  ? 'block' : 'none';
+}
+
+// =========================================
+// syncPublicWriteWarning
+// =========================================
+function syncPublicWriteWarning(checked) {
+    const warning = document.getElementById('public-write-warning');
+    if (warning) warning.style.display = checked ? 'flex' : 'none';
+}
+
+// =========================================
+// applyPermissions – called after loadExperiment
+// =========================================
+function applyPermissions() {
+    const section = document.getElementById('permissions-section');
+    const form    = document.getElementById('experiment-form');
+    const viewerNotice = document.getElementById('viewer-notice');
+    const addArea = document.getElementById('add-permission-partner-area');
+
+    const role = permissionsState.role;
+
+    // Populate the new permissions UI
+    populatePermissionsUI(experimentData);
+
+    // --- Viewer: show notice, lock form ---
+    if (!permissionsState.canEdit) {
+        if (viewerNotice) viewerNotice.style.display = 'flex';
+        if (form) form.classList.add('readonly-mode');
+    } else {
+        if (viewerNotice) viewerNotice.style.display = 'none';
+        if (form) form.classList.remove('readonly-mode');
+    }
+
+    // --- Not manager: lock permissions section ---
+    if (!permissionsState.canManage) {
+        if (section) section.classList.add('locked');
+        if (addArea) addArea.style.display = 'none';
+        // Disable visibility radios
+        document.querySelectorAll('input[name="experiment-visibility"]').forEach(r => r.disabled = true);
+        const canWriteChk = document.getElementById('public-can-write');
+        if (canWriteChk) canWriteChk.disabled = true;
+    } else {
+        if (section) section.classList.remove('locked');
+        if (addArea) addArea.style.display = 'flex';
+        document.querySelectorAll('input[name="experiment-visibility"]').forEach(r => r.disabled = false);
+        const canWriteChk = document.getElementById('public-can-write');
+        if (canWriteChk) canWriteChk.disabled = false;
+    }
+
+    // Hide save button for viewers (just in case readonly-mode isn't enough)
+    const saveBtns = document.querySelectorAll('.btn-save, [id="btn-save-experiment"]');
+    saveBtns.forEach(btn => {
+        btn.style.display = permissionsState.canEdit ? '' : 'none';
+    });
+}
+
+// =========================================
+// initPermissionsUI – event listeners for permission section
+// =========================================
+function initPermissionsUI() {
+    // Toggle header
+    const toggleBtn = document.getElementById('permissions-toggle-btn');
+    const toggleContent = document.getElementById('permissions-section-content');
+    const permissionsSection = document.getElementById('permissions-section');
+    
+    if (toggleBtn && toggleContent && permissionsSection) {
+        toggleBtn.addEventListener('click', () => {
+            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+            toggleBtn.setAttribute('aria-expanded', !isExpanded);
+            
+            if (isExpanded) {
+                toggleContent.style.display = 'none';
+                permissionsSection.classList.remove('is-open');
+            } else {
+                toggleContent.style.display = 'block';
+                permissionsSection.classList.add('is-open');
+            }
+        });
+    }
+
+    // Visibility radios
+    document.querySelectorAll('input[name="experiment-visibility"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            syncVisibilityPanels(radio.value);
+            markUserEdited();
+        });
+    });
+
+    // Public-can-write checkbox
+    const canWriteChk = document.getElementById('public-can-write');
+    if (canWriteChk) {
+        canWriteChk.addEventListener('change', () => {
+            syncPublicWriteWarning(canWriteChk.checked);
+            markUserEdited();
+        });
+    }
+
+    // Autocomplete for permission partner search
+    const searchInput = document.getElementById('permission-partner-search');
+    const suggestionsDiv = document.getElementById('permission-partner-suggestions');
+
+    if (searchInput && suggestionsDiv) {
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            suggestionsDiv.innerHTML = '';
+            selectedPermissionUser = null;
+
+            if (!query || query.length < 2) {
+                suggestionsDiv.classList.remove('active');
+                return;
+            }
+
+            const filtered = allUsers.filter(u => {
+                const alreadyAdded = !!permissionsUIData[u.uid];
+                const isOwner = u.uid === experimentOwnerUid;
+                const matchQuery = (u.fullName?.toLowerCase().includes(query) ||
+                                   u.email?.toLowerCase().includes(query));
+                return matchQuery && !alreadyAdded && !isOwner;
+            }).slice(0, 8);
+
+            if (!filtered.length) {
+                suggestionsDiv.classList.remove('active');
+                return;
+            }
+
+            filtered.forEach(u => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `
+                    <div class="suggestion-name">${u.fullName || '—'}</div>
+                    <div class="suggestion-email">${u.email || ''}</div>
+                `;
+                item.addEventListener('click', () => {
+                    selectedPermissionUser = u;
+                    searchInput.value = u.fullName || u.email || '';
+                    suggestionsDiv.innerHTML = '';
+                    suggestionsDiv.classList.remove('active');
+                });
+                suggestionsDiv.appendChild(item);
+            });
+
+            suggestionsDiv.classList.add('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.classList.remove('active');
+            }
+        });
+    }
+
+    // Add permission partner button
+    const addBtn = document.getElementById('add-permission-partner-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            if (!selectedPermissionUser) {
+                showToast('יש לבחור משתמש מהרשימה', 'warning');
+                return;
+            }
+            const roleSelect = document.getElementById('permission-role-select');
+            const role = roleSelect?.value || 'viewer';
+            const uid = selectedPermissionUser.uid;
+
+            if (permissionsUIData[uid]) {
+                showToast('המשתמש כבר נמצא ברשימה', 'warning');
+                return;
+            }
+
+            permissionsUIData[uid] = {
+                role,
+                addedAt: Timestamp.now(),
+                addedBy: currentUser?.uid || 'unknown'
+            };
+
+            const addedName = selectedPermissionUser.fullName || selectedPermissionUser.email || 'שותף';
+
+            renderPermissionsTable();
+            markUserEdited();
+
+            // Reset search
+            if (searchInput) searchInput.value = '';
+            selectedPermissionUser = null;
+            if (suggestionsDiv) {
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.classList.remove('active');
+            }
+
+            showToast(`${addedName} נוסף כ${role === 'editor' ? 'עורך' : 'צופה'}`, 'success');
+        });
+    }
+}
+
+// =========================================
 // Sync Shared Experiments
 // =========================================
+
 async function syncSharedExperiments(currentPartners, latestExperimentData = null) {
     // רק הבעלים המקורי יכול לסנכרן שותפים
     if (experimentOwnerUid !== currentUser.uid) return { added: 0, removed: 0 };
@@ -2886,6 +3359,9 @@ function initEventListeners() {
 
     // Partners Autocomplete - נקרא אחרי טעינת הניסוי ב-loadExperiment
     // initPartnersAutocomplete();
+
+    // Permissions UI event listeners
+    initPermissionsUI();
 }
 
 // =========================================
@@ -3677,6 +4153,12 @@ async function handleFileUpload(e, eventIndex) {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!permissionsState?.canEdit) {
+        showToast('אין הרשאה לקבצים', 'error');
+        e.target.value = '';
+        return;
+    }
+
     // בדיקת גודל קובץ – מקסימום 10MB (בהתאם ל-Storage Rules)
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
@@ -3757,6 +4239,11 @@ async function handleFileUpload(e, eventIndex) {
 async function deleteEventFile(eventIndex) {
     const event = eventsData[eventIndex];
     if (!event || !event.filePath) return;
+
+    if (!permissionsState?.canEdit) {
+        showToast('אין הרשאה לקבצים', 'error');
+        return;
+    }
 
     if (!(await confirmImmediateDeletion('הקובץ'))) return;
 
@@ -4031,6 +4518,12 @@ async function handleFinancialFileUpload(e, financialIndex) {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!permissionsState?.canEdit) {
+        showToast('אין הרשאה לקבצים', 'error');
+        e.target.value = '';
+        return;
+    }
+
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
         showToast('גודל הקובץ חורג מהמגבלה (10MB מקסימום)', 'error');
@@ -4101,6 +4594,11 @@ async function handleFinancialFileUpload(e, financialIndex) {
 async function deleteFinancialFile(financialIndex) {
     const entry = financialData[financialIndex];
     if (!entry || !entry.filePath) return;
+
+    if (!permissionsState?.canEdit) {
+        showToast('אין הרשאה לקבצים', 'error');
+        return;
+    }
 
     if (!(await confirmImmediateDeletion('הקובץ'))) return;
 
