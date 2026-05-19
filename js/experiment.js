@@ -2394,7 +2394,7 @@ function updateStudyTypeVisibility() {
     if (siteLabel) siteLabel.textContent = isLab ? "מס' תא:" : 'קורדינטות אתר הניסוי:';
     if (coordinatesGroup) coordinatesGroup.style.display = isLab ? 'none' : 'block';
     if (labCellGroup) labCellGroup.style.display = isLab ? 'block' : 'none';
-    if (pickLocationBtn) pickLocationBtn.disabled = isLab;
+    if (pickLocationBtn) pickLocationBtn.disabled = !permissionsState?.canEdit || isLab;
 
     if (plantingDensityGroup) plantingDensityGroup.style.display = isLab ? 'none' : '';
     if (potsCountGroup) potsCountGroup.style.display = isLab ? '' : 'none';
@@ -2774,6 +2774,24 @@ function syncPublicWriteWarning(checked) {
     if (warning) warning.style.display = checked ? 'flex' : 'none';
 }
 
+function applyReadOnlyInteractiveLocks() {
+    const isReadOnly = !permissionsState?.canEdit;
+    const pickLocationBtn = document.getElementById('pick-location-btn');
+    const sharedToggle = document.getElementById('shared-data-toggle');
+
+    document.querySelectorAll('.study-type-option').forEach((button) => {
+        button.disabled = isReadOnly;
+    });
+
+    if (pickLocationBtn) {
+        pickLocationBtn.disabled = isReadOnly || getCurrentStudyType() === 'lab';
+    }
+
+    if (sharedToggle) {
+        sharedToggle.disabled = isReadOnly;
+    }
+}
+
 // =========================================
 // applyPermissions – called after loadExperiment
 // =========================================
@@ -2796,6 +2814,8 @@ function applyPermissions() {
         if (viewerNotice) viewerNotice.style.display = 'none';
         if (form) form.classList.remove('readonly-mode');
     }
+
+    applyReadOnlyInteractiveLocks();
 
     // --- Not manager: lock permissions section ---
     if (!permissionsState.canManage) {

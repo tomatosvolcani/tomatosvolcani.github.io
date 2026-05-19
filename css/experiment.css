@@ -2406,6 +2406,34 @@
     border-color: #e1e8f3 !important;
 }
 
+.form-container.readonly-mode .study-type-option,
+.form-container.readonly-mode #pick-location-btn {
+    background: #f3f6fb !important;
+    color: #7a92b5 !important;
+    border-color: #e1e8f3 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+}
+
+.form-container.readonly-mode .study-type-option.active {
+    background: #e8eef8 !important;
+    color: #6b7f9f !important;
+}
+
+.form-container.readonly-mode #shared-data-toggle + .toggle-slider {
+    background-color: #d8e1ee !important;
+    cursor: not-allowed !important;
+}
+
+.form-container.readonly-mode #shared-data-toggle:checked + .toggle-slider {
+    background-color: #bfcde1 !important;
+}
+
+.form-container.readonly-mode #shared-data-toggle + .toggle-slider:before {
+    background-color: #eef3fa !important;
+}
+
 .form-container.readonly-mode .btn-save,
 .form-container.readonly-mode .btn-add-event,
 .form-container.readonly-mode [id^="add-"],
