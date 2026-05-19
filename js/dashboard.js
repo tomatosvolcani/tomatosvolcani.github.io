@@ -359,12 +359,12 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         } else {
             untilDate = new Date(data.privateUntil);
         }
-        
+
         if (untilDate > getTrustedNow()) {
             isPrivate = true; // עדיין לא פג תוקפו
         }
     }
-    
+
     const visClass = isPrivate ? 'private' : 'public';
     const visIcon = isPrivate ? 'fa-lock' : 'fa-globe';
     const visText = isPrivate ? 'פרטי' : 'ציבורי';
@@ -465,6 +465,8 @@ async function createNewExperiment() {
             updatedAt: serverTimestamp(),
             leadResearcher: leadResearcherName,
             partners: [],
+            experimentPartners: [],
+            creatorName: leadResearcherName,
             experimentYear: new Date().getFullYear(),
             experimentMonth: '',
             startDate: '',

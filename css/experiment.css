@@ -449,6 +449,100 @@
     color: #607089;
 }
 
+/* =========================================
+   Experiment Partners (multi-select chips)
+   ========================================= */
+.experiment-partners-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.experiment-partners-add {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.experiment-partners-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 0;
+}
+
+.experiment-partner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #e9eef8 0%, #f1f4fb 100%);
+    border: 1px solid #d0daf0;
+    border-radius: 24px;
+    font-size: 13px;
+    color: #2c3e5f;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    animation: chipAppear 0.25s ease;
+}
+
+@keyframes chipAppear {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.experiment-partner-chip:hover {
+    background: linear-gradient(135deg, #dce5f6 0%, #e8edfb 100%);
+    border-color: #b3c3e4;
+}
+
+.experiment-partner-chip .chip-name {
+    font-weight: 600;
+    color: #1d2f4a;
+}
+
+.experiment-partner-chip .chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.08);
+    color: #b91c1c;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s ease;
+    border: none;
+    padding: 0;
+}
+
+.experiment-partner-chip .chip-remove:hover {
+    background: rgba(220, 38, 38, 0.2);
+    color: #991b1b;
+    transform: scale(1.1);
+}
+
+.experiment-partner-chip .chip-remove.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+}
+
+/* Experiment Creator readonly field */
+.readonly-field {
+    background: #f8f9fb !important;
+    color: #475569 !important;
+    border-color: #e2e8f0 !important;
+    cursor: default;
+    font-weight: 500;
+}
+
+.readonly-field:focus {
+    outline: none;
+    box-shadow: none;
+}
+
 .partners-add-container {
     display: flex;
     gap: 10px;

@@ -1121,6 +1121,11 @@ async function loadExperiment() {
             generateTreatmentTabs();
             // אתחל את ה-autocomplete של השותפים אחרי שהניסוי נטען
             initPartnersAutocomplete();
+            // אתחל שותפים לניסוי (multi-select)
+            initLeadResearcherAutocomplete();
+            initExperimentPartnersAutocomplete();
+            // הגבלת תאריך תפוגה לניסוי פרטי
+            enforcePrivateUntilDateMax();
             // אתחל את יומן האירועים
             initEventsLog();
             // אתחל את ניתוחים פיננסים
@@ -1233,6 +1238,12 @@ function populateForm() {
             data.partners.forEach(partner => addPartnerRow(partner));
         }
     }
+
+    // Experiment Partners (multi-select chips)
+    populateExperimentPartners(data.experimentPartners || []);
+
+    // Creator field
+    populateCreatorField(data);
 
     // Basic fields
     setFieldValue('experiment-year', data.experimentYear);
@@ -2202,6 +2213,8 @@ function collectFormData() {
         publicAccess: publicAccess,
         leadResearcher: document.getElementById('lead-researcher')?.value || '',
         partners,
+        experimentPartners: collectExperimentPartners(),
+        creatorName: document.getElementById('experiment-creator')?.value || '',
         experimentYear: document.getElementById('experiment-year')?.value || '',
         experimentMonth: document.getElementById('experiment-month')?.value || '',
         researchPeriod: document.getElementById('research-period')?.value || '',
@@ -2293,6 +2306,17 @@ async function saveExperiment() {
         const privateUntilDate = formData.privateUntil.toDate();
         if (privateUntilDate <= getTrustedNow()) {
             showToast('תאריך סיום פרטיות חייב להיות עתידי.', 'warning');
+            return false;
+        }
+    }
+
+    // ולידציה: תאריך תפוגה פרטי מוגבל עד 30/04 של שנת המחקר הנוכחית
+    if (formData.visibility === 'private' && formData.privateUntil) {
+        const privateDate = formData.privateUntil.toDate();
+        const researchYear = privateDate.getFullYear();
+        const maxAllowedDate = new Date(researchYear, 3, 30, 23, 59, 59); // April 30
+        if (privateDate > maxAllowedDate) {
+            showToast('תאריך סיום פרטיות לא יכול לעבור את 30/04/' + researchYear + ' (סוף שנת המחקר)', 'warning');
             return false;
         }
     }
@@ -2737,10 +2761,9 @@ function getVisibilityFromUI() {
 // getPublicAccessFromUI
 // =========================================
 function getPublicAccessFromUI() {
-    const vis = getVisibilityFromUI();
     return {
         canRead:  true,
-        canWrite: vis === 'public' && document.getElementById('public-can-write')?.checked === true
+        canWrite: false
     };
 }
 
@@ -3810,6 +3833,312 @@ function parseCoordinates(coordsString) {
     }
     return null;
 }
+
+// =========================================
+// Experiment Partners (multi-select chips)
+// =========================================
+let selectedExperimentPartner = null;
+
+function populateExperimentPartners(experimentPartners = []) {
+    const listContainer = document.getElementById('experiment-partners-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    (experimentPartners || []).forEach(partner => {
+        addExperimentPartnerChip(partner);
+    });
+}
+
+function addExperimentPartnerChip(partnerData) {
+    const listContainer = document.getElementById('experiment-partners-list');
+    if (!listContainer) return;
+
+    let name = '', email = '', uid = '';
+    if (typeof partnerData === 'string') {
+        name = partnerData;
+    } else if (partnerData && typeof partnerData === 'object') {
+        name = partnerData.name || '';
+        email = partnerData.email || '';
+        uid = partnerData.uid || '';
+    }
+
+    // Check for duplicate
+    const existingChips = listContainer.querySelectorAll('.experiment-partner-chip');
+    for (const chip of existingChips) {
+        if (email && chip.dataset.email?.toLowerCase() === email.toLowerCase()) return;
+        if (uid && chip.dataset.uid === uid) return;
+    }
+
+    const chip = document.createElement('span');
+    chip.className = 'experiment-partner-chip';
+    chip.dataset.email = email;
+    chip.dataset.uid = uid;
+    chip.dataset.name = name;
+
+    const isOwner = currentUser && experimentOwnerUid && currentUser.uid === experimentOwnerUid;
+
+    chip.innerHTML = `
+        <span class="chip-name">${name || email || '\u05dc\u05d0 \u05e6\u05d5\u05d9\u05df'}</span>
+        ${email ? `<span style="font-size:11px; color:#7889a4;">(${email})</span>` : ''}
+        <button type="button" class="chip-remove ${isOwner ? '' : 'disabled'}" title="${isOwner ? '\u05d4\u05e1\u05e8\u05ea \u05e9\u05d5\u05ea\u05e3' : '\u05e8\u05e7 \u05de\u05e7\u05d9\u05dd \u05d4\u05e0\u05d9\u05e1\u05d5\u05d9 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05e1\u05d9\u05e8 \u05e9\u05d5\u05ea\u05e4\u05d9\u05dd'}">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    const removeBtn = chip.querySelector('.chip-remove');
+    if (isOwner && removeBtn) {
+        removeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!(await confirmDeferredDeletion('\u05d4\u05e9\u05d5\u05ea\u05e3'))) return;
+            chip.remove();
+        });
+    }
+
+    listContainer.appendChild(chip);
+}
+
+function collectExperimentPartners() {
+    const listContainer = document.getElementById('experiment-partners-list');
+    if (!listContainer) return [];
+
+    const partners = [];
+    listContainer.querySelectorAll('.experiment-partner-chip').forEach(chip => {
+        const name = chip.dataset.name || '';
+        const email = chip.dataset.email || '';
+        const uid = chip.dataset.uid || '';
+        if (name || email) {
+            partners.push({ name, email, uid });
+        }
+    });
+    return partners;
+}
+
+function initLeadResearcherAutocomplete() {
+    const searchInput = document.getElementById('lead-researcher');
+    const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
+
+    if (!searchInput || !suggestionsDiv) return;
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim().toLowerCase();
+        suggestionsDiv.innerHTML = '';
+
+        if (!query || query.length < 2) {
+            suggestionsDiv.classList.remove('active');
+            return;
+        }
+
+        const filtered = allUsers.filter(u => {
+            return (u.fullName?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query));
+        }).slice(0, 8);
+
+        if (!filtered.length) {
+            suggestionsDiv.classList.remove('active');
+            return;
+        }
+
+        filtered.forEach(u => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.innerHTML = '<div class="suggestion-name">' + (u.fullName || '\u2014') + '</div><div class="suggestion-email">' + (u.email || '') + '</div>';
+            item.addEventListener('click', () => {
+                searchInput.value = u.fullName || u.email || '';
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.classList.remove('active');
+                markUserEdited();
+            });
+            suggestionsDiv.appendChild(item);
+        });
+
+        suggestionsDiv.classList.add('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.classList.remove('active');
+        }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstSuggestion = suggestionsDiv.querySelector('.suggestion-item');
+            if (firstSuggestion) firstSuggestion.click();
+        }
+    });
+}
+
+function initExperimentPartnersAutocomplete() {
+    const searchInput = document.getElementById('experiment-partner-search');
+    const suggestionsDiv = document.getElementById('experiment-partner-suggestions');
+    const addBtn = document.getElementById('add-experiment-partner');
+
+    if (!searchInput || !suggestionsDiv) return;
+
+    const isOwner = currentUser && experimentOwnerUid && currentUser.uid === experimentOwnerUid;
+    if (!isOwner) {
+        searchInput.disabled = true;
+        searchInput.placeholder = '\u05e8\u05e7 \u05de\u05e7\u05d9\u05dd \u05d4\u05e0\u05d9\u05e1\u05d5\u05d9 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05d5\u05e1\u05d9\u05e3 \u05e9\u05d5\u05ea\u05e4\u05d9\u05dd';
+        if (addBtn) {
+            addBtn.disabled = true;
+            addBtn.classList.add('disabled');
+        }
+        return;
+    }
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim().toLowerCase();
+        suggestionsDiv.innerHTML = '';
+        selectedExperimentPartner = null;
+
+        if (!query || query.length < 2) {
+            suggestionsDiv.classList.remove('active');
+            return;
+        }
+
+        const existingChips = document.querySelectorAll('#experiment-partners-list .experiment-partner-chip');
+        const existingUids = new Set();
+        const existingEmails = new Set();
+        existingChips.forEach(chip => {
+            if (chip.dataset.uid) existingUids.add(chip.dataset.uid);
+            if (chip.dataset.email) existingEmails.add(chip.dataset.email.toLowerCase());
+        });
+
+        const filtered = allUsers.filter(u => {
+            if (u.uid === currentUser?.uid) return false;
+            if (existingUids.has(u.uid)) return false;
+            if (u.email && existingEmails.has(u.email.toLowerCase())) return false;
+            return (u.fullName?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query));
+        }).slice(0, 8);
+
+        if (!filtered.length) {
+            suggestionsDiv.classList.remove('active');
+            return;
+        }
+
+        filtered.forEach(u => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.innerHTML = `
+                <div class="suggestion-name">${u.fullName || '\u2014'}</div>
+                <div class="suggestion-email">${u.email || ''}</div>
+            `;
+            item.addEventListener('click', () => {
+                selectedExperimentPartner = u;
+                searchInput.value = u.fullName || u.email || '';
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.classList.remove('active');
+            });
+            suggestionsDiv.appendChild(item);
+        });
+
+        suggestionsDiv.classList.add('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.classList.remove('active');
+        }
+    });
+
+    if (addBtn) {
+        addBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!selectedExperimentPartner) {
+                if (searchInput.value.trim()) {
+                    showToast('\u05e0\u05d0 \u05dc\u05d1\u05d7\u05d5\u05e8 \u05e9\u05d5\u05ea\u05e3 \u05de\u05d4\u05e8\u05e9\u05d9\u05de\u05d4', 'warning');
+                }
+                return;
+            }
+
+            addExperimentPartnerChip({
+                name: selectedExperimentPartner.fullName || '',
+                email: selectedExperimentPartner.email || '',
+                uid: selectedExperimentPartner.uid || ''
+            });
+            markUserEdited();
+            showToast(`${selectedExperimentPartner.fullName || selectedExperimentPartner.email} \u05e0\u05d5\u05e1\u05e3 \u05db\u05e9\u05d5\u05ea\u05e3`, 'success');
+            searchInput.value = '';
+            selectedExperimentPartner = null;
+            suggestionsDiv.innerHTML = '';
+            suggestionsDiv.classList.remove('active');
+        });
+    }
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstSuggestion = suggestionsDiv.querySelector('.suggestion-item');
+            if (firstSuggestion) firstSuggestion.click();
+        }
+    });
+}
+
+// =========================================
+// Creator Field
+// =========================================
+function populateCreatorField(data) {
+    const creatorInput = document.getElementById('experiment-creator');
+    if (!creatorInput) return;
+
+    if (data.creatorName) {
+        creatorInput.value = data.creatorName;
+        return;
+    }
+
+    if (experimentOwnerUid && allUsers.length > 0) {
+        const ownerUser = allUsers.find(u => u.uid === experimentOwnerUid);
+        if (ownerUser) {
+            creatorInput.value = ownerUser.fullName || ownerUser.email || '';
+            return;
+        }
+    }
+
+    if (currentUser && experimentOwnerUid === currentUser.uid && userData) {
+        creatorInput.value = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        return;
+    }
+
+    creatorInput.value = '';
+}
+
+// =========================================
+// Private Until Date Max Enforcement
+// =========================================
+function enforcePrivateUntilDateMax() {
+    const privateUntilInput = document.getElementById('private-until-date');
+    if (!privateUntilInput) return;
+
+    const now = getTrustedNow();
+    const currentYear = now.getFullYear();
+    const maxDateStr = `${currentYear}-04-30`;
+    privateUntilInput.setAttribute('max', maxDateStr);
+
+    const todayStr = now.toISOString().slice(0, 10);
+    privateUntilInput.setAttribute('min', todayStr);
+
+    if (privateUntilInput.value && privateUntilInput.value > maxDateStr) {
+        privateUntilInput.value = maxDateStr;
+        showToast(`\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05e4\u05e8\u05d8\u05d9\u05d5\u05ea \u05de\u05d5\u05d2\u05d1\u05dc \u05e2\u05d3 30/04/${currentYear} (\u05e1\u05d5\u05e3 \u05e9\u05e0\u05ea \u05d4\u05de\u05d7\u05e7\u05e8)`, 'warning', 5000);
+    }
+
+    if (!privateUntilInput.dataset.maxEnforced) {
+        privateUntilInput.dataset.maxEnforced = '1';
+        privateUntilInput.addEventListener('change', () => {
+            const val = privateUntilInput.value;
+            if (val) {
+                const recalcYear = getTrustedNow().getFullYear();
+                const recalcMax = `${recalcYear}-04-30`;
+                if (val > recalcMax) {
+                    privateUntilInput.value = recalcMax;
+                    showToast(`\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05e4\u05e8\u05d8\u05d9\u05d5\u05ea \u05de\u05d5\u05d2\u05d1\u05dc \u05e2\u05d3 30/04/${recalcYear} (\u05e1\u05d5\u05e3 \u05e9\u05e0\u05ea \u05d4\u05de\u05d7\u05e7\u05e8)`, 'warning', 5000);
+                }
+            }
+        });
+    }
+}
+
 
 // =========================================
 // Partners Autocomplete

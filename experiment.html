@@ -223,19 +223,6 @@
                                     </span>
                                 </label>
                             </div>
-                            <div class="perm-checkbox-row danger-row">
-                                <label class="perm-checkbox-label">
-                                    <input type="checkbox" id="public-can-write">
-                                    <span class="checkbox-text">
-                                        <i class="fas fa-pen-to-square"></i>
-                                        כל משתמש מאושר במערכת יכול לערוך
-                                    </span>
-                                </label>
-                                <div class="perm-warning" id="public-write-warning" style="display:none;">
-                                    <i class="fas fa-triangle-exclamation"></i>
-                                    אזהרה: הפעלה תאפשר לכל משתמש מאושר במערכת לערוך את הניסוי ולהעלות/לעדכן קבצים.
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Partners & Permissions Table -->
@@ -296,8 +283,38 @@
                     <!-- Lead Researcher -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label>חוקר מוביל:</label>
-                            <input type="text" id="lead-researcher">
+                            <label><i class="fas fa-user-tie" style="margin-left: 6px; color: #0a2f72;"></i>חוקר מוביל:</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="lead-researcher" placeholder="חיפוש חוקר מוביל לפי שם או אימייל..." autocomplete="off">
+                                <div id="lead-researcher-suggestions" class="autocomplete-suggestions"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Experiment Partners (multi-select) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-users" style="margin-left: 6px; color: #0a2f72;"></i>שותפים לניסוי:</label>
+                            <div class="experiment-partners-container">
+                                <div class="experiment-partners-add">
+                                    <div class="autocomplete-wrapper">
+                                        <input type="text" id="experiment-partner-search" placeholder="חיפוש שותף לפי שם או אימייל..." autocomplete="off">
+                                        <div id="experiment-partner-suggestions" class="autocomplete-suggestions"></div>
+                                    </div>
+                                    <button type="button" id="add-experiment-partner" class="btn-add" title="הוסף שותף"><i class="fas fa-plus"></i></button>
+                                </div>
+                                <div class="experiment-partners-list" id="experiment-partners-list">
+                                    <!-- נמלא דינמית -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Experiment Creator (read-only) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-user-pen" style="margin-left: 6px; color: #0a2f72;"></i>מקים הניסוי:</label>
+                            <input type="text" id="experiment-creator" readonly class="readonly-field" placeholder="—">
                         </div>
                     </div>
 

@@ -60,10 +60,7 @@ export function canRead(exp, user, userData, trustedNow, ownerUid) {
 export function canEdit(exp, user, userData, trustedNow, ownerUid) {
   const role = getRole(exp, user, userData, ownerUid);
 
-  if (role === 'admin' || role === 'owner' || role === 'editor') return true;
-
-  return isExperimentPublic(exp, trustedNow) &&
-    exp?.publicAccess?.canWrite === true;
+  return role === 'admin' || role === 'owner' || role === 'editor';
 }
 
 export function canManage(exp, user, userData, ownerUid) {
