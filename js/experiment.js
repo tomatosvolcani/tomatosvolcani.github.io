@@ -2627,6 +2627,16 @@ function populatePermissionsUI(data) {
         });
     }
 
+    // Experiment partners are the same collaboration list for permissions purposes.
+    if (Array.isArray(data.experimentPartners)) {
+        data.experimentPartners.forEach(partner => {
+            const u = findUserForPartner(partner);
+            if (u && u.uid && !permissionsUIData[u.uid]) {
+                permissionsUIData[u.uid] = { role: 'editor', addedAt: null, addedBy: 'experimentPartners' };
+            }
+        });
+    }
+
     renderPermissionsTable();
 }
 
@@ -3839,6 +3849,51 @@ function parseCoordinates(coordsString) {
 // =========================================
 let selectedExperimentPartner = null;
 
+function findUserForPartner(partner = {}) {
+    if (!partner || typeof partner !== 'object') return null;
+    const partnerUid = partner.uid || '';
+    const partnerEmail = partner.email || '';
+
+    return allUsers.find(u => {
+        if (partnerUid && u.uid === partnerUid) return true;
+        return partnerEmail && u.email?.toLowerCase() === partnerEmail.toLowerCase();
+    }) || null;
+}
+
+function canManageExperimentPartnersPermissions() {
+    return permissionsState?.canManage ||
+        (currentUser && experimentOwnerUid && currentUser.uid === experimentOwnerUid);
+}
+
+function syncExperimentPartnerToPermissions(partner, shouldRender = true) {
+    if (!canManageExperimentPartnersPermissions()) return;
+
+    const user = findUserForPartner(partner);
+    if (!user?.uid || user.uid === experimentOwnerUid) return;
+    if (permissionsUIData[user.uid]) return;
+
+    permissionsUIData[user.uid] = {
+        role: 'editor',
+        addedAt: Timestamp.now(),
+        addedBy: 'experimentPartners'
+    };
+
+    if (shouldRender) renderPermissionsTable();
+}
+
+function removeExperimentPartnerFromPermissions(partner, shouldRender = true) {
+    if (!canManageExperimentPartnersPermissions()) return;
+
+    const user = findUserForPartner(partner);
+    if (!user?.uid) return;
+
+    const permission = permissionsUIData[user.uid];
+    if (permission?.addedBy !== 'experimentPartners') return;
+
+    delete permissionsUIData[user.uid];
+    if (shouldRender) renderPermissionsTable();
+}
+
 function populateExperimentPartners(experimentPartners = []) {
     const listContainer = document.getElementById('experiment-partners-list');
     if (!listContainer) return;
@@ -3890,7 +3945,9 @@ function addExperimentPartnerChip(partnerData) {
         removeBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (!(await confirmDeferredDeletion('\u05d4\u05e9\u05d5\u05ea\u05e3'))) return;
+            removeExperimentPartnerFromPermissions({ name, email, uid });
             chip.remove();
+            markUserEdited();
         });
     }
 
@@ -4053,6 +4110,11 @@ function initExperimentPartnersAutocomplete() {
             }
 
             addExperimentPartnerChip({
+                name: selectedExperimentPartner.fullName || '',
+                email: selectedExperimentPartner.email || '',
+                uid: selectedExperimentPartner.uid || ''
+            });
+            syncExperimentPartnerToPermissions({
                 name: selectedExperimentPartner.fullName || '',
                 email: selectedExperimentPartner.email || '',
                 uid: selectedExperimentPartner.uid || ''
