@@ -214,7 +214,7 @@ function renderAll(ownCount, sharedCount) {
     // KPIs
     setText('kpi-total',    exps.length);
     setText('kpi-sites',    countUnique(exps, e => norm(e.experimentSite)));
-    setText('kpi-varieties',countUnique(exps, e => norm(cropField(e, 'variety'))));
+    setText('kpi-varieties',countUniqueFlat(exps, e => cropVarieties(e)));
     setText('kpi-keywords', countUniqueFlat(exps, e => Array.isArray(e.keywords) ? e.keywords : []));
     setText('kpi-packages', countUnique(exps, e => norm(e.workPackage)));
 
@@ -645,6 +645,14 @@ function drawDoughnutChart(canvasId, labels, data) {
 // ======================================================
 function cropField(exp, field) {
     return exp?.cropDetails?.data?.[field] ?? exp?.[field] ?? '';
+}
+
+function cropVarieties(exp) {
+    const cropData = exp?.cropDetails?.data || exp || {};
+    const fromArray = Array.isArray(cropData.varieties) ? cropData.varieties : [];
+    if (fromArray.length) return fromArray.map((v) => String(v || '').trim()).filter(Boolean);
+    const single = String(cropData.variety || '').trim();
+    return single ? [single] : [];
 }
 
 function norm(val) { return (val || '').trim() || null; }

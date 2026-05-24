@@ -110,6 +110,27 @@ function hasValue(value) {
     return value !== null && value !== undefined && String(value).trim() !== '';
 }
 
+function normalizeVarieties(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => String(item || '').trim())
+            .filter(Boolean);
+    }
+    const single = String(value || '').trim();
+    return single ? [single] : [];
+}
+
+function getCropVarieties(crop = {}) {
+    const fromArray = normalizeVarieties(crop.varieties);
+    if (fromArray.length) return fromArray;
+    return normalizeVarieties(crop.variety);
+}
+
+function getStructureModeForUI(mode) {
+    if (mode === 'משתנה') return 'משתנה מבוקרת';
+    return mode || '';
+}
+
 function getCurrentStudyType() {
     const value = document.getElementById('study-type')?.value;
     return STUDY_TYPES.includes(value) ? value : 'field';
@@ -801,7 +822,7 @@ function collectDynamicFieldValues(formData) {
 
     const crop = formData?.cropDetails?.data || {};
     collected.cropType.push(crop.cropType || '');
-    collected.variety.push(crop.variety || '');
+    getCropVarieties(crop).forEach((item) => collected.variety.push(item));
     collected.nursery.push(crop.nursery || '');
 
     const soil = formData?.soilDetails?.data || {};
@@ -1304,7 +1325,10 @@ function populateForm() {
         setFieldValue('inoculation-date-1', crop.inoculationDate1);
         setFieldValue('inoculation-date-2', crop.inoculationDate2);
         setFieldValue('crop-type', crop.cropType);
-        setFieldValue('variety', crop.variety);
+        const varietiesList = document.getElementById('varieties-list');
+        if (varietiesList) varietiesList.innerHTML = '';
+        getCropVarieties(crop).forEach((value) => addVarietyTag(value));
+        setFieldValue('variety-input', '');
         setFieldValue('grafted-plant', crop.graftedPlant);
         setFieldValue('variety-type', mappedVarietyType);
         setFieldValue('split-plant', mappedSplitPlant);
@@ -1326,7 +1350,7 @@ function populateForm() {
         setFieldValue('structure-type', structure.type);
         setFieldValue('structure-size', structure.size);
         setFieldValue('roof-covering', structure.roofCovering);
-        setFieldValue('cell-temp-mode', structure.cellTempMode);
+        setFieldValue('cell-temp-mode', getStructureModeForUI(structure.cellTempMode));
         setFieldValue('cell-temp-fixed', structure.cellTempFixed);
         setFieldValue('cell-temp-min-night', structure.cellTempMinNight);
         setFieldValue('cell-temp-max-day', structure.cellTempMaxDay);
@@ -1445,12 +1469,14 @@ function setFieldValue(id, value) {
 function collectSectionDataFromDOM(sectionId) {
     switch (sectionId) {
         case 'crop':
+            const varieties = getVarietiesFromDOM();
             return {
                 plantingDate: document.getElementById('planting-date')?.value || '',
                 inoculationDate1: document.getElementById('inoculation-date-1')?.value || '',
                 inoculationDate2: document.getElementById('inoculation-date-2')?.value || '',
                 cropType: document.getElementById('crop-type')?.value || '',
-                variety: document.getElementById('variety')?.value || '',
+                varieties,
+                variety: varieties[0] || '',
                 graftedPlant: document.getElementById('grafted-plant')?.value || '',
                 varietyType: document.getElementById('variety-type')?.value || '',
                 splitPlant: document.getElementById('split-plant')?.value || '',
@@ -1552,7 +1578,10 @@ function applySectionDataToDOM(sectionId, sectionData) {
             setFieldValue('inoculation-date-1', data.inoculationDate1);
             setFieldValue('inoculation-date-2', data.inoculationDate2);
             setFieldValue('crop-type', data.cropType);
-            setFieldValue('variety', data.variety);
+            const varietiesList = document.getElementById('varieties-list');
+            if (varietiesList) varietiesList.innerHTML = '';
+            getCropVarieties(data).forEach((value) => addVarietyTag(value));
+            setFieldValue('variety-input', '');
             setFieldValue('grafted-plant', data.graftedPlant);
             setFieldValue('variety-type', mappedVarietyType);
             setFieldValue('split-plant', mappedSplitPlant);
@@ -1571,7 +1600,7 @@ function applySectionDataToDOM(sectionId, sectionData) {
             setFieldValue('structure-type', data.type);
             setFieldValue('structure-size', data.size);
             setFieldValue('roof-covering', data.roofCovering);
-            setFieldValue('cell-temp-mode', data.cellTempMode);
+            setFieldValue('cell-temp-mode', getStructureModeForUI(data.cellTempMode));
             setFieldValue('cell-temp-fixed', data.cellTempFixed);
             setFieldValue('cell-temp-min-night', data.cellTempMinNight);
             setFieldValue('cell-temp-max-day', data.cellTempMaxDay);
@@ -2118,6 +2147,42 @@ function addKeywordTag(value) {
     container.appendChild(tag);
 }
 
+function addVarietyTag(value) {
+    const normalizedValue = String(value || '').trim();
+    if (!normalizedValue) return;
+
+    const container = document.getElementById('varieties-list');
+    if (!container) return;
+
+    const duplicate = Array.from(container.querySelectorAll('.variety-tag'))
+        .some((tag) => (tag.dataset.value || '').toLowerCase() === normalizedValue.toLowerCase());
+    if (duplicate) return;
+
+    const tag = document.createElement('span');
+    tag.className = 'keyword-tag variety-tag';
+    tag.dataset.value = normalizedValue;
+    tag.innerHTML = `
+        ${normalizedValue}
+        <span class="remove"><i class="fas fa-times"></i></span>
+    `;
+
+    tag.querySelector('.remove').addEventListener('click', async () => {
+        if (!(await confirmDeferredDeletion('הזן'))) return;
+        tag.remove();
+    });
+
+    container.appendChild(tag);
+}
+
+function getVarietiesFromDOM() {
+    const values = [];
+    document.querySelectorAll('#varieties-list .variety-tag').forEach((tag) => {
+        const value = String(tag.dataset.value || '').trim();
+        if (value) values.push(value);
+    });
+    return normalizeVarieties(values);
+}
+
 // =========================================
 // Collect Form Data
 // =========================================
@@ -2327,9 +2392,9 @@ async function saveExperiment() {
             showToast("בטמפ' תא קבועה חובה להזין טמפ'", 'warning');
             return false;
         }
-        if (entry?.cellTempMode === 'משתנה'
+        if ((entry?.cellTempMode === 'משתנה' || entry?.cellTempMode === 'משתנה מבוקרת')
             && (!hasValue(entry.cellTempMinNight) || !hasValue(entry.cellTempMaxDay))) {
-            showToast("בטמפ' תא משתנה חובה להזין מינימום ומקסימום", 'warning');
+            showToast("בטמפ' תא משתנה מבוקרת חובה להזין מינימום ומקסימום", 'warning');
             return false;
         }
     }
@@ -2437,11 +2502,12 @@ function updateStructureTemperatureVisibility() {
     const maxInput = document.getElementById('cell-temp-max-day');
 
     if (fixedGroup) fixedGroup.style.display = mode === 'קבועה' ? '' : 'none';
-    if (minGroup) minGroup.style.display = mode === 'משתנה' ? '' : 'none';
-    if (maxGroup) maxGroup.style.display = mode === 'משתנה' ? '' : 'none';
+    const isControlledVariable = mode === 'משתנה מבוקרת' || mode === 'משתנה';
+    if (minGroup) minGroup.style.display = isControlledVariable ? '' : 'none';
+    if (maxGroup) maxGroup.style.display = isControlledVariable ? '' : 'none';
 
     if (mode !== 'קבועה' && fixedInput) fixedInput.value = '';
-    if (mode !== 'משתנה') {
+    if (!isControlledVariable) {
         if (minInput) minInput.value = '';
         if (maxInput) maxInput.value = '';
     }
@@ -3305,6 +3371,23 @@ function initEventListeners() {
         cancelCustomKeyword.addEventListener('click', () => {
             if (customKeywordInput) customKeywordInput.value = '';
             customKeywordContainer.style.display = 'none';
+        });
+    }
+
+    const addVarietyBtn = document.getElementById('add-variety');
+    const varietyInput = document.getElementById('variety-input');
+    if (addVarietyBtn && varietyInput) {
+        addVarietyBtn.addEventListener('click', () => {
+            const value = varietyInput.value.trim();
+            if (!value) return;
+            addVarietyTag(value);
+            varietyInput.value = '';
+        });
+        varietyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addVarietyBtn.click();
+            }
         });
     }
 

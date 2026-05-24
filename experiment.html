@@ -530,7 +530,11 @@
                         </div>
                         <div class="form-group">
                             <label>זן:</label>
-                            <input type="text" id="variety" list="datalist-variety">
+                            <div class="input-with-btn">
+                                <input type="text" id="variety-input" list="datalist-variety" placeholder="הוספת זן...">
+                                <button type="button" id="add-variety" class="btn-add"><i class="fas fa-plus"></i></button>
+                            </div>
+                            <div id="varieties-list" class="keywords-list"></div>
                         </div>
                         <div class="form-group">
                             <label>מועד הדבקה 1:</label>
@@ -644,7 +648,8 @@
                             <select id="cell-temp-mode">
                                 <option value="">בחירת ערך</option>
                                 <option value="קבועה">קבועה</option>
-                                <option value="משתנה">משתנה</option>
+                                <option value="משתנה מבוקרת">משתנה מבוקרת</option>
+                                <option value="ללא בקרה">ללא בקרה</option>
                             </select>
                         </div>
                         <div class="form-group" id="cell-temp-fixed-group" style="display:none;">

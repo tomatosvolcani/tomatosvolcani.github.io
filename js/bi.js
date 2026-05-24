@@ -316,7 +316,7 @@ function renderKPIs(exps) {
     setText('kpi-total',       exps.length);
     setText('kpi-researchers', countUnique(exps, e => e.leadResearcher));
     setText('kpi-sites',       countUnique(exps, e => norm(e.experimentSite)));
-    setText('kpi-varieties',   countUnique(exps, e => norm(cropField(e, 'variety'))));
+    setText('kpi-varieties',   countUniqueFlat(exps, e => cropVarieties(e)));
     setText('kpi-keywords',    countUniqueFlat(exps, e => Array.isArray(e.keywords) ? e.keywords : []));
 }
 
@@ -375,7 +375,18 @@ function renderResearchersRanking(exps) {
 // Ranking: Varieties
 // ======================================================
 function renderVarietiesRanking(exps) {
-    const freq = freqMap(exps, e => norm(cropField(e, 'variety')) || 'לא צוין');
+    const freq = {};
+    exps.forEach((e) => {
+        const values = cropVarieties(e);
+        if (!values.length) {
+            freq['לא צוין'] = (freq['לא צוין'] || 0) + 1;
+            return;
+        }
+        values.forEach((value) => {
+            const key = norm(value);
+            if (key) freq[key] = (freq[key] || 0) + 1;
+        });
+    });
     renderRankingList('varieties-ranking', freq);
 }
 
@@ -548,6 +559,14 @@ function drawDoughnutChart(canvasId, labels, data) {
 /** שדה מ-cropDetails.data */
 function cropField(exp, field) {
     return exp?.cropDetails?.data?.[field] ?? exp?.[field] ?? '';
+}
+
+function cropVarieties(exp) {
+    const cropData = exp?.cropDetails?.data || exp || {};
+    const fromArray = Array.isArray(cropData.varieties) ? cropData.varieties : [];
+    if (fromArray.length) return fromArray.map((v) => String(v || '').trim()).filter(Boolean);
+    const single = String(cropData.variety || '').trim();
+    return single ? [single] : [];
 }
 
 /** נרמול מחרוזת */
