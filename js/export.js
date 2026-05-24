@@ -46,6 +46,13 @@ function initSidebar() {
     if (logoutBtn) logoutBtn.addEventListener('click', async () => { await signOut(auth); window.location.href = "login.html"; });
 }
 
+function getVarietiesForDisplay(crop = {}) {
+    if (Array.isArray(crop.varieties) && crop.varieties.length) {
+        return crop.varieties.map((v) => String(v || '').trim()).filter(Boolean).join(', ');
+    }
+    return String(crop.variety || '').trim();
+}
+
 // ── Auth ──
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = "login.html"; return; }
@@ -426,7 +433,7 @@ function buildExcelWorkbook(data) {
         addField('מועד הדבקה 1', crop.inoculationDate1);
         addField('מועד הדבקה 2', crop.inoculationDate2);
         addField('סוג גידול', crop.cropType);
-        addField('זן', crop.variety);
+        addField('זן', getVarietiesForDisplay(crop));
         addField('צמח מורכב', crop.graftedPlant);
         addField('סוג הזן', crop.varietyType);
         addField('צמח מפוצל', crop.splitPlant);
