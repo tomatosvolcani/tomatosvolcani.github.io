@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/main.css?v=20260503-1">
     <link rel="stylesheet" href="css/layout.css?v=20260503-1">
     <link rel="stylesheet" href="css/forms.css?v=20260503-1">
-    <link rel="stylesheet" href="css/experiment.css?v=20260503-1">
+    <link rel="stylesheet" href="css/experiment.css?v=20260526-2">
     <link rel="stylesheet" href="css/accessibility.css?v=20260503-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260503-1">
     <link rel="stylesheet" href="css/research-map.css?v=20260503-1">
@@ -495,19 +495,18 @@
                     <!-- Keywords -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label>מילות מפתח:</label>
+                            <label>מילות מפתח: <small class="field-hint">(מילים חדשות מתווספות לענן האפשרויות)</small></label>
                             <div class="keywords-container">
-                                <select id="keywords-select">
-                                    <option value="">בחירת מילת מפתח</option>
-                                    <option value="עגבניות">עגבניות</option>
-                                    <option value="הדברה">הדברה</option>
-                                    <option value="חממה">חממה</option>
-                                    <option value="__custom__">אחר (הזנה חופשית)...</option>
-                                </select>
+                                <input type="text" id="keyword-input" list="datalist-keywords" placeholder="הקלדת מילת מפתח...">
+                                <datalist id="datalist-keywords">
+                                    <option value="עגבניות"></option>
+                                    <option value="הדברה"></option>
+                                    <option value="חממה"></option>
+                                </datalist>
                                 <button type="button" id="add-keyword" class="btn-add"><i class="fas fa-plus"></i></button>
                             </div>
                             <div id="custom-keyword-container" class="keywords-container" style="display: none; margin-top: 10px;">
-                                <input type="text" id="custom-keyword-input" placeholder="הזנת מילת מפתח חופשית...">
+                                <input type="text" id="custom-keyword-input" list="datalist-keywords" placeholder="הזנת מילת מפתח חופשית...">
                                 <button type="button" id="add-custom-keyword" class="btn-add"><i class="fas fa-plus"></i></button>
                                 <button type="button" id="cancel-custom-keyword" class="btn-add btn-cancel" title="ביטול"><i class="fas fa-times"></i></button>
                             </div>
@@ -1549,6 +1548,6 @@
     <script src="js/accessibility.js?v=20260503-1"></script>
     <script src="js/chatbot.js?v=20260503-1"></script>
     <script type="module" src="js/research-map.js?v=20260503-1"></script>
-    <script type="module" src="js/experiment.js?v=20260503-1"></script>
+    <script type="module" src="js/experiment.js?v=20260526-2"></script>
 </body>
 </html>

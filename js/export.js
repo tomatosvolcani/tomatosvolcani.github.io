@@ -4,7 +4,7 @@ import { formatDateIL } from "./date-utils.js";
 import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-    doc, getDoc, collection, collectionGroup, getDocs, query, orderBy, limit
+    doc, getDoc, collection, collectionGroup, getDocs, query, orderBy, limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref, listAll, getBlob
@@ -16,10 +16,21 @@ import { canRead } from "./permissions-utils.js";
 let currentUser = null;
 let userData = null;
 let isAdmin = false;
+const EXPORT_PAGE_SIZE = 15;
+
+let adminExportsLastDoc = null;
+let myExportsLastDoc = null;
+let sharedExportsLastDoc = null;
+let hasMoreAdminExports = true;
+let hasMoreMyExports = true;
+let hasMoreSharedExports = true;
+let isLoadingExportBatch = false;
+const renderedExportKeys = new Set();
 
 // ── DOM Ready ──
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
+    initExportLoadMore();
 });
 
 function initSidebar() {
@@ -44,6 +55,11 @@ function initSidebar() {
 
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) logoutBtn.addEventListener('click', async () => { await signOut(auth); window.location.href = "login.html"; });
+}
+
+function initExportLoadMore() {
+    const btn = document.getElementById('btn-export-load-more');
+    if (btn) btn.addEventListener('click', loadMoreExportExperiments);
 }
 
 function getVarietiesForDisplay(crop = {}) {
@@ -98,63 +114,16 @@ async function loadExperimentsForExport() {
     const grid = document.getElementById('export-grid');
     const loading = document.getElementById('loading-container');
     if (!grid) return;
-
-    const experiments = [];
+    hideExportLoadMoreButton();
+    grid.innerHTML = '';
 
     try {
-        if (isAdmin) {
-            // ── אדמין: טען את כל הניסויים במערכת דרך collectionGroup ──
-            const allQuery = query(collectionGroup(db, 'experiments'));
-            const allSnap = await getDocs(allQuery);
+        resetExportPaginationState();
+        const loaded = await loadNextExportBatch();
+        updateExportLoadMoreButtonVisibility();
 
-            allSnap.forEach(docSnap => {
-                const data = docSnap.data();
-                // חילוץ ownerUid מה-path: users/{ownerUid}/experiments/{id}
-                const pathParts = docSnap.ref.path.split('/');
-                const ownerUid = pathParts[1];
-                const isOwn = ownerUid === currentUser.uid;
-
-                // סינון פרטיים שפג תוקפם - רק אם המשתמש הוא לא הבעלים
-                let isPrivate = false;
-                if (data.visibility === 'private' && data.privateUntil) {
-                    let untilDate;
-                    if (typeof data.privateUntil.toDate === 'function') {
-                        untilDate = data.privateUntil.toDate();
-                    } else if (data.privateUntil.seconds) {
-                        untilDate = new Date(data.privateUntil.seconds * 1000);
-                    } else {
-                        untilDate = new Date(data.privateUntil);
-                    }
-                    if (untilDate > getTrustedNow()) isPrivate = true;
-                }
-
-                // דלג על ניסויים פרטיים (אלא אם אתה הבעלים)
-                if (isPrivate && !isOwn) return;
-
-                experiments.push({
-                    id: docSnap.id,
-                    ownerUid: ownerUid,
-                    data: data,
-                    shared: !isOwn
-                });
-            });
-        } else {
-            // ── משתמש רגיל: הניסויים שלי + משותפים ──
-            const myRef = collection(db, "users", currentUser.uid, "experiments");
-            const mySnap = await getDocs(query(myRef, orderBy("createdAt", "desc")));
-            mySnap.forEach(d => experiments.push({ id: d.id, ownerUid: currentUser.uid, data: d.data(), shared: false }));
-
-            const sharedRef = collection(db, "users", currentUser.uid, "sharedExperiments");
-            const sharedSnap = await getDocs(sharedRef);
-            for (const sd of sharedSnap.docs) {
-                const s = sd.data();
-                if (s.ownerUid && s.experimentId) {
-                    try {
-                        const origSnap = await getDoc(doc(db, "users", s.ownerUid, "experiments", s.experimentId));
-                        if (origSnap.exists()) experiments.push({ id: s.experimentId, ownerUid: s.ownerUid, data: origSnap.data(), shared: true });
-                    } catch (_) {}
-                }
-            }
+        if (loaded === 0 && renderedExportKeys.size === 0) {
+            grid.innerHTML = '<div class="export-empty"><i class="fas fa-flask"></i><p>אין ניסויים להצגה</p></div>';
         }
     } catch (err) {
         console.error("Error loading experiments:", err);
@@ -163,20 +132,249 @@ async function loadExperimentsForExport() {
 
     if (loading) loading.classList.add('hidden');
     grid.style.display = 'flex';
+}
 
-    if (experiments.length === 0) {
-        grid.innerHTML = '<div class="export-empty"><i class="fas fa-flask"></i><p>אין ניסויים להצגה</p></div>';
+function resetExportPaginationState() {
+    adminExportsLastDoc = null;
+    myExportsLastDoc = null;
+    sharedExportsLastDoc = null;
+    hasMoreAdminExports = true;
+    hasMoreMyExports = true;
+    hasMoreSharedExports = true;
+    isLoadingExportBatch = false;
+    renderedExportKeys.clear();
+}
+
+async function loadMoreExportExperiments() {
+    const hasMore = isAdmin
+        ? hasMoreAdminExports
+        : (hasMoreMyExports || hasMoreSharedExports);
+    if (isLoadingExportBatch || !hasMore) return;
+
+    const btn = document.getElementById('btn-export-load-more');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'טוען...';
+    }
+
+    try {
+        await loadNextExportBatch();
+        updateExportLoadMoreButtonVisibility();
+    } catch (error) {
+        console.error("Error loading more experiments for export:", error);
+        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'טען עוד...';
+        }
+    }
+}
+
+async function loadNextExportBatch() {
+    if (isLoadingExportBatch) return 0;
+    isLoadingExportBatch = true;
+
+    try {
+        if (isAdmin) {
+            const adminExperiments = await fetchAdminExportsPage(EXPORT_PAGE_SIZE);
+            appendExportCards(adminExperiments);
+            return adminExperiments.length;
+        }
+
+        let loadedInBatch = 0;
+        const targetCount = EXPORT_PAGE_SIZE;
+
+        if (hasMoreMyExports && loadedInBatch < targetCount) {
+            const remaining = targetCount - loadedInBatch;
+            const ownExperiments = await fetchMyExportsPage(remaining);
+            appendExportCards(ownExperiments);
+            loadedInBatch += ownExperiments.length;
+        }
+
+        if (hasMoreSharedExports && loadedInBatch < targetCount) {
+            const remaining = targetCount - loadedInBatch;
+            const sharedExperiments = await fetchSharedExportsPage(remaining);
+            appendExportCards(sharedExperiments);
+            loadedInBatch += sharedExperiments.length;
+        }
+
+        return loadedInBatch;
+    } finally {
+        isLoadingExportBatch = false;
+    }
+}
+
+async function fetchAdminExportsPage(pageSize) {
+    if (pageSize <= 0 || !hasMoreAdminExports) return [];
+
+    const fetchSize = pageSize + 1;
+    let allQuery = query(collectionGroup(db, 'experiments'), limit(fetchSize));
+    if (adminExportsLastDoc) {
+        allQuery = query(collectionGroup(db, 'experiments'), startAfter(adminExportsLastDoc), limit(fetchSize));
+    }
+
+    const allSnap = await getDocs(allQuery);
+    if (allSnap.empty) {
+        hasMoreAdminExports = false;
+        return [];
+    }
+
+    const hasMore = allSnap.docs.length > pageSize;
+    const pageDocs = hasMore ? allSnap.docs.slice(0, pageSize) : allSnap.docs;
+
+    adminExportsLastDoc = pageDocs[pageDocs.length - 1];
+    hasMoreAdminExports = hasMore;
+
+    return pageDocs
+        .map((docSnap) => {
+            const data = docSnap.data();
+            const pathParts = docSnap.ref.path.split('/');
+            const ownerUid = pathParts[1];
+            const isOwn = ownerUid === currentUser.uid;
+
+            let isPrivate = false;
+            if (data.visibility === 'private' && data.privateUntil) {
+                let untilDate;
+                if (typeof data.privateUntil.toDate === 'function') {
+                    untilDate = data.privateUntil.toDate();
+                } else if (data.privateUntil.seconds) {
+                    untilDate = new Date(data.privateUntil.seconds * 1000);
+                } else {
+                    untilDate = new Date(data.privateUntil);
+                }
+                if (untilDate > getTrustedNow()) isPrivate = true;
+            }
+
+            if (isPrivate && !isOwn) return null;
+
+            return {
+                id: docSnap.id,
+                ownerUid,
+                data,
+                shared: !isOwn
+            };
+        })
+        .filter(Boolean);
+}
+
+async function fetchMyExportsPage(pageSize) {
+    if (pageSize <= 0 || !hasMoreMyExports) return [];
+
+    const myRef = collection(db, "users", currentUser.uid, "experiments");
+    const fetchSize = pageSize + 1;
+    let myQuery = query(myRef, orderBy("createdAt", "desc"), limit(fetchSize));
+    if (myExportsLastDoc) {
+        myQuery = query(myRef, orderBy("createdAt", "desc"), startAfter(myExportsLastDoc), limit(fetchSize));
+    }
+
+    const mySnap = await getDocs(myQuery);
+    if (mySnap.empty) {
+        hasMoreMyExports = false;
+        return [];
+    }
+
+    const hasMore = mySnap.docs.length > pageSize;
+    const pageDocs = hasMore ? mySnap.docs.slice(0, pageSize) : mySnap.docs;
+
+    myExportsLastDoc = pageDocs[pageDocs.length - 1];
+    hasMoreMyExports = hasMore;
+
+    return pageDocs.map((docSnap) => ({
+        id: docSnap.id,
+        ownerUid: currentUser.uid,
+        data: docSnap.data(),
+        shared: false
+    }));
+}
+
+async function fetchSharedExportsPage(pageSize) {
+    if (pageSize <= 0 || !hasMoreSharedExports) return [];
+
+    const sharedRef = collection(db, "users", currentUser.uid, "sharedExperiments");
+    const fetchSize = pageSize + 1;
+    let sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), limit(fetchSize));
+    if (sharedExportsLastDoc) {
+        sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), startAfter(sharedExportsLastDoc), limit(fetchSize));
+    }
+
+    const sharedSnap = await getDocs(sharedQuery);
+    if (sharedSnap.empty) {
+        hasMoreSharedExports = false;
+        return [];
+    }
+
+    const hasMore = sharedSnap.docs.length > pageSize;
+    const pageDocs = hasMore ? sharedSnap.docs.slice(0, pageSize) : sharedSnap.docs;
+
+    sharedExportsLastDoc = pageDocs[pageDocs.length - 1];
+    hasMoreSharedExports = hasMore;
+
+    const results = await Promise.all(pageDocs.map(async (sd) => {
+        const s = sd.data();
+        if (!s.ownerUid || !s.experimentId) return null;
+
+        if (s.cachedExperiment && typeof s.cachedExperiment === 'object') {
+            return {
+                id: s.experimentId,
+                ownerUid: s.ownerUid,
+                data: s.cachedExperiment,
+                shared: true
+            };
+        }
+
+        try {
+            const origSnap = await getDoc(doc(db, "users", s.ownerUid, "experiments", s.experimentId));
+            if (!origSnap.exists()) return null;
+            return {
+                id: s.experimentId,
+                ownerUid: s.ownerUid,
+                data: origSnap.data(),
+                shared: true
+            };
+        } catch (_) {
+            return null;
+        }
+    }));
+
+    return results.filter(Boolean);
+}
+
+function appendExportCards(experiments) {
+    if (!Array.isArray(experiments) || experiments.length === 0) return;
+
+    const grid = document.getElementById('export-grid');
+    if (!grid) return;
+
+    experiments.forEach((exp) => {
+        const key = `${exp.ownerUid}:${exp.id}`;
+        if (renderedExportKeys.has(key)) return;
+        grid.appendChild(createExportCard(exp));
+        renderedExportKeys.add(key);
+    });
+}
+
+function updateExportLoadMoreButtonVisibility() {
+    const wrapper = document.getElementById('export-load-more-wrapper');
+    const btn = document.getElementById('btn-export-load-more');
+    if (!wrapper || !btn) return;
+
+    const hasMore = isAdmin
+        ? hasMoreAdminExports
+        : (hasMoreMyExports || hasMoreSharedExports);
+    if (!hasMore) {
+        wrapper.classList.add('hidden');
         return;
     }
 
-    // מיון לפי תאריך יצירה (חדשים קודם)
-    experiments.sort((a, b) => {
-        const dateA = a.data.createdAt?.toDate?.() || new Date(0);
-        const dateB = b.data.createdAt?.toDate?.() || new Date(0);
-        return dateB - dateA;
-    });
+    wrapper.classList.remove('hidden');
+    btn.disabled = false;
+}
 
-    experiments.forEach(exp => grid.appendChild(createExportCard(exp)));
+function hideExportLoadMoreButton() {
+    const wrapper = document.getElementById('export-load-more-wrapper');
+    if (wrapper) wrapper.classList.add('hidden');
 }
 
 // ══════════════════════════════════════════

@@ -8,13 +8,20 @@ import {
     getDocs,
     doc,
     getDoc,
-    collection
+    collection,
+    limit,
+    startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 
 let currentUser = null;
 let allExperiments = [];
 let filteredExperiments = [];
+const ADMIN_EXPERIMENTS_PAGE_SIZE = 15;
+let lastExperimentDoc = null;
+let hasMoreExperiments = true;
+let isLoadingExperiments = false;
+let currentSearchTerm = '';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,6 +65,11 @@ function initEventListeners() {
         searchInput.addEventListener('input', (e) => {
             filterExperiments(e.target.value);
         });
+    }
+
+    const loadMoreBtn = document.getElementById('btn-load-more-admin-experiments');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreExperiments);
     }
 
     // Logout button
@@ -106,31 +118,16 @@ async function loadAllExperiments() {
 
     if (loadingContainer) loadingContainer.style.display = 'block';
     if (tableContainer) tableContainer.style.display = 'none';
+    hideLoadMoreButton();
 
     try {
-        // שימוש ב-collectionGroup לשליפת כל הניסויים מכל המשתמשים
-        // זה עובד רק אם הגדרת את ה-Firestore Rules כמו שהראית
-        const experimentsQuery = query(collectionGroup(db, 'experiments'));
-        const querySnapshot = await getDocs(experimentsQuery);
-
         allExperiments = [];
+        filteredExperiments = [];
+        lastExperimentDoc = null;
+        hasMoreExperiments = true;
+        currentSearchTerm = '';
 
-        // לכל ניסוי - קבל גם את פרטי הבעלים
-        for (const docSnap of querySnapshot.docs) {
-            const experimentData = docSnap.data();
-
-            // חילוץ ה-ownerUid מה-path (users/{ownerUid}/experiments/{experimentId})
-            const pathParts = docSnap.ref.path.split('/');
-            const ownerUid = pathParts[1]; // users/{ownerUid}/experiments/{experimentId}
-
-            allExperiments.push({
-                id: docSnap.id,
-                ownerUid: ownerUid,
-                ...experimentData
-            });
-        }
-
-        console.log(`נמצאו ${allExperiments.length} ניסויים במערכת`);
+        await fetchNextExperimentsPage();
 
         // עדכון סטטיסטיקות
         updateStatistics();
@@ -138,6 +135,7 @@ async function loadAllExperiments() {
         // הצגת הניסויים
         filteredExperiments = [...allExperiments];
         displayExperiments();
+        updateLoadMoreButtonVisibility();
 
     } catch (error) {
         // שגיאת הרשאות = אין גישה לדף זה
@@ -150,6 +148,95 @@ async function loadAllExperiments() {
         if (loadingContainer) loadingContainer.style.display = 'none';
         if (tableContainer) tableContainer.style.display = 'block';
     }
+}
+
+async function loadMoreExperiments() {
+    if (isLoadingExperiments || !hasMoreExperiments) return;
+
+    const btn = document.getElementById('btn-load-more-admin-experiments');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'טוען...';
+    }
+
+    try {
+        await fetchNextExperimentsPage();
+        filterExperiments(currentSearchTerm);
+        updateStatistics();
+        updateLoadMoreButtonVisibility();
+    } catch (error) {
+        console.error("Error loading more experiments:", error);
+        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'טען עוד...';
+        }
+    }
+}
+
+async function fetchNextExperimentsPage() {
+    if (isLoadingExperiments || !hasMoreExperiments) return 0;
+    isLoadingExperiments = true;
+
+    try {
+        const fetchSize = ADMIN_EXPERIMENTS_PAGE_SIZE + 1;
+        let experimentsQuery = query(collectionGroup(db, 'experiments'), limit(fetchSize));
+        if (lastExperimentDoc) {
+            experimentsQuery = query(collectionGroup(db, 'experiments'), startAfter(lastExperimentDoc), limit(fetchSize));
+        }
+
+        const querySnapshot = await getDocs(experimentsQuery);
+        if (querySnapshot.empty) {
+            hasMoreExperiments = false;
+            return 0;
+        }
+
+        const hasMore = querySnapshot.docs.length > ADMIN_EXPERIMENTS_PAGE_SIZE;
+        const pageDocs = hasMore
+            ? querySnapshot.docs.slice(0, ADMIN_EXPERIMENTS_PAGE_SIZE)
+            : querySnapshot.docs;
+
+        lastExperimentDoc = pageDocs[pageDocs.length - 1];
+        hasMoreExperiments = hasMore;
+
+        pageDocs.forEach((docSnap) => {
+            const experimentData = docSnap.data();
+            const pathParts = docSnap.ref.path.split('/');
+            const ownerUid = pathParts[1];
+
+            allExperiments.push({
+                id: docSnap.id,
+                ownerUid,
+                ...experimentData
+            });
+        });
+
+        console.log(`נטענו ${allExperiments.length} ניסויים במערכת`);
+        return pageDocs.length;
+    } finally {
+        isLoadingExperiments = false;
+    }
+}
+
+function updateLoadMoreButtonVisibility() {
+    const wrapper = document.getElementById('load-more-admin-experiments-wrapper');
+    const btn = document.getElementById('btn-load-more-admin-experiments');
+    if (!wrapper || !btn) return;
+
+    if (!hasMoreExperiments) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+    wrapper.classList.remove('hidden');
+    btn.disabled = false;
+}
+
+function hideLoadMoreButton() {
+    const wrapper = document.getElementById('load-more-admin-experiments-wrapper');
+    if (wrapper) wrapper.classList.add('hidden');
 }
 
 // עדכון סטטיסטיקות
@@ -167,7 +254,8 @@ function updateStatistics() {
 
 // סינון ניסויים לפי חיפוש
 function filterExperiments(searchTerm) {
-    const term = searchTerm.toLowerCase().trim();
+    currentSearchTerm = searchTerm || '';
+    const term = currentSearchTerm.toLowerCase().trim();
 
     if (!term) {
         filteredExperiments = [...allExperiments];

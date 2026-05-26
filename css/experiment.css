@@ -381,6 +381,12 @@
     align-items: center;
 }
 
+.field-hint {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 400;
+}
+
 .keywords-list {
     display: flex;
     flex-wrap: wrap;

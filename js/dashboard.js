@@ -11,16 +11,25 @@ import {
     serverTimestamp,
     query,
     orderBy,
-    limit
+    limit,
+    startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { initSystemTour } from "./system-tour.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
-import { getRole, isExperimentPublic } from "./permissions-utils.js";
+import { getRole } from "./permissions-utils.js";
 
 let currentUser = null;
 let userData = null;
 const ACTIVE_EXPERIMENT_CONTEXT_KEY = 'research-map-active-experiment-context';
+const EXPERIMENTS_PAGE_SIZE = 15;
+
+let myExperimentsLastDoc = null;
+let sharedExperimentsLastDoc = null;
+let hasMoreMyExperiments = true;
+let hasMoreSharedExperiments = true;
+let isLoadingExperimentsBatch = false;
+const renderedExperimentKeys = new Set();
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,6 +72,11 @@ function initEventListeners() {
     const addBtn = document.getElementById('add-experiment-btn');
     if (addBtn) {
         addBtn.addEventListener('click', openNewExperimentModal);
+    }
+
+    const loadMoreBtn = document.getElementById('load-more-experiments-btn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreExperiments);
     }
 
     // Modal buttons
@@ -265,8 +279,11 @@ async function loadExperiments() {
     // הצג את הספינר והסתר את הגריד
     if (loadingContainer) loadingContainer.classList.remove('hidden');
     experimentsGrid.style.display = 'none';
+    hideLoadMoreButton();
 
     try {
+        resetExperimentsPaginationState();
+
         // Keep the add button, remove other cards
         const addBtn = document.getElementById('add-experiment-btn');
         experimentsGrid.innerHTML = '';
@@ -278,43 +295,8 @@ async function loadExperiments() {
             experimentsGrid.appendChild(newAddBtn);
         }
 
-        // 1. טעינת הניסויים שלי (שאני הקמתי)
-        const myExperimentsRef = collection(db, "users", currentUser.uid, "experiments");
-        const myQuery = query(myExperimentsRef, orderBy("createdAt", "desc"));
-        const myExperimentsSnapshot = await getDocs(myQuery);
-
-        // Add my experiment cards to grid
-        myExperimentsSnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const card = createExperimentCard(docSnap.id, data, currentUser.uid, false); // isShared = false
-            experimentsGrid.appendChild(card);
-        });
-
-        // 2. טעינת ניסויים שאני שותף בהם
-        const sharedExperimentsRef = collection(db, "users", currentUser.uid, "sharedExperiments");
-        const sharedSnapshot = await getDocs(sharedExperimentsRef);
-
-        // לכל ניסוי משותף - טען את הפרטים מהבעלים המקורי
-        for (const sharedDoc of sharedSnapshot.docs) {
-            const sharedData = sharedDoc.data();
-            const ownerUid = sharedData.ownerUid;
-            const experimentId = sharedData.experimentId;
-
-            if (ownerUid && experimentId) {
-                try {
-                    const originalExperimentRef = doc(db, "users", ownerUid, "experiments", experimentId);
-                    const originalExperimentSnap = await getDoc(originalExperimentRef);
-
-                    if (originalExperimentSnap.exists()) {
-                        const experimentData = originalExperimentSnap.data();
-                        const card = createExperimentCard(experimentId, experimentData, ownerUid, true); // isShared = true
-                        experimentsGrid.appendChild(card);
-                    }
-                } catch (error) {
-                    console.error("Error loading shared experiment:", error);
-                }
-            }
-        }
+        await loadNextExperimentsBatch();
+        updateLoadMoreButtonVisibility();
 
     } catch (error) {
         console.error("Error loading experiments:", error);
@@ -323,6 +305,199 @@ async function loadExperiments() {
         if (loadingContainer) loadingContainer.classList.add('hidden');
         experimentsGrid.style.display = 'grid';
     }
+}
+
+function resetExperimentsPaginationState() {
+    myExperimentsLastDoc = null;
+    sharedExperimentsLastDoc = null;
+    hasMoreMyExperiments = true;
+    hasMoreSharedExperiments = true;
+    isLoadingExperimentsBatch = false;
+    renderedExperimentKeys.clear();
+}
+
+async function loadMoreExperiments() {
+    if (isLoadingExperimentsBatch || (!hasMoreMyExperiments && !hasMoreSharedExperiments)) return;
+
+    const loadMoreBtn = document.getElementById('load-more-experiments-btn');
+    const originalText = loadMoreBtn ? loadMoreBtn.textContent : '';
+
+    if (loadMoreBtn) {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = 'טוען...';
+    }
+
+    try {
+        await loadNextExperimentsBatch();
+        updateLoadMoreButtonVisibility();
+    } catch (error) {
+        console.error("Error loading more experiments:", error);
+        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+    } finally {
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = originalText || 'טען עוד...';
+        }
+    }
+}
+
+async function loadNextExperimentsBatch() {
+    if (isLoadingExperimentsBatch) return 0;
+    isLoadingExperimentsBatch = true;
+
+    try {
+        let loadedInBatch = 0;
+        const targetCount = EXPERIMENTS_PAGE_SIZE;
+
+        if (hasMoreMyExperiments && loadedInBatch < targetCount) {
+            const remaining = targetCount - loadedInBatch;
+            const ownExperiments = await fetchMyExperimentsPage(remaining);
+            appendExperimentsToGrid(ownExperiments);
+            loadedInBatch += ownExperiments.length;
+        }
+
+        if (hasMoreSharedExperiments && loadedInBatch < targetCount) {
+            const remaining = targetCount - loadedInBatch;
+            const sharedExperiments = await fetchSharedExperimentsPage(remaining);
+            appendExperimentsToGrid(sharedExperiments);
+            loadedInBatch += sharedExperiments.length;
+        }
+
+        return loadedInBatch;
+    } finally {
+        isLoadingExperimentsBatch = false;
+    }
+}
+
+async function fetchMyExperimentsPage(pageSize) {
+    if (pageSize <= 0 || !hasMoreMyExperiments) return [];
+
+    const myExperimentsRef = collection(db, "users", currentUser.uid, "experiments");
+    const fetchSize = pageSize + 1;
+    let myQuery = query(myExperimentsRef, orderBy("createdAt", "desc"), limit(fetchSize));
+    if (myExperimentsLastDoc) {
+        myQuery = query(myExperimentsRef, orderBy("createdAt", "desc"), startAfter(myExperimentsLastDoc), limit(fetchSize));
+    }
+
+    const snapshot = await getDocs(myQuery);
+    if (snapshot.empty) {
+        hasMoreMyExperiments = false;
+        return [];
+    }
+
+    const hasMore = snapshot.docs.length > pageSize;
+    const pageDocs = hasMore ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
+
+    myExperimentsLastDoc = pageDocs[pageDocs.length - 1];
+    hasMoreMyExperiments = hasMore;
+
+    return pageDocs.map((docSnap) => ({
+        id: docSnap.id,
+        ownerUid: currentUser.uid,
+        isShared: false,
+        data: docSnap.data()
+    }));
+}
+
+async function fetchSharedExperimentsPage(pageSize) {
+    if (pageSize <= 0 || !hasMoreSharedExperiments) return [];
+
+    const sharedRef = collection(db, "users", currentUser.uid, "sharedExperiments");
+    const fetchSize = pageSize + 1;
+    let sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), limit(fetchSize));
+    if (sharedExperimentsLastDoc) {
+        sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), startAfter(sharedExperimentsLastDoc), limit(fetchSize));
+    }
+
+    const sharedSnapshot = await getDocs(sharedQuery);
+    if (sharedSnapshot.empty) {
+        hasMoreSharedExperiments = false;
+        return [];
+    }
+
+    const hasMore = sharedSnapshot.docs.length > pageSize;
+    const pageDocs = hasMore ? sharedSnapshot.docs.slice(0, pageSize) : sharedSnapshot.docs;
+
+    sharedExperimentsLastDoc = pageDocs[pageDocs.length - 1];
+    hasMoreSharedExperiments = hasMore;
+
+    const sharedFetches = pageDocs.map(async (sharedDoc) => {
+        const sharedData = sharedDoc.data();
+        const ownerUid = sharedData.ownerUid;
+        const experimentId = sharedData.experimentId;
+        const cachedExperiment = sharedData.cachedExperiment;
+
+        if (!ownerUid || !experimentId) return null;
+
+        if (cachedExperiment && typeof cachedExperiment === 'object') {
+            return {
+                id: experimentId,
+                ownerUid,
+                isShared: true,
+                data: cachedExperiment
+            };
+        }
+
+        try {
+            const originalExperimentRef = doc(db, "users", ownerUid, "experiments", experimentId);
+            const originalExperimentSnap = await getDoc(originalExperimentRef);
+            if (!originalExperimentSnap.exists()) return null;
+
+            return {
+                id: experimentId,
+                ownerUid,
+                isShared: true,
+                data: originalExperimentSnap.data()
+            };
+        } catch (error) {
+            console.error("Error loading shared experiment:", error);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(sharedFetches);
+    return results.filter(Boolean);
+}
+
+function appendExperimentsToGrid(experiments) {
+    if (!Array.isArray(experiments) || experiments.length === 0) return;
+
+    const experimentsGrid = document.getElementById('experiments-grid');
+    if (!experimentsGrid) return;
+
+    experiments.forEach((experiment) => {
+        const key = `${experiment.ownerUid}:${experiment.id}`;
+        if (renderedExperimentKeys.has(key)) return;
+
+        const card = createExperimentCard(
+            experiment.id,
+            experiment.data,
+            experiment.ownerUid,
+            experiment.isShared
+        );
+        experimentsGrid.appendChild(card);
+        renderedExperimentKeys.add(key);
+    });
+}
+
+function updateLoadMoreButtonVisibility() {
+    const wrapper = document.getElementById('load-more-wrapper');
+    const btn = document.getElementById('load-more-experiments-btn');
+    if (!wrapper || !btn) return;
+
+    const hasMore = hasMoreMyExperiments || hasMoreSharedExperiments;
+    if (!hasMore) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+    wrapper.classList.remove('hidden');
+    btn.disabled = false;
+}
+
+function hideLoadMoreButton() {
+    const wrapper = document.getElementById('load-more-wrapper');
+    if (wrapper) wrapper.classList.add('hidden');
 }
 
 // Create add button element

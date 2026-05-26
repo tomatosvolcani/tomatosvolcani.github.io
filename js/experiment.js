@@ -12,7 +12,8 @@ import {
     getDocs,
     query,
     limit,
-    Timestamp
+    Timestamp,
+    runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref,
@@ -93,6 +94,9 @@ const DYNAMIC_FIELD_CONFIG = {
     plantProtectionMaterial: { datalistId: 'datalist-plant-protection-material' }
 };
 let dynamicFieldOptions = getDefaultDynamicFieldOptions();
+const GLOBAL_KEYWORDS_DOC = ['appSettings', 'keywordOptions'];
+const DEFAULT_GLOBAL_KEYWORDS = ['עגבניות', 'הדברה', 'חממה'];
+let globalKeywordOptions = [...DEFAULT_GLOBAL_KEYWORDS];
 
 function getDefaultDynamicFieldOptions() {
     return Object.keys(DYNAMIC_FIELD_CONFIG).reduce((acc, key) => {
@@ -788,6 +792,24 @@ function applyDynamicFieldOptionsToUI() {
     });
 }
 
+function applyGlobalKeywordOptionsToUI() {
+    setDatalistOptions('datalist-keywords', globalKeywordOptions);
+
+    const legacySelect = document.getElementById('keywords-select');
+    if (!legacySelect) return;
+
+    const currentValue = legacySelect.value;
+    legacySelect.innerHTML = '<option value="">בחירת מילת מפתח</option>';
+    normalizeUniqueValues(globalKeywordOptions).forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        legacySelect.appendChild(option);
+    });
+    legacySelect.insertAdjacentHTML('beforeend', '<option value="__custom__">אחר (הזנה חופשית)...</option>');
+    legacySelect.value = currentValue;
+}
+
 function registerDynamicOption(fieldKey, value) {
     if (!DYNAMIC_FIELD_CONFIG[fieldKey]) return;
     const normalized = normalizeDynamicValue(value);
@@ -963,6 +985,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     await loadDynamicFieldOptions();
+    await loadGlobalKeywordOptions();
 
     if (currentExperimentId) {
         isNavigationStateReady = false;
@@ -2126,17 +2149,22 @@ function addVariableRow(type, value = '') {
 }
 
 function addKeywordTag(value) {
+    const normalizedValue = String(value || '').trim();
+    if (!normalizedValue) return;
+
     const container = document.getElementById('keywords-list');
     if (!container) return;
 
     // Check if exists
-    if (container.querySelector(`[data-value="${value}"]`)) return;
+    const duplicate = Array.from(container.querySelectorAll('.keyword-tag'))
+        .some((tag) => (tag.dataset.value || '').toLowerCase() === normalizedValue.toLowerCase());
+    if (duplicate) return;
 
     const tag = document.createElement('span');
     tag.className = 'keyword-tag';
-    tag.dataset.value = value;
+    tag.dataset.value = normalizedValue;
     tag.innerHTML = `
-        ${value}
+        ${normalizedValue}
         <span class="remove"><i class="fas fa-times"></i></span>
     `;
 
@@ -2145,6 +2173,69 @@ function addKeywordTag(value) {
         tag.remove();
     });
     container.appendChild(tag);
+}
+
+async function loadGlobalKeywordOptions() {
+    try {
+        const keywordsRef = doc(db, ...GLOBAL_KEYWORDS_DOC);
+        const keywordsSnap = await getDoc(keywordsRef);
+        const savedKeywords = keywordsSnap.exists() ? keywordsSnap.data()?.keywords : [];
+
+        globalKeywordOptions = normalizeUniqueValues([
+            ...DEFAULT_GLOBAL_KEYWORDS,
+            ...(Array.isArray(savedKeywords) ? savedKeywords : [])
+        ]);
+        applyGlobalKeywordOptionsToUI();
+    } catch (error) {
+        globalKeywordOptions = [...DEFAULT_GLOBAL_KEYWORDS];
+        applyGlobalKeywordOptionsToUI();
+
+        if (error?.code === 'permission-denied') {
+            console.warn('Skipping global keyword options load due to permissions (permission-denied).');
+            return;
+        }
+        console.error('Error loading global keyword options:', error);
+    }
+}
+
+async function persistGlobalKeywordOptions(keywords) {
+    const newKeywords = normalizeUniqueValues(keywords);
+    const hasNewLocalKeyword = newKeywords.some((keyword) => {
+        const key = keyword.toLowerCase();
+        return !globalKeywordOptions.some((existing) => existing.toLowerCase() === key);
+    });
+
+    if (!hasNewLocalKeyword) return;
+
+    try {
+        const keywordsRef = doc(db, ...GLOBAL_KEYWORDS_DOC);
+        const merged = await runTransaction(db, async (transaction) => {
+            const currentSnap = await transaction.get(keywordsRef);
+            const currentKeywords = currentSnap.exists() ? currentSnap.data()?.keywords : [];
+            const nextKeywords = normalizeUniqueValues([
+                ...DEFAULT_GLOBAL_KEYWORDS,
+                ...(Array.isArray(currentKeywords) ? currentKeywords : []),
+                ...newKeywords
+            ]);
+
+            transaction.set(keywordsRef, {
+                keywords: nextKeywords,
+                updatedAt: serverTimestamp(),
+                updatedBy: currentUser?.uid || null
+            }, { merge: true });
+
+            return nextKeywords;
+        });
+
+        globalKeywordOptions = merged;
+        applyGlobalKeywordOptionsToUI();
+    } catch (error) {
+        if (error?.code === 'permission-denied') {
+            console.warn('Skipping global keyword options persist due to permissions (permission-denied).');
+            return;
+        }
+        console.error('Error persisting global keyword options:', error);
+    }
 }
 
 function addVarietyTag(value) {
@@ -2237,7 +2328,8 @@ function collectFormData() {
     // Keywords
     const keywords = [];
     document.querySelectorAll('#keywords-list .keyword-tag').forEach(tag => {
-        keywords.push(tag.dataset.value);
+        const value = String(tag.dataset.value || '').trim();
+        if (value) keywords.push(value);
     });
 
     persistCurrentSectionDataToState();
@@ -2299,7 +2391,7 @@ function collectFormData() {
         levelsCount: parseInt(document.getElementById('levels-count')?.value) || 0,
         levelValue: document.getElementById('level-value')?.value || '',
         dependentVariables,
-        keywords,
+        keywords: normalizeUniqueValues(keywords),
         cropDetails: {
             shared: cropModel.shared,
             data: cropModel.data,
@@ -2425,6 +2517,7 @@ async function saveExperiment() {
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         await updateDoc(experimentRef, formData);
         await persistDynamicFieldOptions(formData);
+        await persistGlobalKeywordOptions(formData.keywords);
 
         // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
         // Build combined partners list from new permissions + legacy partners
@@ -3324,13 +3417,28 @@ function initEventListeners() {
 
     // Add keyword
     const addKeyword = document.getElementById('add-keyword');
+    const keywordInput = document.getElementById('keyword-input');
     const keywordsSelect = document.getElementById('keywords-select');
     const customKeywordContainer = document.getElementById('custom-keyword-container');
     const customKeywordInput = document.getElementById('custom-keyword-input');
     const addCustomKeyword = document.getElementById('add-custom-keyword');
     const cancelCustomKeyword = document.getElementById('cancel-custom-keyword');
 
-    if (addKeyword && keywordsSelect) {
+    if (addKeyword && keywordInput) {
+        addKeyword.addEventListener('click', () => {
+            const value = keywordInput.value.trim();
+            if (!value) return;
+            addKeywordTag(value);
+            keywordInput.value = '';
+        });
+
+        keywordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addKeyword.click();
+            }
+        });
+    } else if (addKeyword && keywordsSelect) {
         addKeyword.addEventListener('click', () => {
             if (keywordsSelect.value === '__custom__') {
                 // Show custom input field

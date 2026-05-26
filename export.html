@@ -39,6 +39,33 @@
             gap: 16px;
         }
 
+        .export-load-more-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 18px;
+        }
+
+        .btn-export-load-more {
+            background: #0a2f72;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+        }
+
+        .btn-export-load-more:hover {
+            background: #082354;
+        }
+
+        .btn-export-load-more:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         .export-card {
             background: #fff;
             border: 1px solid #e5e7eb;
@@ -293,6 +320,9 @@
 
             <!-- Export Grid -->
             <div class="export-grid" id="export-grid" style="display: none;"></div>
+            <div class="export-load-more-wrapper hidden" id="export-load-more-wrapper">
+                <button type="button" class="btn-export-load-more" id="btn-export-load-more">טען עוד...</button>
+            </div>
         </main>
     </div>
 
@@ -351,7 +381,7 @@
     <script src="js/accessibility.js?v=20260503-1"></script>
     <script src="js/chatbot.js?v=20260503-1"></script>
     <script type="module" src="js/research-map.js?v=20260503-1"></script>
-    <script type="module" src="js/export.js?v=20260503-1"></script>
+    <script type="module" src="js/export.js?v=20260526-3"></script>
 </body>
 </html>
 

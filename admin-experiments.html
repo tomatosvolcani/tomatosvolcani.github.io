@@ -243,6 +243,33 @@
             font-size: 13px;
         }
 
+        .load-more-admin-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 18px;
+        }
+
+        .btn-load-more-admin {
+            background: #0a2f72;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+        }
+
+        .btn-load-more-admin:hover {
+            background: #082354;
+        }
+
+        .btn-load-more-admin:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         /* View Button */
         .view-btn {
             padding: 8px 16px;
@@ -616,6 +643,9 @@
                     </tbody>
                 </table>
             </div>
+            <div class="load-more-admin-wrapper hidden" id="load-more-admin-experiments-wrapper">
+                <button type="button" class="btn-load-more-admin" id="btn-load-more-admin-experiments">טען עוד...</button>
+            </div>
 
             <!-- Empty State -->
             <div class="empty-state" id="empty-state" style="display: none;">
@@ -675,7 +705,7 @@
     <script src="js/accessibility.js?v=20260503-1"></script>
     <script src="js/chatbot.js?v=20260503-1"></script>
     <script type="module" src="js/research-map.js?v=20260503-1"></script>
-    <script type="module" src="js/admin-experiments.js?v=20260503-1"></script>
+    <script type="module" src="js/admin-experiments.js?v=20260526-2"></script>
 </body>
 </html>
 
