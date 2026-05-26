@@ -542,7 +542,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
 
     const visClass = isPrivate ? 'private' : 'public';
     const visIcon = isPrivate ? 'fa-lock' : 'fa-globe';
-    const visText = isPrivate ? 'פרטי' : 'ציבורי';
+    const visText = isPrivate ? 'חסוי' : 'חשוף';
 
     // סמל לציון האם זה ניסוי שלי או שאני שותף בו
     const ownershipIcon = isShared

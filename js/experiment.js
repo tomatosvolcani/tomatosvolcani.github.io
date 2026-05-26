@@ -2457,7 +2457,7 @@ async function saveExperiment() {
     // ולידציית שדות פרטיות
     if (formData.visibility === 'private') {
         if (!formData.privateUntil) {
-            showToast('חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כפרטי.', 'warning');
+            showToast('חובה להזין תאריך סיום פרטיות כאשר הניסוי מסומן כחסוי.', 'warning');
             return false;
         }
         const privateUntilDate = formData.privateUntil.toDate();
