@@ -73,6 +73,8 @@ let autoSaveTimeoutId = null;
 let autoSaveState = 'idle'; // 'idle' | 'unsaved' | 'saving' | 'saved' | 'error'
 let isAutoSaveEnabled = true;
 let autoSaveInProgress = false;
+let activeAutoSavePromise = null;
+let autoSaveQueued = false;
 
 const SHARED_VIEW_TO_SECTION = {
     crop: 'crop',
@@ -468,7 +470,13 @@ function scheduleAutoSave() {
     if (!isAutoSaveEnabled) return;
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return;
     if (!permissionsState?.canEdit) return;
-    if (autoSaveInProgress) return;
+
+    // If save is in progress, queue another save
+    if (autoSaveInProgress) {
+        autoSaveQueued = true;
+        updateAutoSaveIndicator('detecting');
+        return;
+    }
 
     // Cancel previous pending auto-save
     if (autoSaveTimeoutId) {
@@ -488,7 +496,12 @@ function scheduleAutoSave() {
 async function performAutoSave() {
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
     if (!permissionsState?.canEdit) return false;
-    if (autoSaveInProgress) return false;
+
+    // If save is already in progress, queue another save and return the active promise
+    if (autoSaveInProgress) {
+        autoSaveQueued = true;
+        return activeAutoSavePromise || false;
+    }
 
     // Cancel any pending scheduled auto-save
     if (autoSaveTimeoutId) {
@@ -497,93 +510,121 @@ async function performAutoSave() {
     }
 
     autoSaveInProgress = true;
+    autoSaveQueued = false;
     updateAutoSaveIndicator('saving');
 
-    try {
-        const formData = collectFormData();
+    let saveSucceeded = false;
+    let saveFailed = false;
 
-        // Skip validation for auto-save – just save the data as-is
-        // Full validation only happens on explicit user actions
+    activeAutoSavePromise = (async () => {
+        try {
+            const formData = collectFormData();
 
-        // If the existing/requested privacy cannot pass Firestore rules, save
-        // the experiment as public instead of letting a normal data edit fail.
-        const { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData, {
-            includePermissions: permissionsState?.canManage
-        });
+            // Skip validation for auto-save – just save the data as-is
+            // Full validation only happens on explicit user actions
 
-        if (
-            !privacyFallbackApplied &&
-            lastSavedFormSignature &&
-            getFormSignatureFromData(formData) === lastSavedFormSignature
-        ) {
-            hasUserEditedSinceSave = false;
-            autoSaveInProgress = false;
-            clearAllFieldDots();
-            updateAutoSaveIndicator('idle');
-            return true;
-        }
+            // If the existing/requested privacy cannot pass Firestore rules, save
+            // the experiment as public instead of letting a normal data edit fail.
+            const { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData, {
+                includePermissions: permissionsState?.canManage
+            });
 
-        const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
-        await updateDoc(experimentRef, formData);
-        await persistDynamicFieldOptions(formData);
-        await persistGlobalKeywordOptions(formData.keywords);
-
-        // Sync shared experiments with partners
-        const newPermissionsPartners = Object.keys(permissionsUIData)
-            .map(uid => {
-                const user = allUsers.find(u => u.uid === uid);
-                return user ? { email: user.email, name: user.fullName || user.email } : null;
-            })
-            .filter(Boolean);
-        const allPartners = [...newPermissionsPartners];
-        (formData.partners || []).forEach(p => {
-            if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
-                allPartners.push(p);
+            if (
+                !privacyFallbackApplied &&
+                lastSavedFormSignature &&
+                getFormSignatureFromData(formData) === lastSavedFormSignature
+            ) {
+                hasUserEditedSinceSave = false;
+                clearAllFieldDots();
+                updateAutoSaveIndicator('idle');
+                saveSucceeded = true;
+                return true;
             }
-        });
-        await syncSharedExperiments(allPartners, formData);
 
-        experimentData = { ...experimentData, ...formData };
-        if (privacyFallbackApplied) {
-            syncPrivacyFallbackUIToPublic();
-            notifyPrivacyFallbackToPublic();
-        }
-        updateExperimentDisplayName();
-        lastSavedFormSignature = getFormSignatureFromData(formData);
-        hasUserEditedSinceSave = false;
-        autoSaveInProgress = false;
-        persistNavigationState();
-        generateTreatmentTabs();
-        updateAutoSaveIndicator('saved');
-        return true;
+            const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
+            await updateDoc(experimentRef, formData);
+            await persistDynamicFieldOptions(formData);
+            await persistGlobalKeywordOptions(formData.keywords);
 
-    } catch (error) {
-        console.error('Auto-save error:', error);
-        autoSaveInProgress = false;
+            // Sync shared experiments with partners
+            const newPermissionsPartners = Object.keys(permissionsUIData)
+                .map(uid => {
+                    const user = allUsers.find(u => u.uid === uid);
+                    return user ? { email: user.email, name: user.fullName || user.email } : null;
+                })
+                .filter(Boolean);
+            const allPartners = [...newPermissionsPartners];
+            (formData.partners || []).forEach(p => {
+                if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
+                    allPartners.push(p);
+                }
+            });
+            await syncSharedExperiments(allPartners, formData);
 
-        if (error?.code === 'permission-denied') {
+            experimentData = { ...experimentData, ...formData };
+            if (privacyFallbackApplied) {
+                syncPrivacyFallbackUIToPublic();
+                notifyPrivacyFallbackToPublic();
+            }
+            updateExperimentDisplayName();
+            lastSavedFormSignature = getFormSignatureFromData(formData);
+            hasUserEditedSinceSave = false;
+            persistNavigationState();
+            generateTreatmentTabs();
+            
+            // Clear any pending retry timer on success
             if (autoSaveRetryTimer) {
                 clearTimeout(autoSaveRetryTimer);
                 autoSaveRetryTimer = null;
             }
-            clearAllFieldDots();
-            updateAutoSaveIndicator('idle');
-            showToast('אין הרשאה לשמור את השינוי הזה', 'warning');
-            return false;
-        }
+            
+            updateAutoSaveIndicator('saved');
+            saveSucceeded = true;
+            return true;
 
-        updateAutoSaveIndicator('error');
-        showToast('שגיאה בשמירה אוטומטית. ינסה שוב בעוד 20 שניות.', 'error');
-        // Retry automatically after 20s for network recovery
-        if (autoSaveRetryTimer) clearTimeout(autoSaveRetryTimer);
-        autoSaveRetryTimer = setTimeout(() => {
-            autoSaveRetryTimer = null;
-            if (autoSaveState === 'error') {
-                performAutoSave();
+        } catch (error) {
+            console.error('Auto-save error:', error);
+            saveFailed = true;
+
+            if (error?.code === 'permission-denied') {
+                if (autoSaveRetryTimer) {
+                    clearTimeout(autoSaveRetryTimer);
+                    autoSaveRetryTimer = null;
+                }
+                clearAllFieldDots();
+                updateAutoSaveIndicator('idle');
+                showToast('אין הרשאה לשמור את השינוי הזה', 'warning');
+                return false;
             }
-        }, 20000);
-        return false;
-    }
+
+            updateAutoSaveIndicator('error');
+            showToast('שגיאה בשמירה אוטומטית. ינסה שוב בעוד 20 שניות.', 'error');
+            // Retry automatically after 20s for network recovery
+            if (autoSaveRetryTimer) clearTimeout(autoSaveRetryTimer);
+            autoSaveRetryTimer = setTimeout(() => {
+                autoSaveRetryTimer = null;
+                if (autoSaveState === 'error') {
+                    performAutoSave();
+                }
+            }, 20000);
+            return false;
+        } finally {
+            const hadQueuedSave = autoSaveQueued;
+
+            autoSaveInProgress = false;
+            activeAutoSavePromise = null;
+            autoSaveQueued = false;
+
+            // Only schedule another save if:
+            // 1. Save succeeded AND there were changes during save
+            // If save failed, let the 20s retry timer handle it
+            if (saveSucceeded && hadQueuedSave) {
+                scheduleAutoSave();
+            }
+        }
+    })();
+
+    return activeAutoSavePromise;
 }
 
 let autoSaveHideTimer = null;
@@ -728,9 +769,17 @@ async function flushAutoSave() {
         clearTimeout(autoSaveTimeoutId);
         autoSaveTimeoutId = null;
     }
+
+    // Wait for active save to complete
+    if (autoSaveInProgress && activeAutoSavePromise) {
+        await activeAutoSavePromise;
+    }
+
+    // If there are unsaved changes, save them now
     if (hasUserEditedSinceSave || hasUnsavedChanges()) {
         return await performAutoSave();
     }
+
     return true;
 }
 
@@ -3789,16 +3838,11 @@ function initEventListeners() {
     window.addEventListener('scroll', schedulePersistNavigationState, { passive: true });
     window.addEventListener('beforeunload', persistNavigationState);
     window.addEventListener('beforeunload', (event) => {
-        // With auto-save, try to flush pending save
-        if (autoSaveTimeoutId) {
-            clearTimeout(autoSaveTimeoutId);
-            autoSaveTimeoutId = null;
-        }
-        // Use sendBeacon for a last-chance save if data changed
-        if (hasUserEditedSinceSave) {
-            // We can't do async here, but the data was likely already saved
-            // by the debounce. The indicator will show the state.
-            // Don't block navigation - let it go through.
+        // Block navigation if there are unsaved changes or active save
+        if (hasUserEditedSinceSave || autoSaveInProgress || autoSaveTimeoutId) {
+            event.preventDefault();
+            event.returnValue = 'יש שינויים שטרם נשמרו. האם אתה בטוח שברצונך לעזוב?';
+            return event.returnValue;
         }
     });
 
@@ -5382,6 +5426,9 @@ async function handleFileUpload(e, eventIndex) {
                 // רענן את הטבלה
                 renderEventsTable();
 
+                // Mark as edited to trigger auto-save
+                markUserEdited();
+
                 showToast('הקובץ הועלה בהצלחה!', 'success');
             } catch (error) {
                 console.error('Error getting download URL:', error);
@@ -5412,6 +5459,10 @@ async function deleteEventFile(eventIndex) {
         eventsData[eventIndex].filePath = null;
 
         renderEventsTable();
+        
+        // Mark as edited to trigger auto-save
+        markUserEdited();
+        
         showToast('הקובץ נמחק בהצלחה', 'success');
     } catch (error) {
         console.error('Error deleting file:', error);
@@ -5421,6 +5472,9 @@ async function deleteEventFile(eventIndex) {
             eventsData[eventIndex].fileUrl = null;
             eventsData[eventIndex].filePath = null;
             renderEventsTable();
+            
+            // Mark as edited to trigger auto-save
+            markUserEdited();
         } else {
             showToast('שגיאה במחיקת הקובץ: ' + error.message, 'error');
         }
@@ -5742,6 +5796,9 @@ async function handleFinancialFileUpload(e, financialIndex) {
 
                 renderFinancialTable();
 
+                // Mark as edited to trigger auto-save
+                markUserEdited();
+
                 showToast('הקובץ הועלה בהצלחה!', 'success');
             } catch (error) {
                 console.error('Error getting download URL:', error);
@@ -5771,6 +5828,10 @@ async function deleteFinancialFile(financialIndex) {
         financialData[financialIndex].filePath = null;
 
         renderFinancialTable();
+        
+        // Mark as edited to trigger auto-save
+        markUserEdited();
+        
         showToast('הקובץ נמחק בהצלחה', 'success');
     } catch (error) {
         console.error('Error deleting file:', error);
@@ -5779,6 +5840,9 @@ async function deleteFinancialFile(financialIndex) {
             financialData[financialIndex].fileUrl = null;
             financialData[financialIndex].filePath = null;
             renderFinancialTable();
+            
+            // Mark as edited to trigger auto-save
+            markUserEdited();
         } else {
             showToast('שגיאה במחיקת הקובץ: ' + error.message, 'error');
         }
