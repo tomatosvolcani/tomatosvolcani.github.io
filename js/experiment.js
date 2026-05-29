@@ -63,6 +63,16 @@ let isNavigationStateReady = false;
 let hasUserEditedSinceSave = false;
 let isBrowserNavGuardInitialized = false;
 let skipNextPopstateGuard = false;
+let hasShownPrivacyFallbackToast = false;
+
+// =========================================
+// Auto-Save State
+// =========================================
+const AUTO_SAVE_DELAY = 3000; // 3 seconds debounce
+let autoSaveTimeoutId = null;
+let autoSaveState = 'idle'; // 'idle' | 'unsaved' | 'saving' | 'saved' | 'error'
+let isAutoSaveEnabled = true;
+let autoSaveInProgress = false;
 
 const SHARED_VIEW_TO_SECTION = {
     crop: 'crop',
@@ -97,6 +107,119 @@ let dynamicFieldOptions = getDefaultDynamicFieldOptions();
 const GLOBAL_KEYWORDS_DOC = ['appSettings', 'keywordOptions'];
 const DEFAULT_GLOBAL_KEYWORDS = ['עגבניות', 'הדברה', 'חממה'];
 let globalKeywordOptions = [...DEFAULT_GLOBAL_KEYWORDS];
+
+function getExperimentDocumentPath() {
+    if (!experimentOwnerUid || !currentExperimentId) return '';
+    return `/users/${experimentOwnerUid}/experiments/${currentExperimentId}`;
+}
+
+function stripAccessManagedFields(formData) {
+    [
+        'visibility',
+        'privateUntil',
+        'publicAccess',
+        'permissions',
+        'ownerUid',
+        'privacyExtensionApproved',
+        'privacyUpdatedAt',
+        'privacyUpdatedBy',
+        'permissionsUpdatedAt',
+        'permissionsUpdatedBy'
+    ].forEach((key) => {
+        delete formData[key];
+    });
+    return formData;
+}
+
+function applyPublicPrivacyFallback(formData) {
+    if (!formData) return formData;
+    formData.visibility = 'public';
+    formData.privateUntil = null;
+    formData.publicAccess = { canRead: true, canWrite: false };
+    return formData;
+}
+
+function prepareAccessManagedFieldsForSave(formData, options = {}) {
+    const {
+        includePermissions = false,
+        allowPublicFallback = true
+    } = options;
+    let privacyFallbackApplied = false;
+
+    if (!permissionsState?.canManage) {
+        if (
+            allowPublicFallback &&
+            experimentData &&
+            !isPrivacyDataValidForFirestoreUpdate(experimentData)
+        ) {
+            applyPublicPrivacyFallback(formData);
+            privacyFallbackApplied = true;
+        } else {
+            stripAccessManagedFields(formData);
+        }
+
+        return { privacyFallbackApplied };
+    }
+
+    const existingPrivacyInvalid = experimentData && !isPrivacyDataValidForFirestoreUpdate(experimentData);
+
+    if (
+        allowPublicFallback &&
+        existingPrivacyInvalid &&
+        formData?.visibility === 'public'
+    ) {
+        applyPublicPrivacyFallback(formData);
+        privacyFallbackApplied = true;
+    } else if (allowPublicFallback && !isPrivacyDataSavable(formData)) {
+        applyPublicPrivacyFallback(formData);
+        privacyFallbackApplied = true;
+    }
+
+    if (includePermissions) {
+        formData.permissions = collectPermissionsFromUI() || formData.permissions;
+    }
+
+    return { privacyFallbackApplied };
+}
+
+function syncPrivacyFallbackUIToPublic() {
+    const publicRadio = document.getElementById('visibility-public');
+    const privateRadio = document.getElementById('visibility-private');
+    const privateUntilInput = document.getElementById('private-until-date');
+    const legacyVisibilityInput = document.getElementById('experiment-visibility');
+    const legacyPrivateUntilInput = document.getElementById('private-until-date-legacy');
+
+    if (publicRadio) publicRadio.checked = true;
+    if (privateRadio) privateRadio.checked = false;
+    if (privateUntilInput) privateUntilInput.value = '';
+    if (legacyVisibilityInput) legacyVisibilityInput.value = 'public';
+    if (legacyPrivateUntilInput) legacyPrivateUntilInput.value = '';
+    syncVisibilityPanels('public');
+}
+
+function notifyPrivacyFallbackToPublic() {
+    if (hasShownPrivacyFallbackToast) return;
+    hasShownPrivacyFallbackToast = true;
+    showToast('לא ניתן לשמור מצב חסוי בתנאים הנוכחיים, לכן הניסוי נשמר כחשוף.', 'info', 5000);
+}
+
+function isAccessManagementField(target) {
+    return Boolean(target?.closest?.('#permissions-section'));
+}
+
+function ignoreUnauthorizedAccessManagementChange(target, event = null) {
+    if (permissionsState?.canManage || !isAccessManagementField(target)) return false;
+
+    event?.preventDefault?.();
+    event?.stopImmediatePropagation?.();
+    if (experimentData) {
+        populatePermissionsUI(experimentData);
+    }
+    clearAllFieldDots();
+    updateAutoSaveIndicator('idle');
+    showToast('אין הרשאה לעדכון חשיפה והרשאות', 'warning');
+    return true;
+}
 
 function getDefaultDynamicFieldOptions() {
     return Object.keys(DYNAMIC_FIELD_CONFIG).reduce((acc, key) => {
@@ -302,6 +425,15 @@ function getYieldDataForTreatment(data, treatmentIndex = 0) {
 
 function getComparableFormData(formData) {
     const comparable = deepClone(formData) || {};
+    if (!permissionsState?.canManage) {
+        if (experimentData && !isPrivacyDataValidForFirestoreUpdate(experimentData)) {
+            applyPublicPrivacyFallback(comparable);
+        } else {
+            stripAccessManagedFields(comparable);
+        }
+    } else {
+        stripUnsavablePrivacyFields(comparable);
+    }
     delete comparable.updatedAt;
     return comparable;
 }
@@ -326,6 +458,280 @@ function setLastSavedFormSignatureFromCurrent() {
 
 function markUserEdited() {
     hasUserEditedSinceSave = true;
+    scheduleAutoSave();
+}
+
+// =========================================
+// Auto-Save Infrastructure
+// =========================================
+function scheduleAutoSave() {
+    if (!isAutoSaveEnabled) return;
+    if (!currentUser || !currentExperimentId || !experimentOwnerUid) return;
+    if (!permissionsState?.canEdit) return;
+    if (autoSaveInProgress) return;
+
+    // Cancel previous pending auto-save
+    if (autoSaveTimeoutId) {
+        clearTimeout(autoSaveTimeoutId);
+        autoSaveTimeoutId = null;
+    }
+
+    // Show "detecting changes" while debounce timer is running
+    updateAutoSaveIndicator('detecting');
+
+    autoSaveTimeoutId = setTimeout(() => {
+        autoSaveTimeoutId = null;
+        if (!autoSaveInProgress) performAutoSave();
+    }, AUTO_SAVE_DELAY);
+}
+
+async function performAutoSave() {
+    if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
+    if (!permissionsState?.canEdit) return false;
+    if (autoSaveInProgress) return false;
+
+    // Cancel any pending scheduled auto-save
+    if (autoSaveTimeoutId) {
+        clearTimeout(autoSaveTimeoutId);
+        autoSaveTimeoutId = null;
+    }
+
+    autoSaveInProgress = true;
+    updateAutoSaveIndicator('saving');
+
+    try {
+        const formData = collectFormData();
+
+        // Skip validation for auto-save – just save the data as-is
+        // Full validation only happens on explicit user actions
+
+        // If the existing/requested privacy cannot pass Firestore rules, save
+        // the experiment as public instead of letting a normal data edit fail.
+        const { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData, {
+            includePermissions: permissionsState?.canManage
+        });
+
+        if (
+            !privacyFallbackApplied &&
+            lastSavedFormSignature &&
+            getFormSignatureFromData(formData) === lastSavedFormSignature
+        ) {
+            hasUserEditedSinceSave = false;
+            autoSaveInProgress = false;
+            clearAllFieldDots();
+            updateAutoSaveIndicator('idle');
+            return true;
+        }
+
+        const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
+        await updateDoc(experimentRef, formData);
+        await persistDynamicFieldOptions(formData);
+        await persistGlobalKeywordOptions(formData.keywords);
+
+        // Sync shared experiments with partners
+        const newPermissionsPartners = Object.keys(permissionsUIData)
+            .map(uid => {
+                const user = allUsers.find(u => u.uid === uid);
+                return user ? { email: user.email, name: user.fullName || user.email } : null;
+            })
+            .filter(Boolean);
+        const allPartners = [...newPermissionsPartners];
+        (formData.partners || []).forEach(p => {
+            if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
+                allPartners.push(p);
+            }
+        });
+        await syncSharedExperiments(allPartners, formData);
+
+        experimentData = { ...experimentData, ...formData };
+        if (privacyFallbackApplied) {
+            syncPrivacyFallbackUIToPublic();
+            notifyPrivacyFallbackToPublic();
+        }
+        updateExperimentDisplayName();
+        lastSavedFormSignature = getFormSignatureFromData(formData);
+        hasUserEditedSinceSave = false;
+        autoSaveInProgress = false;
+        persistNavigationState();
+        generateTreatmentTabs();
+        updateAutoSaveIndicator('saved');
+        return true;
+
+    } catch (error) {
+        console.error('Auto-save error:', error);
+        autoSaveInProgress = false;
+
+        if (error?.code === 'permission-denied') {
+            if (autoSaveRetryTimer) {
+                clearTimeout(autoSaveRetryTimer);
+                autoSaveRetryTimer = null;
+            }
+            clearAllFieldDots();
+            updateAutoSaveIndicator('idle');
+            showToast('אין הרשאה לשמור את השינוי הזה', 'warning');
+            return false;
+        }
+
+        updateAutoSaveIndicator('error');
+        showToast('שגיאה בשמירה אוטומטית. ינסה שוב בעוד 20 שניות.', 'error');
+        // Retry automatically after 20s for network recovery
+        if (autoSaveRetryTimer) clearTimeout(autoSaveRetryTimer);
+        autoSaveRetryTimer = setTimeout(() => {
+            autoSaveRetryTimer = null;
+            if (autoSaveState === 'error') {
+                performAutoSave();
+            }
+        }, 20000);
+        return false;
+    }
+}
+
+let autoSaveHideTimer = null;
+let autoSaveRetryTimer = null;
+// =========================================
+// Field-level dot indicator
+// =========================================
+let lastEditedFieldGroup = null;
+
+function trackFieldEdit(target) {
+    if (!target) return;
+    const group = target.closest('.form-group');
+    if (!group) return;
+
+    // Clear dot from previous field if different
+    if (lastEditedFieldGroup && lastEditedFieldGroup !== group) {
+        clearFieldDot(lastEditedFieldGroup);
+    }
+
+    lastEditedFieldGroup = group;
+    setFieldDot(group, 'detecting');
+}
+
+function setFieldDot(group, state) {
+    if (!group) return;
+    const label = group.querySelector('label');
+    if (!label) return;
+
+    let dot = label.querySelector('.field-save-dot');
+    if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'field-save-dot';
+        // Insert as first child of label
+        label.insertBefore(dot, label.firstChild);
+    }
+
+    dot.className = `field-save-dot ${state} visible`;
+}
+
+function clearFieldDot(group) {
+    if (!group) return;
+    const dot = group.querySelector('.field-save-dot');
+    if (!dot) return;
+    dot.classList.remove('visible');
+    // Remove from DOM after transition
+    setTimeout(() => dot.remove(), 250);
+}
+
+function clearAllFieldDots() {
+    document.querySelectorAll('.field-save-dot').forEach(dot => {
+        dot.classList.remove('visible');
+        setTimeout(() => dot.remove(), 250);
+    });
+    lastEditedFieldGroup = null;
+}
+function updateAutoSaveIndicator(state) {
+    autoSaveState = state;
+    const indicator = document.getElementById('auto-save-indicator');
+    if (!indicator) return;
+
+    const iconEl = indicator.querySelector('.auto-save-icon');
+    const textEl = indicator.querySelector('.auto-save-text');
+    const retryBtn = document.getElementById('auto-save-retry-btn');
+    if (!iconEl || !textEl) return;
+
+    // Cancel any pending hide timer
+    if (autoSaveHideTimer) {
+        clearTimeout(autoSaveHideTimer);
+        autoSaveHideTimer = null;
+    }
+
+    // Reset
+    indicator.classList.remove('idle', 'detecting', 'saving', 'saved', 'error');
+    indicator.style.opacity = '';
+    if (retryBtn) retryBtn.style.display = 'none';
+
+    switch (state) {
+        case 'idle':
+            indicator.classList.add('idle');
+            iconEl.innerHTML = '';
+            textEl.textContent = '';
+            break;
+
+        case 'detecting':
+            indicator.classList.add('detecting');
+            iconEl.innerHTML = '<i class="fas fa-cloud"></i>';
+            textEl.textContent = 'מזהה שינויים...';
+            break;
+
+        case 'saving':
+            indicator.classList.add('saving');
+            iconEl.innerHTML = '<i class="fas fa-cloud"></i> <i class="fas fa-spinner fa-spin" style="font-size: 11px;"></i>';
+            textEl.textContent = 'שומר...';
+            // Dot turns blue + pulse while request is in flight
+            if (lastEditedFieldGroup) {
+                setFieldDot(lastEditedFieldGroup, 'saving');
+            }
+            break;
+
+        case 'saved':
+            indicator.classList.add('saved');
+            iconEl.innerHTML = '<i class="fas fa-cloud"></i> <i class="fas fa-check" style="font-size: 11px;"></i>';
+            textEl.textContent = 'נשמר בהצלחה';
+            // Dot turns green briefly, then disappears
+            if (lastEditedFieldGroup) {
+                setFieldDot(lastEditedFieldGroup, 'saved');
+            }
+            autoSaveHideTimer = setTimeout(() => {
+                autoSaveHideTimer = null;
+                if (autoSaveState === 'saved') {
+                    updateAutoSaveIndicator('idle');
+                }
+            }, 2000);
+            // Clear dots after same 2s delay
+            setTimeout(() => clearAllFieldDots(), 2000);
+            break;
+
+        case 'error':
+            indicator.classList.add('error');
+            iconEl.innerHTML = '<i class="fas fa-cloud"></i> <i class="fas fa-exclamation-triangle" style="font-size: 11px;"></i>';
+            textEl.textContent = 'שגיאה בשמירה —';
+            if (retryBtn) retryBtn.style.display = 'inline';
+            // Dot turns red — stays until retry succeeds
+            if (lastEditedFieldGroup) {
+                setFieldDot(lastEditedFieldGroup, 'error');
+            }
+            break;
+    }
+}
+
+function performAutoSaveRetry() {
+    if (autoSaveRetryTimer) {
+        clearTimeout(autoSaveRetryTimer);
+        autoSaveRetryTimer = null;
+    }
+    performAutoSave();
+}
+
+// Flush any pending auto-save immediately (used before navigation/exit)
+async function flushAutoSave() {
+    if (autoSaveTimeoutId) {
+        clearTimeout(autoSaveTimeoutId);
+        autoSaveTimeoutId = null;
+    }
+    if (hasUserEditedSinceSave || hasUnsavedChanges()) {
+        return await performAutoSave();
+    }
+    return true;
 }
 
 function hasUnsavedChanges() {
@@ -438,34 +844,18 @@ async function requestViewSwitch(viewName) {
         return;
     }
 
-    const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני מעבר למסך הבא?');
-    if (!canProceed) return;
+    // Auto-save: flush pending changes silently before switching views
+    await flushAutoSave();
 
     switchView(viewName);
     closeMobileSidebar();
 }
 
 async function confirmUnsavedChangesBeforeAction(
-    message = 'לא ביצעת שמירה. האם ברצונך לשמור לפני המשך פעולה?'
+    message = 'נשמר אוטומטית...'
 ) {
-    if (!hasUnsavedChanges()) return true;
-
-    const decision = await showThreeOptionModal({
-        title: 'שינויים לא נשמרו',
-        message,
-        confirmText: 'שמור',
-        alternateText: 'המשך בלי שמירה',
-        cancelText: 'ביטול',
-        tone: 'warning'
-    });
-
-    if (decision === 'cancel') return false;
-
-    if (decision === 'confirm') {
-        const saved = await saveExperiment();
-        return saved;
-    }
-
+    // With auto-save, just flush any pending changes and proceed
+    await flushAutoSave();
     return true;
 }
 
@@ -499,21 +889,17 @@ function initBrowserNavigationGuard() {
             return;
         }
 
-        const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני חזרה/מעבר בדפדפן?');
-        if (canProceed) {
-            skipNextPopstateGuard = true;
-            window.history.back();
-            return;
-        }
-
-        pushBrowserNavGuardBufferState();
+        // Auto-save: flush changes and allow navigation
+        await flushAutoSave();
+        skipNextPopstateGuard = true;
+        window.history.back();
     });
 }
 
 async function confirmDeferredDeletion(itemLabel) {
     const confirmed = await showConfirmModal({
         title: 'אישור מחיקה',
-        message: `האם למחוק את ${itemLabel}?\nהמחיקה בפועל תתרחש רק לאחר לחיצה על "שמירה".`,
+        message: `האם למחוק את ${itemLabel}?\nהמחיקה תישמר אוטומטית.`,
         confirmText: 'מחק/י',
         cancelText: 'ביטול',
         tone: 'warning'
@@ -537,12 +923,9 @@ function confirmImmediateDeletion(itemLabel) {
 }
 
 function alertDeferredChange(changeLabel) {
-    return showInfoModal({
-        title: 'לתשומת ליבך',
-        message: `${changeLabel} יישמר בפועל רק לאחר לחיצה על "שמירה".`,
-        buttonText: 'הבנתי',
-        tone: 'info'
-    });
+    // With auto-save, changes are saved automatically - just show a brief info
+    showToast(`${changeLabel} – השינוי יישמר אוטומטית`, 'info');
+    return Promise.resolve();
 }
 
 function getCurrentTreatmentsCount() {
@@ -626,7 +1009,7 @@ function createProgressDefaults() {
         irrigation: { irrigationData: [], fertilizationData: [] },
         growth: { growthData: [] },
         climate: { climateData: [] },
-        agrotechnics: { agrotechnicsData: [] },
+        agrotechnics: { agrotechnicsData: [], pollinationData: [] },
         plantProtection: {
             plantProtectionData: {
                 pests: [],
@@ -665,7 +1048,8 @@ function getLegacySectionDataFromExperiment(sectionId, data) {
             };
         case 'agrotechnics':
             return {
-                agrotechnicsData: deepClone(data?.agrotechnicsData || progressDefaults.agrotechnics.agrotechnicsData)
+                agrotechnicsData: deepClone(data?.agrotechnicsData || progressDefaults.agrotechnics.agrotechnicsData),
+                pollinationData: deepClone(data?.pollinationData || progressDefaults.agrotechnics.pollinationData)
             };
         case 'plantProtection':
             return {
@@ -1174,23 +1558,23 @@ async function loadExperiment() {
             initEventsLog();
             // אתחל את ניתוחים פיננסים
             initFinancialLog();
-            setLastSavedFormSignatureFromCurrent();
-                // Calculate permissions state for the loaded experiment
-                try {
-                    const trustedNow = getTrustedNow();
-                    permissionsState = {
-                        canRead: canRead(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
-                        canEdit: canEdit(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
-                        canManage: canManage(experimentData, currentUser, userData, experimentOwnerUid),
-                        role: getRole(experimentData, currentUser, userData, experimentOwnerUid)
-                    };
-                } catch (err) {
-                    console.warn('Could not evaluate permissions state', err);
-                    permissionsState = { canRead: false, canEdit: false, canManage: false, role: 'none' };
-                }
+            // Calculate permissions state for the loaded experiment
+            try {
+                const trustedNow = getTrustedNow();
+                permissionsState = {
+                    canRead: canRead(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+                    canEdit: canEdit(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+                    canManage: canManage(experimentData, currentUser, userData, experimentOwnerUid),
+                    role: getRole(experimentData, currentUser, userData, experimentOwnerUid)
+                };
+            } catch (err) {
+                console.warn('Could not evaluate permissions state', err);
+                permissionsState = { canRead: false, canEdit: false, canManage: false, role: 'none' };
+            }
 
-                // Apply permissions to UI
-                try { applyPermissions(); } catch (e) { console.warn('applyPermissions failed', e); }
+            // Apply permissions to UI, then calculate the clean saved signature.
+            try { applyPermissions(); } catch (e) { console.warn('applyPermissions failed', e); }
+            setLastSavedFormSignatureFromCurrent();
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -1245,14 +1629,16 @@ function showAccessDeniedMessage() {
     `;
 }
 
-// Update UI elements
-function updateUI() {
-    const name = experimentData.experimentName || 'ניסוי';
-
+function updateExperimentDisplayName(name = experimentData?.experimentName || 'ניסוי') {
     const sidebarName = document.getElementById('sidebar-experiment-name');
     if (sidebarName) sidebarName.textContent = name;
 
     document.title = `${name} - מיזם ח"ץ`;
+}
+
+// Update UI elements
+function updateUI() {
+    updateExperimentDisplayName();
 
     // Update breadcrumb for current view
     switchView(currentView);
@@ -1290,6 +1676,11 @@ function populateForm() {
     populateCreatorField(data);
 
     // Basic fields
+    const experimentPath = getExperimentDocumentPath();
+    setFieldValue('experiment-id', experimentPath || '—');
+    const experimentPathInput = document.getElementById('experiment-id');
+    if (experimentPathInput) experimentPathInput.title = experimentPath;
+    setFieldValue('experiment-name', data.experimentName);
     setFieldValue('experiment-year', data.experimentYear);
     setFieldValue('experiment-month', data.experimentMonth);
     setFieldValue('research-period', data.researchPeriod || data.startDate || '');
@@ -1393,6 +1784,7 @@ function populateForm() {
         // Dynamic tables
         renderSoilTable('compost-tbody', soil.compostRows || [], ['date','amount','method']);
         renderSoilDisinfectTable('disinfect-tbody', soil.disinfectRows || []);
+        renderSoilCultivationTable(soil.cultivationRows || []);
     }
 
     // Drip details
@@ -1534,7 +1926,8 @@ function collectSectionDataFromDOM(sectionId) {
                 disinfectionAdigan: document.getElementById('soil-disinfection-adigan')?.value || '',
                 adiganAmount: getResolvedAdiganAmount(),
                 compostRows: collectSoilTableRows('compost-tbody', ['date','amount','method']),
-                disinfectRows: collectSoilDisinfectRows('disinfect-tbody')
+                disinfectRows: collectSoilDisinfectRows('disinfect-tbody'),
+                cultivationRows: collectSoilCultivationRows()
             };
         case 'drip':
             return {
@@ -1563,7 +1956,8 @@ function collectSectionDataFromDOM(sectionId) {
             };
         case 'agrotechnics':
             return {
-                agrotechnicsData: collectProgressRows('agro-tbody', AGRO_FIELDS)
+                agrotechnicsData: collectProgressRows('agro-tbody', AGRO_FIELDS),
+                pollinationData: collectProgressRows('pollination-tbody', POLLINATION_FIELDS)
             };
         case 'plantProtection':
             return {
@@ -1640,6 +2034,7 @@ function applySectionDataToDOM(sectionId, sectionData) {
             setAdiganAmountFromData(data.adiganAmount);
             renderSoilTable('compost-tbody', data.compostRows || [], ['date','amount','method']);
             renderSoilDisinfectTable('disinfect-tbody', data.disinfectRows || []);
+            renderSoilCultivationTable(data.cultivationRows || []);
             break;
         }
         case 'drip': {
@@ -1680,6 +2075,7 @@ function applySectionDataToDOM(sectionId, sectionData) {
         }
         case 'agrotechnics': {
             renderAgroTable(data.agrotechnicsData || []);
+            renderPollinationTable(data.pollinationData || []);
             break;
         }
         case 'plantProtection': {
@@ -2017,7 +2413,7 @@ function switchView(viewName) {
         'irrigation': 'השקיה ודשן',
         'growth': 'צימוח',
         'climate': 'נתוני אקלים וסנסורים',
-        'agrotechnics': 'אגרוטכניקה',
+        'agrotechnics': 'אגרוטכניקה והאבקה',
         'plant-protection': 'הגנת הצומח',
         'yield': 'נתוני יבול',
         'events': 'יומן אירועים',
@@ -2368,6 +2764,7 @@ function collectFormData() {
         visibility: visibility,
         privateUntil: privateUntilTimestamp,
         publicAccess: publicAccess,
+        experimentName: document.getElementById('experiment-name')?.value.trim() || experimentData?.experimentName || '',
         leadResearcher: document.getElementById('lead-researcher')?.value || '',
         partners,
         experimentPartners: collectExperimentPartners(),
@@ -2421,6 +2818,7 @@ function collectFormData() {
         growthData: growthModel.data.growthData || [],
         climateData: climateModel.data.climateData || [],
         agrotechnicsData: agrotechnicsModel.data.agrotechnicsData || [],
+        pollinationData: agrotechnicsModel.data.pollinationData || [],
         plantProtectionData: plantProtectionModel.data.plantProtectionData || { pests: [], diseases: [], sprays: [], drenches: [] },
         yieldData,
         sectionSharedState: {
@@ -2453,6 +2851,7 @@ async function saveExperiment() {
     }
 
     const formData = collectFormData();
+    let { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData);
 
     // ולידציית שדות פרטיות
     if (formData.visibility === 'private') {
@@ -2465,15 +2864,9 @@ async function saveExperiment() {
             showToast('תאריך סיום פרטיות חייב להיות עתידי.', 'warning');
             return false;
         }
-    }
-
-    // ולידציה: תאריך תפוגה פרטי מוגבל עד 30/04 של שנת המחקר הנוכחית
-    if (formData.visibility === 'private' && formData.privateUntil) {
-        const privateDate = formData.privateUntil.toDate();
-        const researchYear = privateDate.getFullYear();
-        const maxAllowedDate = new Date(researchYear, 3, 30, 23, 59, 59); // April 30
-        if (privateDate > maxAllowedDate) {
-            showToast('תאריך סיום פרטיות לא יכול לעבור את 30/04/' + researchYear + ' (סוף שנת המחקר)', 'warning');
+        const maxPrivateUntilDate = getPrivateUntilResearchYearLimit();
+        if (!hasPrivacyExtensionApproval() && privateUntilDate > maxPrivateUntilDate) {
+            showToast(`תאריך סיום פרטיות מוגבל עד ${formatHebrewDate(maxPrivateUntilDate)} (סוף שנת המחקר)`, 'warning');
             return false;
         }
     }
@@ -2503,15 +2896,10 @@ async function saveExperiment() {
     }
 
     try {
-        // אם אין הרשאת ניהול - אל נשנה גרעין הרשאות/פרטיות
-        if (!permissionsState?.canManage) {
-            formData.permissions = experimentData?.permissions || {};
-            formData.visibility = experimentData?.visibility || formData.visibility;
-            formData.publicAccess = experimentData?.publicAccess || formData.publicAccess;
-        } else {
-            // מנהל/בעלים יכולים לעדכן הרשאות מתוך ה-UI
-            formData.permissions = collectPermissionsFromUI() || formData.permissions;
-        }
+        const preparedAccess = prepareAccessManagedFieldsForSave(formData, {
+            includePermissions: permissionsState?.canManage
+        });
+        privacyFallbackApplied = privacyFallbackApplied || preparedAccess.privacyFallbackApplied;
 
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
@@ -2537,12 +2925,18 @@ async function saveExperiment() {
         const syncResult = await syncSharedExperiments(allPartners, formData);
 
         experimentData = { ...experimentData, ...formData };
+        if (privacyFallbackApplied) {
+            syncPrivacyFallbackUIToPublic();
+            notifyPrivacyFallbackToPublic();
+        }
+        updateExperimentDisplayName();
         generateTreatmentTabs();
         lastSavedFormSignature = getFormSignatureFromData(formData);
         hasUserEditedSinceSave = false;
         persistNavigationState();
 
         showToast('נשמר בהצלחה!', 'success');
+        updateAutoSaveIndicator('saved');
         return true;
     } catch (error) {
         console.error("Error saving experiment:", error);
@@ -2582,6 +2976,7 @@ function updateStudyTypeVisibility() {
     if (potsCountGroup) potsCountGroup.style.display = isLab ? '' : 'none';
     if (seedlingsPerPotGroup) seedlingsPerPotGroup.style.display = isLab ? '' : 'none';
 
+    updateIrrigationWaterUnitLabels();
     updateGoogleMapsButtonVisibility();
 }
 
@@ -2948,6 +3343,80 @@ function getPrivateUntilFromUI() {
     return null;
 }
 
+function hasPrivacyExtensionApproval() {
+    return experimentData?.privacyExtensionApproved === true;
+}
+
+function getPrivateUntilResearchYearLimit() {
+    return new Date(getTrustedNow().getFullYear(), 3, 30, 23, 59, 59, 999);
+}
+
+function formatDateInputValue(date) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatHebrewDate(date) {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${date.getFullYear()}`;
+}
+
+function toDateFromTimestampLike(value) {
+    if (!value) return null;
+    if (value.toDate) return value.toDate();
+    if (value instanceof Date) return value;
+    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isPrivacyDataSavable(data) {
+    if (!data || !('visibility' in data)) return true;
+
+    if (data.visibility === 'public') {
+        return !data.privateUntil;
+    }
+
+    if (data.visibility !== 'private') return false;
+
+    const privateUntilDate = toDateFromTimestampLike(data.privateUntil);
+    if (!privateUntilDate || privateUntilDate <= getTrustedNow()) return false;
+
+    return hasPrivacyExtensionApproval() || privateUntilDate <= getPrivateUntilResearchYearLimit();
+}
+
+function isPrivacyDataValidForFirestoreUpdate(data) {
+    if (!data || !('visibility' in data)) return true;
+
+    if (data.visibility === 'public') {
+        return !data.privateUntil;
+    }
+
+    if (data.visibility !== 'private') return false;
+
+    const privateUntilDate = toDateFromTimestampLike(data.privateUntil);
+    if (!privateUntilDate) return false;
+
+    return hasPrivacyExtensionApproval() || privateUntilDate <= getPrivateUntilResearchYearLimit();
+}
+
+function stripUnsavablePrivacyFields(formData) {
+    if (isPrivacyDataSavable(formData)) return false;
+    applyPublicPrivacyFallback(formData);
+    return true;
+}
+
+function blockInvalidPrivacyDateChange(event, message) {
+    event?.preventDefault?.();
+    event?.stopImmediatePropagation?.();
+    clearAllFieldDots();
+    updateAutoSaveIndicator('idle');
+    showToast(message, 'warning', 5000);
+}
+
 // =========================================
 // syncVisibilityPanels – show/hide based on radio
 // =========================================
@@ -3010,18 +3479,20 @@ function applyPermissions() {
     applyReadOnlyInteractiveLocks();
 
     // --- Not manager: lock permissions section ---
+    const privateUntilInput = document.getElementById('private-until-date');
+    const canWriteChk = document.getElementById('public-can-write');
     if (!permissionsState.canManage) {
         if (section) section.classList.add('locked');
         if (addArea) addArea.style.display = 'none';
         // Disable visibility radios
         document.querySelectorAll('input[name="experiment-visibility"]').forEach(r => r.disabled = true);
-        const canWriteChk = document.getElementById('public-can-write');
+        if (privateUntilInput) privateUntilInput.disabled = true;
         if (canWriteChk) canWriteChk.disabled = true;
     } else {
         if (section) section.classList.remove('locked');
         if (addArea) addArea.style.display = 'flex';
         document.querySelectorAll('input[name="experiment-visibility"]').forEach(r => r.disabled = false);
-        const canWriteChk = document.getElementById('public-can-write');
+        if (privateUntilInput) privateUntilInput.disabled = false;
         if (canWriteChk) canWriteChk.disabled = false;
     }
 
@@ -3058,7 +3529,8 @@ function initPermissionsUI() {
 
     // Visibility radios
     document.querySelectorAll('input[name="experiment-visibility"]').forEach(radio => {
-        radio.addEventListener('change', () => {
+        radio.addEventListener('change', (event) => {
+            if (ignoreUnauthorizedAccessManagementChange(radio, event)) return;
             syncVisibilityPanels(radio.value);
             markUserEdited();
         });
@@ -3067,7 +3539,8 @@ function initPermissionsUI() {
     // Public-can-write checkbox
     const canWriteChk = document.getElementById('public-can-write');
     if (canWriteChk) {
-        canWriteChk.addEventListener('change', () => {
+        canWriteChk.addEventListener('change', (event) => {
+            if (ignoreUnauthorizedAccessManagementChange(canWriteChk, event)) return;
             syncPublicWriteWarning(canWriteChk.checked);
             markUserEdited();
         });
@@ -3297,20 +3770,36 @@ function initEventListeners() {
     const form = document.getElementById('experiment-form');
     if (form) {
         form.setAttribute('novalidate', 'novalidate');
-        form.addEventListener('input', () => markUserEdited());
-        form.addEventListener('change', () => markUserEdited());
+        form.addEventListener('input', (e) => {
+            if (ignoreUnauthorizedAccessManagementChange(e.target, e)) return;
+            trackFieldEdit(e.target);
+            markUserEdited();
+        });
+        form.addEventListener('change', (e) => {
+            if (ignoreUnauthorizedAccessManagementChange(e.target, e)) return;
+            trackFieldEdit(e.target);
+            markUserEdited();
+        });
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await saveExperiment();
+            await performAutoSave();
         });
     }
 
     window.addEventListener('scroll', schedulePersistNavigationState, { passive: true });
     window.addEventListener('beforeunload', persistNavigationState);
     window.addEventListener('beforeunload', (event) => {
-        if (!hasUnsavedChanges()) return;
-        event.preventDefault();
-        event.returnValue = '';
+        // With auto-save, try to flush pending save
+        if (autoSaveTimeoutId) {
+            clearTimeout(autoSaveTimeoutId);
+            autoSaveTimeoutId = null;
+        }
+        // Use sendBeacon for a last-chance save if data changed
+        if (hasUserEditedSinceSave) {
+            // We can't do async here, but the data was likely already saved
+            // by the debounce. The indicator will show the state.
+            // Don't block navigation - let it go through.
+        }
     });
 
 
@@ -3360,7 +3849,7 @@ function initEventListeners() {
             if (model?.shared === false && targetShared === true) {
                 const confirmed = await showConfirmModal({
                     title: 'אישור הפעלת נתונים זהים',
-                    message: 'שימו לב: הפעלת מצב "נתונים זהים לכלל הטיפולים" תדרוס נתונים ייחודיים בטיפולים האחרים ותחליף אותם בנתוני טיפול 1.\nהשינוי יישמר בפועל רק לאחר לחיצה על "שמירה". האם להמשיך?',
+                    message: 'שימו לב: הפעלת מצב "נתונים זהים לכלל הטיפולים" תדרוס נתונים ייחודיים בטיפולים האחרים ותחליף אותם בנתוני טיפול 1.\nהשינוי יישמר אוטומטית. האם להמשיך?',
                     confirmText: 'כן, להמשיך',
                     cancelText: 'ביטול',
                     tone: 'warning'
@@ -3373,9 +3862,10 @@ function initEventListeners() {
                 }
             }
 
-            setSectionSharedState(sectionId, targetShared);
+           setSectionSharedState(sectionId, targetShared);
             loadCurrentSectionDataFromState();
             syncSharedToggleForCurrentView();
+            markUserEdited();
             await alertDeferredChange('השינוי במצב "נתונים זהים לכלל הטיפולים"');
         });
     }
@@ -3533,8 +4023,8 @@ function initEventListeners() {
             if (!targetHref) return;
 
             e.preventDefault();
-            const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני יציאה מהעמוד?');
-            if (!canProceed) return;
+            // Auto-save: flush pending changes before leaving page
+            await flushAutoSave();
 
             persistNavigationState(true);
             window.location.href = targetHref;
@@ -3557,11 +4047,42 @@ function initEventListeners() {
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
-            const canProceed = await confirmUnsavedChangesBeforeAction('לא ביצעת שמירה. האם ברצונך לשמור לפני התנתקות?');
-            if (!canProceed) return;
+            // Auto-save: flush pending changes before logout
+            await flushAutoSave();
 
             await signOut(auth);
             window.location.href = "login.html";
+        });
+    }
+
+    // Copy Experiment ID
+    const copyIdBtn = document.getElementById('copy-experiment-id-btn');
+    if (copyIdBtn) {
+        copyIdBtn.addEventListener('click', async () => {
+            const experimentIdInput = document.getElementById('experiment-id');
+            const experimentPath = getExperimentDocumentPath() || experimentIdInput?.value;
+            
+            if (!experimentPath || experimentPath === '—') {
+                showToast('אין נתיב ניסוי להעתקה', 'warning');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(experimentPath);
+                
+                // Visual feedback
+                copyIdBtn.classList.add('copied');
+                
+                showToast('נתיב הניסוי הועתק ללוח', 'success');
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyIdBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                showToast('שגיאה בהעתקת נתיב הניסוי', 'error');
+            }
         });
     }
 
@@ -3582,14 +4103,22 @@ function initEventListeners() {
         });
     });
 
-    document.getElementById('experiment-site')?.addEventListener('change', updateExperimentSiteOtherVisibility);
-    document.getElementById('study-type')?.addEventListener('change', updateStudyTypeVisibility);
+    document.getElementById('experiment-site')?.addEventListener('change', () => {
+        updateExperimentSiteOtherVisibility();
+        markUserEdited();
+    });
+    document.getElementById('experiment-year')?.addEventListener('change', enforcePrivateUntilDateMax);
+    document.getElementById('study-type')?.addEventListener('change', () => {
+        updateStudyTypeVisibility();
+        markUserEdited();
+    });
     document.querySelectorAll('.study-type-option').forEach((button) => {
         button.addEventListener('click', () => {
             const selectedType = button.dataset.studyType;
             if (!selectedType) return;
             setStudyTypeValue(selectedType);
             updateStudyTypeVisibility();
+            markUserEdited();
         });
     });
     document.getElementById('grafted-plant')?.addEventListener('change', updatePreparationNameVisibility);
@@ -4013,9 +4542,10 @@ function confirmLocation() {
             coordsInput.value = `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`;
             // Trigger change event to update Google Maps button
             coordsInput.dispatchEvent(new Event('change'));
+            // Trigger auto-save
+            markUserEdited();
         }
         closeLocationModal();
-        showToast('המיקום נשמר בהצלחה', 'success');
     }
 }
 
@@ -4364,29 +4894,47 @@ function enforcePrivateUntilDateMax() {
     if (!privateUntilInput) return;
 
     const now = getTrustedNow();
-    const currentYear = now.getFullYear();
-    const maxDateStr = `${currentYear}-04-30`;
-    privateUntilInput.setAttribute('max', maxDateStr);
-
     const todayStr = now.toISOString().slice(0, 10);
+    const maxDate = getPrivateUntilResearchYearLimit();
+    const maxDateStr = formatDateInputValue(maxDate);
     privateUntilInput.setAttribute('min', todayStr);
+    if (hasPrivacyExtensionApproval()) {
+        privateUntilInput.removeAttribute('max');
+    } else {
+        privateUntilInput.setAttribute('max', maxDateStr);
+    }
 
-    if (privateUntilInput.value && privateUntilInput.value > maxDateStr) {
-        privateUntilInput.value = maxDateStr;
-        showToast(`\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05e4\u05e8\u05d8\u05d9\u05d5\u05ea \u05de\u05d5\u05d2\u05d1\u05dc \u05e2\u05d3 30/04/${currentYear} (\u05e1\u05d5\u05e3 \u05e9\u05e0\u05ea \u05d4\u05de\u05d7\u05e7\u05e8)`, 'warning', 5000);
+    if (privateUntilInput.value && privateUntilInput.value < todayStr) {
+        privateUntilInput.value = '';
+    } else if (!hasPrivacyExtensionApproval() && privateUntilInput.value && privateUntilInput.value > maxDateStr) {
+        privateUntilInput.value = '';
     }
 
     if (!privateUntilInput.dataset.maxEnforced) {
         privateUntilInput.dataset.maxEnforced = '1';
-        privateUntilInput.addEventListener('change', () => {
+        privateUntilInput.addEventListener('change', (event) => {
+            if (ignoreUnauthorizedAccessManagementChange(privateUntilInput, event)) return;
             const val = privateUntilInput.value;
-            if (val) {
-                const recalcYear = getTrustedNow().getFullYear();
-                const recalcMax = `${recalcYear}-04-30`;
-                if (val > recalcMax) {
-                    privateUntilInput.value = recalcMax;
-                    showToast(`\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05e4\u05e8\u05d8\u05d9\u05d5\u05ea \u05de\u05d5\u05d2\u05d1\u05dc \u05e2\u05d3 30/04/${recalcYear} (\u05e1\u05d5\u05e3 \u05e9\u05e0\u05ea \u05d4\u05de\u05d7\u05e7\u05e8)`, 'warning', 5000);
-                }
+            const recalcMin = getTrustedNow().toISOString().slice(0, 10);
+            const recalcMaxDate = getPrivateUntilResearchYearLimit();
+            const recalcMax = formatDateInputValue(recalcMaxDate);
+            privateUntilInput.setAttribute('min', recalcMin);
+            if (hasPrivacyExtensionApproval()) {
+                privateUntilInput.removeAttribute('max');
+            } else {
+                privateUntilInput.setAttribute('max', recalcMax);
+            }
+            if (!val) {
+                privateUntilInput.value = '';
+                blockInvalidPrivacyDateChange(event, 'יש לבחור תאריך סיום פרטיות תקין כדי לשמור שינוי פרטיות.');
+            } else if (val < recalcMin) {
+                privateUntilInput.value = '';
+                blockInvalidPrivacyDateChange(event, 'תאריך סיום פרטיות חייב להיות עתידי. השדה אופס ולא נשמר.');
+            } else if (!hasPrivacyExtensionApproval() && val && val > recalcMax) {
+                privateUntilInput.value = '';
+                blockInvalidPrivacyDateChange(event, `תאריך סיום פרטיות מוגבל עד ${formatHebrewDate(recalcMaxDate)}. השדה אופס ולא נשמר.`);
+            } else {
+                showToast('תאריך הפרטיות תקין ויישמר אוטומטית.', 'info', 2500);
             }
         });
     }
@@ -4734,6 +5282,7 @@ async function saveEventFromModal() {
     });
 
     renderEventsTable();
+    markUserEdited();
     closeModal('event-modal');
     showToast('אירוע חדש נוסף בהצלחה', 'success');
 }
@@ -4746,8 +5295,12 @@ function updateEventData(index) {
     const descInput = row.querySelector('.event-description');
 
     if (eventsData[index]) {
-        eventsData[index].date = dateInput?.value || '';
-        eventsData[index].description = descInput?.value || '';
+        const newDate = dateInput?.value || '';
+        const newDesc = descInput?.value || '';
+        const changed = newDate !== eventsData[index].date || newDesc !== eventsData[index].description;
+        eventsData[index].date = newDate;
+        eventsData[index].description = newDesc;
+        if (changed) markUserEdited();
     }
 }
 
@@ -5099,6 +5652,7 @@ async function saveFinancialFromModal() {
     });
 
     renderFinancialTable();
+    markUserEdited();
     closeModal('financial-modal');
     showToast('נתון פיננסי חדש נוסף בהצלחה', 'success');
 }
@@ -5111,8 +5665,12 @@ function updateFinancialEntryData(index) {
     const descInput = row.querySelector('.financial-description');
 
     if (financialData[index]) {
-        financialData[index].date = dateInput?.value || '';
-        financialData[index].description = descInput?.value || '';
+        const newDate = dateInput?.value || '';
+        const newDesc = descInput?.value || '';
+        const changed = newDate !== financialData[index].date || newDesc !== financialData[index].description;
+        financialData[index].date = newDate;
+        financialData[index].description = newDesc;
+        if (changed) markUserEdited();
     }
 }
 
@@ -5400,6 +5958,31 @@ function collectSoilDisinfectRows(tbodyId) {
     return collectSoilTableRows(tbodyId, ['date','material','amount','method']);
 }
 
+const SOIL_CULTIVATION_FIELDS = ['date', 'action'];
+const SOIL_CULTIVATION_LABELS = { date: 'תאריך', action: 'פעולת העיבוד' };
+const SOIL_CULTIVATION_OPTIONS = ['טיחוח', 'משטט', 'עיבוד קרקע', 'פינוי'];
+
+function renderSoilCultivationTable(rows = []) {
+    const tbody = document.getElementById('cultivation-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (rows || []).forEach(row => addSoilCultivationRow(row));
+}
+
+function addSoilCultivationRow(data = {}) {
+    addProgressRow(
+        document.getElementById('cultivation-tbody'),
+        SOIL_CULTIVATION_FIELDS,
+        SOIL_CULTIVATION_LABELS,
+        data,
+        { fieldOptions: { action: SOIL_CULTIVATION_OPTIONS } }
+    );
+}
+
+function collectSoilCultivationRows() {
+    return collectProgressRows('cultivation-tbody', SOIL_CULTIVATION_FIELDS);
+}
+
 function initSoilTableListeners() {
     const compostTbody = document.getElementById('compost-tbody');
     const disinfectTbody = document.getElementById('disinfect-tbody');
@@ -5423,6 +6006,16 @@ function initSoilTableListeners() {
             labels: SOIL_LABELS,
             dynamicDatalists: { material: 'datalist-soil-disinfection-material' },
             onSave: (data) => addSoilDisinfectRow(disinfectTbody, data)
+        })
+    );
+
+    document.getElementById('add-cultivation-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת עיבוד קרקע',
+            fields: SOIL_CULTIVATION_FIELDS,
+            labels: SOIL_CULTIVATION_LABELS,
+            fieldOptions: { action: SOIL_CULTIVATION_OPTIONS },
+            onSave: (data) => addSoilCultivationRow(data)
         })
     );
 }
@@ -5580,7 +6173,7 @@ function addProgressRow(tbody, fields, labels, data, options) {
                     inputType = options.inputTypes[field];
                 } else if (field === 'date' || field.endsWith('Date')) {
                     inputType = 'date';
-                } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert'].includes(field)) {
+                } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert','hives'].includes(field)) {
                     inputType = 'number';
                 }
                 const inp = document.createElement('input');
@@ -5790,6 +6383,32 @@ const FERTILIZATION_FIELDS = ['fileName','uploadDate','startDate','endDate','fer
 const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
 const FERTILIZATION_DYNAMIC_DATALISTS = { fertType: 'datalist-fertilizer-type', company: 'datalist-fertilizer-company' };
 
+function getIrrigationWaterUnit() {
+    return getCurrentStudyType() === 'lab' ? 'ליטר' : 'קוב';
+}
+
+function getIrrigationWaterLabel() {
+    return `סה"כ כמות מים (${getIrrigationWaterUnit()})`;
+}
+
+function updateIrrigationWaterUnitLabels() {
+    IRRIGATION_LABELS.totalWater = getIrrigationWaterLabel();
+
+    const header = document.querySelector('#irrigation-table thead th:nth-child(5)');
+    if (header) header.textContent = IRRIGATION_LABELS.totalWater;
+
+    const modalLabel = document.getElementById('irr-modal-total-label');
+    if (modalLabel) modalLabel.textContent = `${IRRIGATION_LABELS.totalWater}:`;
+
+    document.querySelectorAll('#irrigation-tbody td[data-label]').forEach((cell) => {
+        const input = cell.querySelector('[data-field="totalWater"]');
+        if (input) {
+            cell.dataset.label = IRRIGATION_LABELS.totalWater;
+            input.placeholder = IRRIGATION_LABELS.totalWater;
+        }
+    });
+}
+
 // =========================================
 // Growth
 // =========================================
@@ -5839,12 +6458,21 @@ function renderClimateTable(rows) {
 const AGRO_FIELDS = ['action','actionOther','actionDate','hours','workers'];
 const AGRO_LABELS = { action:'פעולה', actionOther:'פירוט פעולה', actionDate:'תאריך ביצוע הפעולה', hours:'כמות שעות לפעולה', workers:'כמות עובדים לפעולה' };
 const AGRO_ACTION_OPTIONS = ['שוצים', 'הדליות', 'עישוב', 'גיזום', 'עקירה', 'אחר'];
+const POLLINATION_FIELDS = ['date', 'hives'];
+const POLLINATION_LABELS = { date: 'תאריך', hives: 'כמות כוורות' };
 
 function renderAgroTable(rows) {
     const tbody = document.getElementById('agro-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     (rows || []).forEach(row => addProgressRow(tbody, AGRO_FIELDS, AGRO_LABELS, row, { fieldOptions: { action: AGRO_ACTION_OPTIONS } }));
+}
+
+function renderPollinationTable(rows) {
+    const tbody = document.getElementById('pollination-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (rows || []).forEach(row => addProgressRow(tbody, POLLINATION_FIELDS, POLLINATION_LABELS, row));
 }
 
 // =========================================
@@ -5930,6 +6558,7 @@ function populateProgressViews(data) {
     renderGrowthTable(data.growthData);
     renderClimateTable(data.climateData);
     renderAgroTable(data.agrotechnicsData);
+    renderPollinationTable(data.pollinationData);
     // Plant Protection
     const pp = data.plantProtectionData || {};
     const pestTbody = document.getElementById('pest-tbody');
@@ -5958,6 +6587,7 @@ function collectProgressData() {
         growthData: collectProgressRows('growth-tbody', GROWTH_FIELDS),
         climateData: collectProgressRows('climate-tbody', CLIMATE_FIELDS),
         agrotechnicsData: collectProgressRows('agro-tbody', AGRO_FIELDS),
+        pollinationData: collectProgressRows('pollination-tbody', POLLINATION_FIELDS),
         plantProtectionData: {
             pests: collectProgressRows('pest-tbody', PEST_FIELDS),
             diseases: collectProgressRows('disease-tbody', PEST_FIELDS),
@@ -6007,6 +6637,15 @@ function initProgressListeners() {
             onSave: (data) => addProgressRow(document.getElementById('agro-tbody'), AGRO_FIELDS, AGRO_LABELS, data, {
                 fieldOptions: { action: AGRO_ACTION_OPTIONS }
             })
+        })
+    );
+
+    document.getElementById('add-pollination-row')?.addEventListener('click', () =>
+        openGenericRowModal({
+            title: 'הוספת האבקה',
+            fields: POLLINATION_FIELDS,
+            labels: POLLINATION_LABELS,
+            onSave: (data) => addProgressRow(document.getElementById('pollination-tbody'), POLLINATION_FIELDS, POLLINATION_LABELS, data)
         })
     );
 
@@ -6254,7 +6893,7 @@ function _createGenericField(field, config) {
         const input = document.createElement('input');
         if (field === 'date' || field.endsWith('Date')) {
             input.type = 'date';
-        } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert','amount'].includes(field)) {
+        } else if (['hours','workers','dosage','quantity','fruitFloor','damageValue','totalWater','totalFert','amount','hives'].includes(field)) {
             input.type = 'number';
             input.step = 'any';
         } else {
@@ -6294,6 +6933,7 @@ function saveGenericRow() {
     }
 
     _genericModalConfig.onSave(data);
+    markUserEdited();
     closeModal('generic-row-modal');
     _genericModalConfig = null;
 }
@@ -6348,6 +6988,7 @@ function syncModalDateRange(startId, endId) {
 // Irrigation Modal
 // =========================================
 function openIrrigationModal() {
+    updateIrrigationWaterUnitLabels();
     document.getElementById('irr-modal-filename').value = '';
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('irr-modal-start-date').value = today;
@@ -6409,6 +7050,7 @@ async function saveIrrigationFile() {
         filePath: filePath || ''
     });
 
+    markUserEdited();
     closeModal('irrigation-file-modal');
     showToast('קובץ השקיה נוסף בהצלחה', 'success');
 }
@@ -6489,6 +7131,7 @@ async function saveFertilizationFile() {
         dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
     });
 
+    markUserEdited();
     closeModal('fertilization-file-modal');
     showToast('קובץ דישון נוסף בהצלחה', 'success');
 }
@@ -6533,6 +7176,7 @@ function saveGrowthData() {
         measureDate: measureDate
     }, { readonlyFields: ['name'] });
 
+    markUserEdited();
     closeModal('growth-data-modal');
     showToast('נתון צימוח נוסף בהצלחה', 'success');
 }

@@ -664,6 +664,7 @@ async function createNewExperiment() {
             dripDetails: { shared: true, data: {} },
             visibility: 'public',
             privateUntil: null,
+            privacyExtensionApproved: false,
             ownerUid: currentUser.uid,
             publicAccess: {
                 canRead: true,

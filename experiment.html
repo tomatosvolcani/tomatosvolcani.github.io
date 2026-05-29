@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/main.css?v=20260503-1">
     <link rel="stylesheet" href="css/layout.css?v=20260503-1">
     <link rel="stylesheet" href="css/forms.css?v=20260503-1">
-    <link rel="stylesheet" href="css/experiment.css?v=20260526-2">
+    <link rel="stylesheet" href="css/experiment.css?v=20260529-3">
     <link rel="stylesheet" href="css/accessibility.css?v=20260503-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260503-1">
     <link rel="stylesheet" href="css/research-map.css?v=20260503-1">
@@ -85,7 +85,7 @@
                             <a href="#" class="sub-sub-item" data-view="irrigation">השקיה ודשן</a>
                             <a href="#" class="sub-sub-item" data-view="growth">צימוח</a>
                             <a href="#" class="sub-sub-item" data-view="climate">נתוני אקלים וסנסורים</a>
-                            <a href="#" class="sub-sub-item" data-view="agrotechnics">אגרוטכניקה</a>
+                            <a href="#" class="sub-sub-item" data-view="agrotechnics">אגרוטכניקה והאבקה</a>
                             <a href="#" class="sub-sub-item" data-view="plant-protection">הגנת הצומח</a>
                         </div>
 
@@ -141,6 +141,11 @@
                 <!-- Breadcrumb -->
                 <div class="breadcrumb">
                     <span id="breadcrumb-text">ניסוי 1 > תוכנית הניסוי</span>
+                    <div id="auto-save-indicator" class="auto-save-indicator idle">
+                        <span class="auto-save-icon"></span>
+                        <span class="auto-save-text"></span>
+                        <button type="button" class="auto-save-retry" id="auto-save-retry-btn" style="display:none;" onclick="performAutoSaveRetry()">נסה שוב</button>
+                    </div>
                 </div>
 
                 <!-- Toggle for shared data - shown in crop details views -->
@@ -157,6 +162,24 @@
 
                     <!-- View: Basic Info (תוכנית הניסוי) -->
                     <div id="view-basic" class="view-section active">
+
+                    <!-- Experiment Name & ID -->
+                    <div class="form-row experiment-name-row">
+                        <div class="form-group experiment-name-group">
+                            <label><i class="fas fa-flask-vial"></i>שם הניסוי:</label>
+                            <input type="text" id="experiment-name" placeholder="שם הניסוי">
+                        </div>
+                        <div class="form-group experiment-id-group">
+                            <label><i class="fas fa-hashtag"></i>מזהה ניסוי (לתמיכה טכנית):</label>
+                            <div class="input-with-copy">
+                                <input type="text" id="experiment-id" readonly class="readonly-field" placeholder="—">
+                                <button type="button" id="copy-experiment-id-btn" class="btn-copy-id" title="העתק מזהה ניסוי" aria-label="העתק מזהה ניסוי">
+                                    <i class="fas fa-copy"></i>
+                                    <span>העתקה</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- ============================================================
                          אזור חשיפה והרשאות
@@ -787,6 +810,28 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- עיבודי קרקע -->
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-cultivation-row">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <span class="soil-section-title">עיבודי קרקע</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="cultivation-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך</th>
+                                        <th>פעולת העיבוד</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cultivation-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- View: Drip (סוג ופריסת הטפטוף) -->
@@ -992,9 +1037,9 @@
                     </div>
                 </div>
 
-                <!-- View: Agrotechnics (אגרוטכניקה) -->
+                <!-- View: Agrotechnics & Pollination (אגרוטכניקה והאבקה) -->
                 <div id="view-agrotechnics" class="view-section">
-                    <h3 class="section-title">אגרוטכניקה</h3>
+                    <h3 class="section-title">אגרוטכניקה והאבקה</h3>
                     <div class="soil-dynamic-section">
                         <div class="soil-section-header">
                             <button type="button" class="btn-add-soil-row" id="add-agro-row"><i class="fas fa-plus"></i></button>
@@ -1013,6 +1058,25 @@
                                     </tr>
                                 </thead>
                                 <tbody id="agro-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="soil-dynamic-section">
+                        <div class="soil-section-header">
+                            <button type="button" class="btn-add-soil-row" id="add-pollination-row"><i class="fas fa-plus"></i></button>
+                            <span class="soil-section-title">האבקה</span>
+                        </div>
+                        <div class="soil-table-wrapper">
+                            <table class="soil-table" id="pollination-table">
+                                <thead>
+                                    <tr>
+                                        <th>תאריך</th>
+                                        <th>כמות כוורות</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pollination-tbody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -1240,9 +1304,9 @@
                     </div>
                 </div>
 
-                <!-- Save Button -->
+                <!-- Auto-save handles saving. Manual save kept as fallback -->
                 <div class="form-actions">
-                    <button type="submit" class="btn-save">שמירה</button>
+                    <button type="submit" class="btn-save btn-save-manual" title="שמירה מתבצעת אוטומטית. לחץ לשמירה מיידית.">שמירה עכשיו</button>
                 </div>
             </form>
             </div><!-- End experiment-content -->
@@ -1268,7 +1332,7 @@
                 </div>
             </div>
             <div class="modal-form-row modal-form-row-single">
-                <label>סה"כ כמות מים (ליטר):</label>
+                <label id="irr-modal-total-label">סה"כ כמות מים (ליטר):</label>
                 <input type="number" id="irr-modal-total" class="modal-input-sm" placeholder="כמות" step="any">
             </div>
             <div class="modal-dropzone" id="irr-modal-dropzone">
@@ -1548,6 +1612,6 @@
     <script src="js/accessibility.js?v=20260503-1"></script>
     <script src="js/chatbot.js?v=20260503-1"></script>
     <script type="module" src="js/research-map.js?v=20260503-1"></script>
-    <script type="module" src="js/experiment.js?v=20260526-3"></script>
+    <script type="module" src="js/experiment.js?v=20260529-6"></script>
 </body>
 </html>
