@@ -520,6 +520,11 @@ async function performAutoSave() {
         try {
             const formData = collectFormData();
 
+            if (formData.visibility === 'private' && !formData.privateUntil) {
+                clearAllFieldDots();
+                updateAutoSaveIndicator('idle');
+                return false;
+            }
             // Skip validation for auto-save – just save the data as-is
             // Full validation only happens on explicit user actions
 
