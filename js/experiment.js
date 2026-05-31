@@ -520,6 +520,11 @@ async function performAutoSave() {
         try {
             const formData = collectFormData();
 
+            if (formData.visibility === 'private' && !formData.privateUntil) {
+                clearAllFieldDots();
+                updateAutoSaveIndicator('idle');
+                return false;
+            }
             // Skip validation for auto-save – just save the data as-is
             // Full validation only happens on explicit user actions
 
@@ -5511,9 +5516,16 @@ function truncateFileName(name, maxLength = 15) {
 }
 
 function collectEventsData() {
-    // עדכן את כל השדות לפני איסוף
+    // Silent collect — read DOM without triggering markUserEdited
     eventsData.forEach((_, index) => {
-        updateEventData(index);
+        const row = document.querySelector(`tr[data-event-index="${index}"]`);
+        if (!row || !eventsData[index]) return;
+
+        const dateInput = row.querySelector('.event-date');
+        const descInput = row.querySelector('.event-description');
+
+        if (dateInput) eventsData[index].date = dateInput.value;
+        if (descInput) eventsData[index].description = descInput.value;
     });
 
     return eventsData;
@@ -5866,8 +5878,16 @@ async function deleteFinancialEntry(financialIndex) {
 }
 
 function collectFinancialData() {
+    // Silent collect — read DOM without triggering markUserEdited
     financialData.forEach((_, index) => {
-        updateFinancialEntryData(index);
+        const row = document.querySelector(`tr[data-financial-index="${index}"]`);
+        if (!row || !financialData[index]) return;
+
+        const dateInput = row.querySelector('.financial-date');
+        const descInput = row.querySelector('.financial-description');
+
+        if (dateInput) financialData[index].date = dateInput.value;
+        if (descInput) financialData[index].description = descInput.value;
     });
 
     return financialData;
