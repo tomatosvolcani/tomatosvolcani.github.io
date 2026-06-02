@@ -3402,7 +3402,32 @@ function hasPrivacyExtensionApproval() {
 }
 
 function getPrivateUntilResearchYearLimit() {
-    return new Date(getTrustedNow().getFullYear(), 3, 30, 23, 59, 59, 999);
+    // TEMPORARY OVERRIDE - privacy cutoff for 2026/2027 research year
+    // כרגע מאפשרים פרטיות רגילה עד 30/04/2027 כולל.
+    //
+    // ROLLBACK after 30/04/2027:
+    // אם רוצים לחזור לכלל הרגיל של "עד 30/04 של השנה הנוכחית",
+    // החלף את ה-return הפעיל בזה:
+    //
+    // return new Date(
+    //     getTrustedNow().getFullYear(),
+    //     3, // April - בחודשי JavaScript ינואר = 0, אפריל = 3
+    //     30,
+    //     23,
+    //     59,
+    //     59,
+    //     999
+    // );
+
+    return new Date(
+        2027,
+        3, // April - בחודשי JavaScript ינואר = 0, אפריל = 3
+        30,
+        23,
+        59,
+        59,
+        999
+    );
 }
 
 function formatDateInputValue(date) {
