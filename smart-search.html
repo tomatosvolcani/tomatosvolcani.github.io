@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שליפה חכמה - מערכת איגום נתונים מיזם ח"ץ</title>
+    <meta name="description" content="שליפה חכמה וחיפוש מתקדם של ניסויים במערכת מיזם ח״ץ">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css?v=20260602-1">
+    <link rel="stylesheet" href="css/layout.css?v=20260602-1">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260602-2">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260602-1">
+    <link rel="stylesheet" href="css/chatbot.css?v=20260602-1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body data-page-context="smart-search" class="smart-search-booting">
+    <!-- Hamburger Menu Button (Mobile) -->
+    <button class="hamburger-btn" id="hamburger-btn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="user-info">
+                <i class="fas fa-user"></i>
+                <span id="user-display-name"></span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>בית</span>
+                </a>
+                <a href="smart-search.html" class="nav-item active">
+                    <i class="fas fa-magnifying-glass-chart"></i>
+                    <span>שליפה חכמה</span>
+                </a>
+                <a href="export.html" class="nav-item">
+                    <i class="fas fa-file-export"></i>
+                    <span>שליפת ניסוי</span>
+                </a>
+                <a href="my-bi.html" class="nav-item">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>הסטטיסטיקה שלי</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=1Ts8Nb7SBUedhjc0Bkz5yY9XvXTtZwZBjymvdvhbcjNUOVdGWUNWV1FYOFRERDRES1BQWjhXMzhSVy4u" class="btn-report-issue" target="_blank" rel="noopener">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>דיווח תקלות</span>
+                    <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                </a>
+                <button id="btn-logout" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>התנתקות</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main" id="smart-search-main">
+            <div class="smart-search-boot-loader" id="smart-search-boot-loader" aria-live="polite">
+                <div class="apple-skeleton-container">
+                    <div id="status-wrapper" class="apple-text-wrapper">
+                        <div id="dynamic-status" class="apple-skeleton-text">טוען את הנתונים שלך...</div>
+                    </div>
+                    <p class="apple-skeleton-note">בזמן הזה מתבצעת שליפה מאובטחת של הניסויים ובדיקת הרשאות הגישה שלך, כדי שהמסך ייפתח כשהנתונים כבר מוכנים לחיפוש.</p>
+                    <div class="apple-skeleton-blocks">
+                        <div class="apple-sk-block sk-large"></div>
+                        <div class="apple-sk-block sk-medium"></div>
+                        <div class="apple-sk-block sk-small"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="smart-search-content" id="smart-search-content">
+            <!-- Hero Header -->
+            <div class="smart-search-header">
+                <h1><i class="fas fa-magnifying-glass-chart"></i> שליפה חכמה</h1>
+                <p>חיפוש מתקדם בניסויים עם Fuzzy Search, סינון חכם ותמיכה בחיפוש לוגי</p>
+            </div>
+
+            <!-- View Tabs -->
+            <div class="view-tabs">
+                <button class="view-tab active" id="tab-all-accessible" data-view="all">
+                    <i class="fas fa-globe-americas"></i>
+                    <span>כלל הניסויים שיש לי הרשאת גישה</span>
+                    <span class="tab-count" id="count-all">0</span>
+                </button>
+                <button class="view-tab" id="tab-shared-only" data-view="shared">
+                    <i class="fas fa-users"></i>
+                    <span>ניסויים שאני שותף/ה להם</span>
+                    <span class="tab-count" id="count-shared">0</span>
+                </button>
+            </div>
+
+            <!-- Search & Filters Panel -->
+            <div class="search-panel" id="search-panel">
+                <!-- Search Input -->
+                <div class="search-row">
+                    <div class="ai-glow-card">
+                        <div class="ai-glow-inner">
+                            <div class="search-input-wrapper">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="smart-search-input" placeholder="חיפוש חופשי... (שם ניסוי, חוקר, אתר, מילות מפתח ועוד)">
+                                <button class="btn-clear-search" id="btn-clear-search" title="נקה חיפוש">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters Row -->
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="filter-year"><i class="fas fa-calendar-alt"></i> שנה</label>
+                        <select id="filter-year">
+                            <option value="">הכל</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-work-package"><i class="fas fa-box"></i> חבילת עבודה</label>
+                        <select id="filter-work-package">
+                            <option value="">הכל</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-researcher"><i class="fas fa-user-tie"></i> חוקר מוביל</label>
+                        <select id="filter-researcher">
+                            <option value="">הכל</option>
+                        </select>
+                    </div>
+                    <button class="btn-reset-filters" id="btn-reset-filters">
+                        <i class="fas fa-rotate-left"></i>
+                        איפוס סינון
+                    </button>
+                </div>
+
+                <!-- Fuse.js Advanced Options Toggle -->
+                <button class="fuse-options-toggle" id="fuse-options-toggle">
+                    <i class="fas fa-chevron-down"></i>
+                    <span>הגדרות חיפוש מתקדמות</span>
+                </button>
+
+                <!-- Fuse.js Advanced Options Panel -->
+                <div class="fuse-options-panel" id="fuse-options-panel">
+                    <!-- Search Fields Selection -->
+                    <div class="fuse-section-title">
+                        <i class="fas fa-list-check"></i>
+                        שדות לחיפוש
+                    </div>
+                    <div class="search-fields-grid" id="search-fields-grid">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Sensitivity (Threshold) -->
+                    <div class="fuse-section-title">
+                        <i class="fas fa-sliders"></i>
+                        רמת רגישות לשגיאות (Threshold)
+                    </div>
+                    <div class="sensitivity-control">
+                        <div class="sensitivity-slider-wrapper">
+                            <span style="font-size:12px; color: var(--neutral-500);">מדויק</span>
+                            <input type="range" id="fuse-threshold" min="0" max="100" value="40" step="5">
+                            <span style="font-size:12px; color: var(--neutral-500);">גמיש</span>
+                            <span class="sensitivity-value" id="fuse-threshold-value">0.4</span>
+                        </div>
+                    </div>
+
+                    <!-- Logical Search Mode -->
+                    <div class="fuse-section-title" style="margin-top: 14px;">
+                        <i class="fas fa-code-branch"></i>
+                        מצב חיפוש לוגי
+                    </div>
+                    <div class="logical-search-control">
+                        <label>כאשר מחפשים במספר מילים:</label>
+                        <div class="logical-radio-group">
+                            <label>
+                                <input type="radio" name="logical-mode" value="and" checked>
+                                <span>$and — כל המילים חייבות להופיע</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="logical-mode" value="or">
+                                <span>$or — מספיק שמילה אחת תמצא</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Stats -->
+            <div class="results-stats" id="results-stats" style="display: none;">
+                <div class="stats-text">
+                    נמצאו <strong id="results-count">0</strong> ניסויים
+                    <span id="search-term-display"></span>
+                </div>
+                <div class="stats-badges">
+                    <span class="stat-badge own" id="stat-own" style="display:none;">
+                        <i class="fas fa-user-check"></i>
+                        <span id="stat-own-count">0</span> שלי
+                    </span>
+                    <span class="stat-badge shared" id="stat-shared" style="display:none;">
+                        <i class="fas fa-users"></i>
+                        <span id="stat-shared-count">0</span> שותפות
+                    </span>
+                    <span class="stat-badge public-exp" id="stat-public" style="display:none;">
+                        <i class="fas fa-globe"></i>
+                        <span id="stat-public-count">0</span> ציבורי
+                    </span>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div class="smart-search-loading" id="loading-state">
+                <div class="spinner"></div>
+                <p>טוען ניסויים...</p>
+            </div>
+
+            <!-- Results Table -->
+            <div class="results-table-wrapper" id="results-table-wrapper" style="display: none;">
+                <table class="results-table" id="results-table">
+                    <colgroup>
+                        <col style="width: 24%;">
+                        <col style="width: 12%;">
+                        <col style="width: 11%;">
+                        <col style="width: 7%;">
+                        <col style="width: 13%;">
+                        <col style="width: 8%;">
+                        <col style="width: 8%;">
+                        <col style="width: 9%;">
+                        <col style="width: 8%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>שם הניסוי</th>
+                            <th>חוקר מוביל</th>
+                            <th>אתר</th>
+                            <th>שנה</th>
+                            <th>חבילת עבודה</th>
+                            <th>מקור</th>
+                            <th>חשיפה</th>
+                            <th>התאמה</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="empty-state" style="display: none;">
+                <i class="fas fa-search"></i>
+                <h3>לא נמצאו תוצאות</h3>
+                <p>נסו לשנות את מונחי החיפוש, להרחיב את הסינון או להגביר את רמת הגמישות</p>
+            </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Accessibility Widget -->
+    <div class="a11y-widget" aria-label="תפריט נגישות">
+        <button class="btn-a11y-toggle" id="btn-a11y" aria-haspopup="true" aria-expanded="false" title="אפשרויות נגישות">
+            <i class="fa-solid fa-universal-access"></i>
+        </button>
+        <div class="a11y-menu" id="a11y-menu" role="menu">
+            <h4>התאמת נגישות</h4>
+            <button class="a11y-btn" id="toggle-contrast" role="menuitem">
+                <i class="fa-solid fa-circle-half-stroke"></i> ניגודיות גבוהה
+            </button>
+            <button class="a11y-btn" id="toggle-text-size" role="menuitem">
+                <i class="fa-solid fa-text-height"></i> הגדלת טקסט
+            </button>
+            <button class="a11y-btn" id="reset-a11y" role="menuitem" style="color: #dc2626; margin-top: 8px;">
+                <i class="fa-solid fa-rotate-left"></i> איפוס הגדרות
+            </button>
+        </div>
+    </div>
+
+    <!-- Chatbot Widget -->
+    <div class="chat-container">
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <h4><i class="fa-solid fa-robot"></i> עוזר מיזם ח"ץ</h4>
+                <button class="btn-close-chat" id="btn-close-chat" title="סגור"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="chat-body" id="chat-body">
+                <div class="faq-list" id="faq-list"></div>
+                <div class="chat-active-view" id="chat-active-view">
+                    <div class="user-bubble" id="chat-user-question">...</div>
+                    <div class="typing-indicator" id="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                    <div class="bot-bubble" id="chat-bot-answer" style="display: none;"></div>
+                    <button class="btn-back-chat" id="btn-back-chat">
+                        <i class="fa-solid fa-arrow-right"></i> חזרה לשאלות
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button class="btn-chat-toggle" id="btn-chat-toggle" aria-label="פתיחת עוזר וירטואלי">
+            <i class="fa-solid fa-comment-dots"></i>
+        </button>
+    </div>
+
+    <!-- Fuse.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    <script src="js/accessibility.js?v=20260602-1"></script>
+    <script src="js/chatbot.js?v=20260602-1"></script>
+    <script type="module" src="js/smart-search.js?v=20260602-match-list-only"></script>
+</body>
+</html>

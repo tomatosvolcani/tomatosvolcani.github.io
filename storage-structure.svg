@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <defs>
+    <style>
+      .title { font: 700 30px Arial, 'Segoe UI', sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 16px Arial, 'Segoe UI', sans-serif; fill: #334155; }
+      .box-title { font: 700 16px Arial, 'Segoe UI', sans-serif; fill: #0f172a; }
+      .box-text { font: 500 14px Arial, 'Segoe UI', sans-serif; fill: #1e293b; }
+      .path { font: 600 13px 'Consolas', 'Courier New', monospace; fill: #0f172a; }
+      .small { font: 500 12px Arial, 'Segoe UI', sans-serif; fill: #334155; }
+      .root { fill: #dbeafe; stroke: #2563eb; }
+      .user { fill: #e0f2fe; stroke: #0284c7; }
+      .exp { fill: #dcfce7; stroke: #16a34a; }
+      .folder { fill: #fef3c7; stroke: #d97706; }
+      .meta { fill: #f1f5f9; stroke: #64748b; }
+      .line { stroke: #64748b; stroke-width: 2; fill: none; }
+      .dash { stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="900" fill="#ffffff"/>
+
+  <text x="700" y="52" text-anchor="middle" class="title">מבנה אחסון קבצים במערכת (Firebase Storage)</text>
+  <text x="700" y="80" text-anchor="middle" class="subtitle">מבוסס על הנתיבים בפועל בקוד: users/{ownerUid}/experiments/{experimentId}/...</text>
+
+  <!-- Root -->
+  <rect x="520" y="115" rx="10" ry="10" width="360" height="85" class="root" stroke-width="2"/>
+  <text x="700" y="147" text-anchor="middle" class="box-title">Bucket Root</text>
+  <text x="700" y="173" text-anchor="middle" class="path">gs://&lt;project&gt;.firebasestorage.app/</text>
+
+  <!-- users -->
+  <rect x="520" y="245" rx="10" ry="10" width="360" height="75" class="user" stroke-width="2"/>
+  <text x="700" y="275" text-anchor="middle" class="box-title">users/</text>
+  <text x="700" y="298" text-anchor="middle" class="small">תיקיית־על לכל המשתמשים</text>
+
+  <!-- user -->
+  <rect x="520" y="360" rx="10" ry="10" width="360" height="90" class="user" stroke-width="2"/>
+  <text x="700" y="392" text-anchor="middle" class="box-title">{ownerUid}/</text>
+  <text x="700" y="416" text-anchor="middle" class="path">users/{ownerUid}/</text>
+  <text x="700" y="437" text-anchor="middle" class="small">גישה מלאה רק לבעלים (לפי Storage Rules)</text>
+
+  <!-- experiments -->
+  <rect x="520" y="490" rx="10" ry="10" width="360" height="90" class="exp" stroke-width="2"/>
+  <text x="700" y="522" text-anchor="middle" class="box-title">experiments/</text>
+  <text x="700" y="546" text-anchor="middle" class="path">users/{ownerUid}/experiments/</text>
+  <text x="700" y="568" text-anchor="middle" class="small">תיקיית־על לכל הניסויים של המשתמש</text>
+
+  <!-- experiment -->
+  <rect x="520" y="620" rx="10" ry="10" width="360" height="95" class="exp" stroke-width="2"/>
+  <text x="700" y="652" text-anchor="middle" class="box-title">{experimentId}/</text>
+  <text x="700" y="676" text-anchor="middle" class="path">users/{ownerUid}/experiments/{experimentId}/</text>
+  <text x="700" y="698" text-anchor="middle" class="small">שורש הקבצים של ניסוי בודד</text>
+
+  <!-- Category folders left -->
+  <rect x="90" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="175" y="787" text-anchor="middle" class="box-title">events/</text>
+  <text x="175" y="806" text-anchor="middle" class="small">אירועים</text>
+
+  <rect x="280" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="365" y="787" text-anchor="middle" class="box-title">irrigation/</text>
+  <text x="365" y="806" text-anchor="middle" class="small">השקיה</text>
+
+  <rect x="470" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="555" y="787" text-anchor="middle" class="box-title">fertilization/</text>
+  <text x="555" y="806" text-anchor="middle" class="small">דישון</text>
+
+  <!-- Category folders center/right -->
+  <rect x="660" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="745" y="787" text-anchor="middle" class="box-title">growth/</text>
+  <text x="745" y="806" text-anchor="middle" class="small">צימוח</text>
+
+  <rect x="850" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="935" y="787" text-anchor="middle" class="box-title">climate/</text>
+  <text x="935" y="806" text-anchor="middle" class="small">אקלים</text>
+
+  <rect x="1040" y="760" rx="10" ry="10" width="170" height="60" class="folder" stroke-width="2"/>
+  <text x="1125" y="787" text-anchor="middle" class="box-title">agrotechnics/</text>
+  <text x="1125" y="806" text-anchor="middle" class="small">אגרוטכניקה</text>
+
+  <rect x="1230" y="760" rx="10" ry="10" width="150" height="60" class="folder" stroke-width="2"/>
+  <text x="1305" y="787" text-anchor="middle" class="box-title">protection/</text>
+  <text x="1305" y="806" text-anchor="middle" class="small">הגנת הצומח</text>
+
+  <!-- Example file pattern -->
+  <rect x="70" y="110" rx="10" ry="10" width="390" height="135" class="meta" stroke-width="2"/>
+  <text x="265" y="140" text-anchor="middle" class="box-title">דוגמת שם קובץ</text>
+  <text x="85" y="170" class="path">events/{timestamp}_{filename}</text>
+  <text x="85" y="195" class="path">yield/{timestamp}_{filename}</text>
+  <text x="85" y="220" class="small">הקוד מחליף תווים לא בטוחים בשם הקובץ ל- _</text>
+
+  <!-- Rules note -->
+  <rect x="940" y="110" rx="10" ry="10" width="380" height="135" class="meta" stroke-width="2"/>
+  <text x="1130" y="140" text-anchor="middle" class="box-title">כללי גישה עיקריים</text>
+  <text x="960" y="170" class="small">• Read/Write תחת users/{userId}/... רק לבעל ה-UID</text>
+  <text x="960" y="195" class="small">• הנתיב נמצא גם ב-export.js בעת ייצוא קבצים</text>
+
+  <!-- Main vertical lines -->
+  <path d="M700 200 L700 245" class="line"/>
+  <path d="M700 320 L700 360" class="line"/>
+  <path d="M700 450 L700 490" class="line"/>
+  <path d="M700 580 L700 620" class="line"/>
+  <path d="M700 715 L700 735" class="line"/>
+
+  <!-- Branch to folder boxes -->
+  <path d="M700 735 L175 735 L175 760" class="line"/>
+  <path d="M700 735 L365 735 L365 760" class="line"/>
+  <path d="M700 735 L555 735 L555 760" class="line"/>
+  <path d="M700 735 L745 735 L745 760" class="line"/>
+  <path d="M700 735 L935 735 L935 760" class="line"/>
+  <path d="M700 735 L1125 735 L1125 760" class="line"/>
+  <path d="M700 735 L1305 735 L1305 760" class="line"/>
+
+  <!-- Optional folder note -->
+  <text x="700" y="855" text-anchor="middle" class="subtitle">המערכת סורקת רקורסיבית את כל תתי־התיקיות תחת experimentId בעת יצוא ZIP</text>
+</svg>
