@@ -1,0 +1,350 @@
+/* =========================================
+   Tutorials Page Specific Styles - פרויקט ח"ץ
+   Premium UX/UI Optimization - Clean & Tech Inspired
+   ========================================= */
+
+/* Premium Clean Header Block (Inspired by Stripe & Tailwind Docs) */
+.tutorials-header-block {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-right: 4px solid #0a2f72; /* Premium accent on the right side for RTL */
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.header-icon-box {
+    width: 56px;
+    height: 56px;
+    background: #eff6ff;
+    color: #0a2f72;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.header-text-box {
+    flex: 1;
+}
+
+.header-text-box h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+}
+
+.header-text-box p {
+    color: #475569;
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Tabs Navigation */
+.tutorials-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 4px;
+}
+
+.tutorial-tab-btn {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    color: #4b5563;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 8px 8px 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    bottom: -2px;
+}
+
+.tutorial-tab-btn:hover {
+    background: #f3f4f6;
+    color: #0a2f72;
+}
+
+.tutorial-tab-btn.active {
+    color: #0a2f72;
+    background: #ffffff;
+    border-bottom: 3px solid #0a2f72;
+    font-weight: 700;
+}
+
+/* Sections visibility toggle */
+.tutorial-section {
+    display: none;
+}
+.tutorial-section.active {
+    display: block;
+    animation: tutorialsFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tutorialsFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Video Grid layout */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 28px;
+}
+
+.video-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.video-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -4px rgba(10, 47, 114, 0.12);
+    border-color: #cbd5e1;
+}
+
+/* 16:9 Aspect Ratio Responsive Wrapper */
+.video-ratio-wrapper {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    background: #0d1117;
+}
+
+.video-ratio-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.video-card-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.video-card-body h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.video-number {
+    background: #0a2f72;
+    color: white;
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-weight: 800;
+}
+
+.video-card-body p {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    flex: 1;
+}
+
+.video-card-actions {
+    border-top: 1px solid #f1f5f9;
+    padding-top: 14px;
+    margin-top: auto;
+}
+
+.btn-video-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+}
+
+.btn-video-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+/* ==================================================================
+   FIXED Accordion - Using static zero-padding container + padded inner
+   ================================================================== */
+.docs-container {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.accordion-item {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.accordion-item:last-child {
+    border-bottom: none;
+}
+
+.accordion-header {
+    width: 100%;
+    padding: 18px 24px;
+    background: transparent;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    text-align: right;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    transition: all 0.2s ease;
+}
+
+.accordion-header:hover {
+    background: #f8fafc;
+    color: #0a2f72;
+}
+
+.accordion-item.active .accordion-header {
+    background: #f8fafc;
+    color: #0a2f72;
+}
+
+.header-icon {
+    color: #64748b;
+    margin-left: 10px;
+    transition: color 0.2s;
+}
+
+.accordion-header:hover .header-icon,
+.accordion-item.active .header-icon {
+    color: #0a2f72;
+}
+
+.chevron-icon {
+    font-size: 13px;
+    color: #94a3b8;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-item.active .chevron-icon {
+    transform: rotate(180deg);
+    color: #0a2f72;
+}
+
+/* This outer element handles max-height & overflow ONLY. Padding MUST remain 0! */
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    background: #ffffff;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* This inner element safely holds the padded content, removing all text clipping bugs */
+.accordion-inner {
+    padding: 20px 24px 28px 24px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.accordion-inner p {
+    font-size: 14.5px;
+    color: #334155;
+    line-height: 1.7;
+    margin-bottom: 14px;
+}
+
+.accordion-inner p:last-of-type {
+    margin-bottom: 0;
+}
+
+.accordion-inner ul {
+    padding-right: 24px;
+    margin-top: 10px;
+    margin-bottom: 14px;
+}
+
+.accordion-inner li {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.accordion-inner li:last-child {
+    margin-bottom: 0;
+}
+
+/* =========================================
+   Mobile Responsiveness
+   ========================================= */
+@media (max-width: 768px) {
+    .tutorials-header-block {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 22px;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .tutorials-tabs {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .tutorial-tab-btn {
+        width: 100%;
+        justify-content: center;
+        border-radius: 8px;
+        border-bottom: none;
+    }
+    .tutorial-tab-btn.active {
+        border-bottom: none;
+        box-shadow: none;
+        background: #0a2f72;
+        color: white;
+    }
+    .video-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .accordion-header {
+        padding: 16px;
+        font-size: 15px;
+    }
+    .accordion-inner {
+        padding: 16px;
+    }
+}

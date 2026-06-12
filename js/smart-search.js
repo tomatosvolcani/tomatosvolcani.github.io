@@ -19,7 +19,7 @@ const ACTIVE_EXPERIMENT_CONTEXT_KEY = "research-map-active-experiment-context";
 const BOOT_LOADER_MIN_MS = 5000;
 const BOOT_STATUSES = [
     "בודק הרשאות גישה...",
-    "שולף ניסויים שיש לך הרשאה אליהם...",
+    "אוסף ניסויים שיש לך הרשאה אליהם...",
     "מכין חיפוש חכם..."
 ];
 

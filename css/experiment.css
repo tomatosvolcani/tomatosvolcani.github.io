@@ -2628,6 +2628,16 @@
     background-color: #eef3fa !important;
 }
 
+.form-container.readonly-mode .keyword-tag .remove {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+.form-container.readonly-mode .drip-edit-btn {
+    display: none !important;
+    pointer-events: none !important;
+}
+
 .form-container.readonly-mode .btn-save,
 .form-container.readonly-mode .btn-add-event,
 .form-container.readonly-mode [id^="add-"],

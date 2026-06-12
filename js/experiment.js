@@ -2619,6 +2619,7 @@ function addKeywordTag(value) {
     `;
 
     tag.querySelector('.remove').addEventListener('click', async () => {
+        if (!permissionsState?.canEdit) return;
         if (!(await confirmDeferredDeletion('מילת המפתח'))) return;
         tag.remove();
     });
@@ -2708,6 +2709,7 @@ function addVarietyTag(value) {
     `;
 
     tag.querySelector('.remove').addEventListener('click', async () => {
+        if (!permissionsState?.canEdit) return;
         if (!(await confirmDeferredDeletion('הזן'))) return;
         tag.remove();
     });
@@ -4172,6 +4174,7 @@ function initEventListeners() {
     // Drip edit buttons – focus the paired input
     document.querySelectorAll('.drip-edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (!permissionsState?.canEdit) return;
             const target = document.getElementById(btn.dataset.target);
             if (target) target.focus();
         });
