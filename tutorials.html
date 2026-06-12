@@ -3,241 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מרכז הדרכה ולמידה - מערכת מיזם ח"ץ</title>
+    <title>מרכז הדרכה ולמידה | מיזם ח״ץ</title>
+    <meta name="description" content="מרכז ההדרכה של מערכת מיזם ח״ץ — סרטוני הדרכה, מדריכים כתובים וכל מה שצריך כדי להתחיל לעבוד עם מערכת איגום הנתונים החקלאיים. פתוח לכולם, ללא צורך בהרשמה.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css?v=20260612">
-    <link rel="stylesheet" href="css/layout.css?v=20260612">
-    <link rel="stylesheet" href="css/tutorials.css?v=20260612-v3">
-    <link rel="stylesheet" href="css/accessibility.css?v=20260612">
-    <link rel="stylesheet" href="css/chatbot.css?v=20260612">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/tutorials.css?v=20260612-11">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260612">
 </head>
 <body data-page-context="tutorials">
-    <!-- Hamburger Menu Button (Mobile) -->
-    <button class="hamburger-btn" id="hamburger-btn">
-        <i class="fas fa-bars"></i>
-    </button>
 
-    <!-- Sidebar Overlay (Mobile) -->
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="bg-dots" aria-hidden="true"></div>
 
-    <div class="app-container">
-        <!-- Sidebar - Right Side -->
-        <aside class="sidebar">
-            <div class="user-info">
-                <i class="fas fa-user"></i>
-                <span id="user-display-name">טוען...</span>
+    <!-- ══ HEADER ══ -->
+    <header class="site-header">
+        <a href="index.html" class="brand" aria-label="מיזם ח״ץ — חזרה לעמוד הראשי">
+            <div class="brand-mark" aria-hidden="true"><i class="fa-solid fa-seedling"></i></div>
+            <div>
+                <div class="brand-name">מיזם ח״ץ</div>
+                <div class="brand-tag">איגום נתונים חקלאיים</div>
             </div>
-            <nav class="sidebar-nav">
-                <a href="dashboard.html" class="nav-item">
-                    <i class="fas fa-home"></i>
-                    <span>בית</span>
-                </a>
-                <a href="smart-search.html" class="nav-item">
-                    <i class="fas fa-magnifying-glass-chart"></i>
-                    <span>שליפה חכמה</span>
-                </a>
-                <a href="export.html" class="nav-item">
-                    <i class="fas fa-file-export"></i>
-                    <span>שליפת ניסוי</span>
-                </a>
-                <a href="my-bi.html" class="nav-item">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>הסטטיסטיקה שלי</span>
-                </a>
-                <a href="tutorials.html" class="nav-item active">
-                    <i class="fas fa-graduation-cap"></i>
-                    <span>מרכז הדרכה</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=1Ts8Nb7SBUedhjc0Bkz5yY9XvXTtZwZBjymvdvhbcjNUOVdGWUNWV1FYOFRERDRES1BQWjhXMzhSVy4u" class="btn-report-issue" target="_blank" rel="noopener">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    <span>דיווח תקלות</span>
-                    <i class="fas fa-external-link-alt" aria-hidden="true"></i>
-                </a>
-                <button id="btn-logout" class="btn-logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>התנתקות</span>
-                </button>
-            </div>
-        </aside>
+        </a>
+        <div class="header-actions">
+            <a href="index.html" class="header-link">
+                <i class="fa-solid fa-house" aria-hidden="true"></i>
+                עמוד הבית
+            </a>
+            <a href="login.html" class="login-link" id="auth-cta">
+                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                כניסה למערכת
+            </a>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="breadcrumb">
-                <span class="breadcrumb-link" onclick="window.location.href='dashboard.html'">בית</span>
-                <span> / </span>
-                <span class="breadcrumb-current">מרכז הדרכה ולמידה</span>
+    <!-- ══ HERO ══ -->
+    <section class="tut-hero">
+        <div class="tut-hero-inner">
+            <h1 class="tut-title">
+                מרכז <span class="hl-accent">הדרכה ולמידה</span>
+            </h1>
+
+            <p class="tut-desc">
+                כל מה שצריך כדי להכיר את מערכת איגום הנתונים של מיזם ח״ץ —
+                סרטוני הדרכה מקיפים, מדריכים כתובים ותשובות לשאלות נפוצות.
+                צעד אחר צעד, מהקמת ניסוי ועד ייצוא הדוח.
+            </p>
+
+            <div class="chips" role="navigation" aria-label="ניווט מהיר בעמוד">
+                <a href="#videos" class="chip">
+                    <i class="fa-solid fa-circle-play" aria-hidden="true"></i>
+                    סרטוני הדרכה
+                </a>
+                <a href="#faq" class="chip">
+                    <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                    שאלות נפוצות
+                </a>
+                <a href="#guides" class="chip">
+                    <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                    מדריכים כתובים
+                </a>
             </div>
 
-            <!-- Premium Clean Header Block Inspired by Leading Tech Doc Portals -->
-            <div class="tutorials-header-block">
-                <div class="header-icon-box">
-                    <i class="fas fa-graduation-cap"></i>
+            <div class="hero-stats" aria-hidden="true">
+                <div class="stat">
+                    <span class="stat-num">4</span>
+                    <span class="stat-label">סרטוני הדרכה</span>
                 </div>
-                <div class="header-text-box">
-                    <h1>מרכז הדרכה ולמידה</h1>
-                    <p>כל מה שצריך לדעת על שימוש, תיעוד, שליפה חכמה וניהול הרשאות במערכת איגום הנתונים של מיזם ח"ץ.</p>
+                <span class="stat-sep"></span>
+                <div class="stat">
+                    <span class="stat-num">4</span>
+                    <span class="stat-label">שאלות נפוצות</span>
                 </div>
-            </div>
-
-            <!-- לשוניות ניווט פנימיות -->
-            <div class="tutorials-tabs">
-                <button class="tutorial-tab-btn active" data-target="video-guides">
-                    <i class="fas fa-video"></i> מדריכי וידאו מובילים
-                </button>
-                <button class="tutorial-tab-btn" data-target="written-docs">
-                    <i class="fas fa-file-alt"></i> מדריכים כתובים ודוקומנטציה
-                </button>
-            </div>
-
-            <!-- אזור 1: מדריכי וידאו -->
-            <div id="video-guides" class="tutorial-section active">
-                <div class="video-grid">
-                    
-                    <!-- סרטון 1 -->
-                    <div class="video-card">
-                        <div class="video-ratio-wrapper">
-                            <iframe src="https://www.youtube.com/embed/xJh0ti5OFj8" title="מדריך מערכת חץ - סרטון 1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                        <div class="video-card-body">
-                            <h3><span class="video-number">01</span> מבוא וסקירה כללית של המערכת</h3>
-                            <p>הכרת ממשק המשתמש של מיזם ח"ץ, ניווט בסיסי, צפייה בלוח הבקרה והבנת מבנה איגום הנתונים החקלאיים.</p>
-                            <div class="video-card-actions">
-                                <a href="https://youtu.be/xJh0ti5OFj8" target="_blank" rel="noopener" class="btn-video-link">
-                                    <i class="fab fa-youtube"></i> צפייה ישירה ב-YouTube
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- סרטון 2 -->
-                    <div class="video-card">
-                        <div class="video-ratio-wrapper">
-                            <iframe src="https://www.youtube.com/embed/vUrNmmyDYUo" title="מדריך מערכת חץ - סרטון 2" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                        <div class="video-card-body">
-                            <h3><span class="video-number">02</span> הקמת ניסוי חדש והגדרת הכנות לגידול</h3>
-                            <p>מדריך מפורט המציג כיצד יוצרים ניסוי, תיעוד פרטי הגידול (זנים, שתילה), מאפייני המבנה, טיפולי קרקע ומערכות הטפטוף.</p>
-                            <div class="video-card-actions">
-                                <a href="https://youtu.be/vUrNmmyDYUo" target="_blank" rel="noopener" class="btn-video-link">
-                                    <i class="fab fa-youtube"></i> צפייה ישירה ב-YouTube
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- סרטון 3 -->
-                    <div class="video-card">
-                        <div class="video-ratio-wrapper">
-                            <iframe src="https://www.youtube.com/embed/HyzCFhUV34M" title="מדריך מערכת חץ - סרטון 3" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                        <div class="video-card-body">
-                            <h3><span class="video-number">03</span> מהלך הניסוי, הגנת הצומח ויבול</h3>
-                            <p>כיצד לתעד את מהלך הניסוי השוטף: קליטת נתוני השקיה ודישון, הזנת מדדי צימוח, אקלים, הגנת הצומח (מזיקים/מחלות) והזנת יבולי קטיף.</p>
-                            <div class="video-card-actions">
-                                <a href="https://youtu.be/HyzCFhUV34M" target="_blank" rel="noopener" class="btn-video-link">
-                                    <i class="fab fa-youtube"></i> צפייה ישירה ב-YouTube
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- סרטון 4 -->
-                    <div class="video-card">
-                        <div class="video-ratio-wrapper">
-                            <iframe src="https://www.youtube.com/embed/AzX2yNuZ5Qw" title="מדריך מערכת חץ - סרטון 4" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                        <div class="video-card-body">
-                            <h3><span class="video-number">04</span> שליפה חכמה, ניהול הרשאות וייצוא</h3>
-                            <p>שימוש במנוע החיפוש המתקדם (Fuzzy Search), הגדרת רמות חשיפה וסודיות לניסוי, שיתוף שותפי מחקר וייצוא מלא לאקסל ו-ZIP קבצים.</p>
-                            <div class="video-card-actions">
-                                <a href="https://youtu.be/AzX2yNuZ5Qw" target="_blank" rel="noopener" class="btn-video-link">
-                                    <i class="fab fa-youtube"></i> צפייה ישירה ב-YouTube
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
+                <span class="stat-sep"></span>
+                <div class="stat">
+                    <span class="stat-num"><i class="fa-solid fa-lock-open"></i></span>
+                    <span class="stat-label">פתוח ללא הרשמה</span>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <!-- אזור 2: דוקומנטציה כתובה -->
-            <div id="written-docs" class="tutorial-section">
-                <div class="docs-container">
-                    
-                    <div class="accordion-item">
-                        <button class="accordion-header">
-                            <span><i class="fas fa-circle-info header-icon"></i> 1. כיצד מתחילים ועובדים עם לוח הבקרה?</span>
-                            <i class="fas fa-chevron-down chevron-icon"></i>
-                        </button>
-                        <div class="accordion-content">
-                            <div class="accordion-inner">
-                                <p>מסך הבית (הדשבורד) מציג את כל הניסויים המשויכים אליך. הניסויים מחולקים באמצעות מקרא צבעוני ברור:</p>
-                                <ul>
-                                    <li><strong>ניסוי שהקמתי (סימון ירוק):</strong> ניסויים בבעלותך המלאה שבהם יש לך הרשאות ניהול ועריכה מלאות.</li>
-                                    <li><strong>ניסוי שאני שותף/ה בו (סימון כחול):</strong> ניסויים שחוקרים עמיתים שיתפו איתך לצורך צפייה או עבודה משותפת.</li>
-                                </ul>
-                                <p>ליצירת ניסוי חדש, לחץ על כרטיסיית ה-"+" המקווקוות, הזן שם משמעותי והמערכת תתניע עבורך טופס מחקר הוליסטי מקיף.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <button class="accordion-header">
-                            <span><i class="fas fa-toggle-on header-icon"></i> 2. מנגנון "נתונים זהים לכלל הטיפולים"</span>
-                            <i class="fas fa-chevron-down chevron-icon"></i>
-                        </button>
-                        <div class="accordion-content">
-                            <div class="accordion-inner">
-                                <p>כדי לחסוך זמן יקר בהקלדת נתונים חקלאיים זהים (כמו סוג חממה, מועד שתילה, או קוטר צינור השקיה), המערכת כוללת מתג ייחודי בחלק העליון של שלבי ההכנה:</p>
-                                <ul>
-                                    <li><strong>כאשר המתג פעיל (ברירת מחדל):</strong> כל נתון שתקליד בטיפול 1 יועתק וישוכפל אוטומטית לכל שאר הטיפולים בניסוי.</li>
-                                    <li><strong>כאשר המתג כבוי:</strong> המערכת תפצל את התצוגה ללשוניות עליונות נפרדות עבור כל טיפול, ותאפשר לך להגדיר ערכים ספציפיים ושונים לכל טיפול בנפרד (למשל: ספיקות טפטוף שונות או מועדי הדבקה שונים).</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <button class="accordion-header">
-                            <span><i class="fas fa-user-shield header-icon"></i> 3. ניהול חשיפה, סודיות והרשאות שותפים</span>
-                            <i class="fas fa-chevron-down chevron-icon"></i>
-                        </button>
-                        <div class="accordion-content">
-                            <div class="accordion-inner">
-                                <p>בתוך "תוכנית הניסוי" תמצא את פרק <strong>חשיפה והרשאות</strong> המאפשר הגנה קפדנית על המידע המחקרי שלך:</p>
-                                <ul>
-                                    <li><strong>ניסוי חשוף (Public):</strong> מאפשר לכל חוקר מאושר ומחובר במערכת לצפות בתוכנית הניסוי ובתוצאות דרך מסך השליפה החכמה.</li>
-                                    <li><strong>ניסוי חסוי (Private):</strong> הניסוי מוגן לחלוטין ומוסתר מהחיפוש הכללי. רק מנהלי מערכת ושותפים מורשים יכולים לגשת אליו.</li>
-                                    <li><strong>חסיון מוגבל בזמן:</strong> ניתן לקבוע תאריך מדויק שעד אליו הניסוי יישאר חסוי, ולאחר מכן הוא יהפוך אוטומטית לחשוף לטובת שיתוף ידע קהילתי, בהתאם לכללי המיזם.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="accordion-item">
-                        <button class="accordion-header">
-                            <span><i class="fas fa-clock-rotate-left header-icon"></i> 4. שמירה אוטומטית (Auto-Save) וסימוני מצב</span>
-                            <i class="fas fa-chevron-down chevron-icon"></i>
-                        </button>
-                        <div class="accordion-content">
-                            <div class="accordion-inner">
-                                <p>Mערכת מצוידת במנגנון שמירה אוטומטית ברקע המונע אובדן מידע. בפס המצב תוכל להבחין באינדיקטורים הבאים:</p>
-                                <ul>
-                                    <li><strong>מזהה שינויים:</strong> המערכת זיהתה הקלדה חדשה וממתינה לסיום רצף הפעולות.</li>
-                                    <li><strong>שומר...:</strong> הנתונים נשלחים בצורה מאובטחת ומסונכרנים מול מסד הנתונים בענן.</li>
-                                    <li><strong>נשמר בהצלחה:</strong> המידע מגובה ומאובטח. ליד כותרת השדה שערכת תופיע נקודה ירוקה עדינה המאשרת את השמירה המקומית.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
+    <!-- ══ VIDEOS ══ -->
+    <section class="section" id="videos">
+        <div class="section-inner">
+            <div class="sec-head">
+                <span class="sec-eyebrow"><i class="fa-solid fa-video" aria-hidden="true"></i> מדריכי וידאו</span>
+                <h2 class="sec-title">סרטוני הדרכה — מסלול הלמידה המלא</h2>
+                <p class="sec-sub">ארבעה פרקים שמלווים אתכם מהצעד הראשון במערכת ועד שליפת נתונים וייצוא דוחות.</p>
             </div>
-        </main>
-    </div>
+
+            <!-- הסרטונים נטענים מתוך js/tutorials.js — להוספת סרטון חדש, הוסיפו פריט למערך VIDEOS -->
+            <div class="video-grid" id="video-grid"></div>
+        </div>
+    </section>
+
+    <!-- ══ FAQ ══ -->
+    <section class="section band" id="faq">
+        <div class="section-inner">
+            <div class="sec-head">
+                <span class="sec-eyebrow"><i class="fa-solid fa-circle-question" aria-hidden="true"></i> שאלות נפוצות</span>
+                <h2 class="sec-title">שאלות ותשובות — FAQ</h2>
+                <p class="sec-sub">הסברים מפורטים על מנגנוני המערכת המרכזיים — לחצו על כותרת כדי להרחיב.</p>
+            </div>
+
+            <div class="docs-container reveal">
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span><i class="fas fa-circle-info header-icon" aria-hidden="true"></i> 1. כיצד מתחילים ועובדים עם לוח הבקרה?</span>
+                        <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <p>מסך הבית (הדשבורד) מציג את כל הניסויים המשויכים אליך. הניסויים מחולקים באמצעות מקרא צבעוני ברור:</p>
+                            <ul>
+                                <li><strong>ניסוי שהקמתי (סימון ירוק):</strong> ניסויים בבעלותך המלאה שבהם יש לך הרשאות ניהול ועריכה מלאות.</li>
+                                <li><strong>ניסוי שאני שותף/ה בו (סימון כחול):</strong> ניסויים שחוקרים עמיתים שיתפו איתך לצורך צפייה או עבודה משותפת.</li>
+                            </ul>
+                            <p>ליצירת ניסוי חדש, לחץ על כרטיסיית ה-"+" המקווקוות, הזן שם משמעותי והמערכת תתניע עבורך טופס מחקר הוליסטי מקיף.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span><i class="fas fa-toggle-on header-icon" aria-hidden="true"></i> 2. מנגנון "נתונים זהים לכלל הטיפולים"</span>
+                        <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <p>כדי לחסוך זמן יקר בהקלדת נתונים חקלאיים זהים (כמו סוג חממה, מועד שתילה, או קוטר צינור השקיה), המערכת כוללת מתג ייחודי בחלק העליון של שלבי ההכנה:</p>
+                            <ul>
+                                <li><strong>כאשר המתג פעיל (ברירת מחדל):</strong> כל נתון שתקליד בטיפול 1 יועתק וישוכפל אוטומטית לכל שאר הטיפולים בניסוי.</li>
+                                <li><strong>כאשר המתג כבוי:</strong> המערכת תפצל את התצוגה ללשוניות עליונות נפרדות עבור כל טיפול, ותאפשר לך להגדיר ערכים ספציפיים ושונים לכל טיפול בנפרד (למשל: ספיקות טפטוף שונות או מועדי הדבקה שונים).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span><i class="fas fa-user-shield header-icon" aria-hidden="true"></i> 3. ניהול חשיפה, סודיות והרשאות שותפים</span>
+                        <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <p>בתוך "תוכנית הניסוי" תמצא את פרק <strong>חשיפה והרשאות</strong> המאפשר הגנה קפדנית על המידע המחקרי שלך:</p>
+                            <ul>
+                                <li><strong>ניסוי חשוף (Public):</strong> מאפשר לכל חוקר מאושר ומחובר במערכת לצפות בתוכנית הניסוי ובתוצאות דרך מסך השליפה החכמה.</li>
+                                <li><strong>ניסוי חסוי (Private):</strong> הניסוי מוגן לחלוטין ומוסתר מהחיפוש הכללי. רק מנהלי מערכת ושותפים מורשים יכולים לגשת אליו.</li>
+                                <li><strong>חסיון מוגבל בזמן:</strong> ניתן לקבוע תאריך מדויק שעד אליו הניסוי יישאר חסוי, ולאחר מכן הוא יהפוך אוטומטית לחשוף לטובת שיתוף ידע קהילתי, בהתאם לכללי המיזם.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span><i class="fas fa-clock-rotate-left header-icon" aria-hidden="true"></i> 4. שמירה אוטומטית (Auto-Save) וסימוני מצב</span>
+                        <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            <p>המערכת מצוידת במנגנון שמירה אוטומטית ברקע המונע אובדן מידע. בפס המצב תוכל להבחין באינדיקטורים הבאים:</p>
+                            <ul>
+                                <li><strong>מזהה שינויים:</strong> המערכת זיהתה הקלדה חדשה וממתינה לסיום רצף הפעולות.</li>
+                                <li><strong>שומר...:</strong> הנתונים נשלחים בצורה מאובטחת ומסונכרנים מול מסד הנתונים בענן.</li>
+                                <li><strong>נשמר בהצלחה:</strong> המידע מגובה ומאובטח. ליד כותרת השדה שערכת תופיע נקודה ירוקה עדינה המאשרת את השמירה המקומית.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ══ WRITTEN GUIDES ══ -->
+    <section class="section" id="guides">
+        <div class="section-inner">
+            <div class="sec-head">
+                <span class="sec-eyebrow"><i class="fa-solid fa-book-open" aria-hidden="true"></i> מדריכים כתובים</span>
+                <h2 class="sec-title">דוקומנטציה מפורטת</h2>
+                <p class="sec-sub">מדריכים מקיפים לתהליכי עבודה מרכזיים במערכת — בקרוב יתווספו כאן מדריכים נוספים.</p>
+            </div>
+
+            <div class="docs-container reveal">
+                
+                <div class="empty-state">
+                    <div class="empty-icon" aria-hidden="true">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                    <h3 class="empty-title">מדריכים בהכנה</h3>
+                    <p class="empty-desc">
+                        אנו עובדים על יצירת מדריכים כתובים מקיפים שיסבירו צעד אחר צעד את התהליכים השונים במערכת.
+                        <br>המדריכים יתווספו כאן בהדרגה ויכללו הסברים מפורטים, צילומי מסך וטיפים מעשיים.
+                    </p>
+                    <div class="empty-suggestions">
+                        <p><strong>בינתיים, תוכלו:</strong></p>
+                        <ul>
+                            <li>לצפות ב<a href="#videos">סרטוני ההדרכה</a> המקיפים למעלה</li>
+                            <li>לעיין ב<a href="#faq">שאלות הנפוצות</a> עם תשובות מפורטות</li>
+                            <li>ליצור קשר עם צוות התמיכה דרך <a href="report-issue.html">דיווח על תקלה</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- המדריכים יתווספו כאן בהדרגה עם המבנה הבא:
+                
+                <article class="guide-card">
+                    <div class="guide-meta">
+                        <span class="guide-category">קטגוריה</span>
+                        <span class="guide-time"><i class="fa-regular fa-clock"></i> X דקות קריאה</span>
+                    </div>
+                    <h3 class="guide-title">
+                        <a href="#">כותרת המדריך</a>
+                    </h3>
+                    <p class="guide-excerpt">תיאור קצר של המדריך...</p>
+                    <a href="#" class="guide-link">
+                        קרא עוד <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                </article>
+                
+                -->
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ══ BOTTOM CTA ══ -->
+    <section class="cta-strip">
+        <div class="cta-panel">
+            <div class="cta-text">
+                <h2>מוכנים להתחיל לעבוד עם המערכת?</h2>
+                <p>הצטרפו לחוקרים שכבר מתעדים, משתפים ומייצאים נתוני שדה במקום אחד.</p>
+            </div>
+            <div class="cta-actions">
+                <a href="login.html" class="cta-btn" id="cta-login">
+                    <span>כניסה למערכת</span>
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                </a>
+                <a href="register.html" class="ghost-btn hide-when-authed">הרשמה</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══ FOOTER ══ -->
+    <footer class="site-footer">
+        <span class="footer-copy">© מערכת איגום נתונים למיזם ח״ץ</span>
+        <nav class="footer-links" aria-label="קישורי עזר">
+            <a href="index.html">עמוד הבית</a>
+            <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=1Ts8Nb7SBUedhjc0Bkz5yY9XvXTtZwZBjymvdvhbcjNUOVdGWUNWV1FYOFRERDRES1BQWjhXMzhSVy4u" target="_blank" rel="noopener noreferrer">דיווח על תקלה</a>
+        </nav>
+    </footer>
 
     <!-- Accessibility Widget -->
     <div class="a11y-widget" aria-label="תפריט נגישות">
@@ -259,6 +279,6 @@
     </div>
 
     <script src="js/accessibility.js?v=20260612"></script>
-    <script type="module" src="js/tutorials.js?v=20260612-v3"></script>
+    <script type="module" src="js/tutorials.js?v=20260612-11"></script>
 </body>
 </html>
