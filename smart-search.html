@@ -225,21 +225,41 @@
             </div>
 
             <!-- Results Table -->
+            <!-- Selection Action Bar -->
+            <div class="selection-action-bar" id="selection-action-bar">
+                <div class="selection-bar-info">
+                    <i class="fas fa-check-double"></i>
+                    <span>נבחרו <span class="selection-bar-count" id="selection-bar-count">0</span> ניסויים</span>
+                </div>
+                <div class="selection-bar-actions">
+                    <button class="btn-clear-selection" id="btn-clear-selection" type="button">
+                        <i class="fas fa-times"></i>
+                        נקה בחירה
+                    </button>
+                    <button class="btn-prepare-export" id="btn-prepare-export" type="button">
+                        <i class="fas fa-file-zipper"></i>
+                        הכן שליפה
+                    </button>
+                </div>
+            </div>
+
             <div class="results-table-wrapper" id="results-table-wrapper" style="display: none;">
                 <table class="results-table" id="results-table">
                     <colgroup>
-                        <col style="width: 24%;">
-                        <col style="width: 12%;">
+                        <col class="col-checkbox">
+                        <col style="width: 22%;">
                         <col style="width: 11%;">
+                        <col style="width: 10%;">
                         <col style="width: 7%;">
-                        <col style="width: 13%;">
+                        <col style="width: 12%;">
                         <col style="width: 8%;">
                         <col style="width: 8%;">
                         <col style="width: 9%;">
-                        <col style="width: 8%;">
+                        <col style="width: 9%;">
                     </colgroup>
                     <thead>
                         <tr>
+                            <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" title="בחר/בטל הכל"></th>
                             <th>שם הניסוי</th>
                             <th>חוקר מוביל</th>
                             <th>אתר</th>
@@ -262,6 +282,61 @@
                 <h3>לא נמצאו תוצאות</h3>
                 <p>נסו לשנות את מונחי החיפוש, להרחיב את הסינון או להגביר את רמת הגמישות</p>
             </div>
+            </div>
+
+            <!-- Export Summary Modal -->
+            <div class="export-modal-overlay" id="export-modal-overlay">
+                <div class="export-modal">
+                    <div class="export-modal-title">
+                        <i class="fas fa-file-zipper"></i>
+                        סיכום שליפה
+                    </div>
+
+                    <div class="export-modal-section">
+                        <div class="export-modal-section-title">ניסויים שנבחרו</div>
+                        <div class="export-modal-count" id="modal-experiment-count">0</div>
+                    </div>
+
+                    <div class="export-modal-section">
+                        <div class="export-modal-section-title">הקובץ שיווצר</div>
+                        <div style="font-weight:600; color: var(--neutral-800); margin-bottom: 10px;">experiments_flat_export.xlsx</div>
+                    </div>
+
+                    <div class="export-modal-section">
+                        <div class="export-modal-section-title">הגיליונות שיווצרו</div>
+                        <div class="export-modal-sheets">
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> מטה-דאטה</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> פרטי הגידול</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> מבנה</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> טיפול בקרקע</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> סוג ופריסת הטפטוף</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> השקיה ודשן</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> צימוח</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> אקלים וסנסורים</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> אגרוטכניקה והאבקה</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> הגנת הצומח</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> נתוני יבול</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> יומן אירועים</div>
+                            <div class="export-modal-sheet-item"><i class="fas fa-check"></i> ניתוחים פיננסיים</div>
+                        </div>
+                    </div>
+
+                    <div class="export-modal-section">
+                        <div class="export-modal-section-title">קבצים מצורפים</div>
+                        <div class="export-modal-files-note">
+                            <i class="fas fa-check"></i>
+                            ייכללו בתוך ZIP לפי ניסוי ונושא, אם קיימים
+                        </div>
+                    </div>
+
+                    <div class="export-modal-actions">
+                        <button class="btn-modal-back" id="btn-modal-back" type="button">חזור אחורה</button>
+                        <button class="btn-modal-confirm" id="btn-modal-confirm" type="button">
+                            <i class="fas fa-download"></i>
+                            כן, בצע שליפה
+                        </button>
+                    </div>
+                </div>
             </div>
 
         </main>

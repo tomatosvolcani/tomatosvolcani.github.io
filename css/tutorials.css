@@ -33,7 +33,13 @@ html, body { overflow-x: hidden; }
 body {
     font-family: var(--font);
     direction: rtl;
-    background-color: var(--bg);
+    
+    /* --- רקע תמונה תואם לעמוד הבית --- */
+    background: linear-gradient(rgba(250, 252, 255, 0.88), rgba(250, 252, 255, 0.88)), url('../background.jpg') no-repeat center center fixed;
+    background-size: cover;
+    
+    /* background-color: var(--bg); --- הרקע המקורי (להחזרה: בטל הערה כאן ומחק את ה-background למעלה) --- */
+    
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
 }
