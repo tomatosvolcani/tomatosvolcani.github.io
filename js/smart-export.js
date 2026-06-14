@@ -253,6 +253,7 @@ async function runSmartExport() {
 
     const experiments = [];
     const denied = [];
+    const usedNames = new Set();
 
     for (let i = 0; i < selections.length; i++) {
         const sel = selections[i];
@@ -266,7 +267,22 @@ async function runSmartExport() {
                 denied.push(sel);
                 continue;
             }
-            experiments.push({ id: sel.id, ownerUid: sel.ownerUid, data });
+
+            // Generate unique folder name based on experiment name
+            const rawName = data.experimentName || '';
+            let folderName = rawName ? sanitizeFileName(rawName) : sel.id;
+            if (usedNames.has(folderName)) {
+                let counter = 2;
+                let candidate = `${folderName}_${counter}`;
+                while (usedNames.has(candidate)) {
+                    counter++;
+                    candidate = `${folderName}_${counter}`;
+                }
+                folderName = candidate;
+            }
+            usedNames.add(folderName);
+
+            experiments.push({ id: sel.id, ownerUid: sel.ownerUid, folderName, data });
         } catch (err) {
             console.warn(`Cannot load experiment ${sel.id}:`, err);
             denied.push(sel);
@@ -391,7 +407,7 @@ function getTreatmentInfo(data, index) {
 // ═══════════════════════════════════════
 function forEachTreatment(exp, sectionId, legacyShared, legacyData, callback) {
     const state = resolveSectionState(exp.data, sectionId, legacyShared, legacyData);
-    const base = { expId: exp.id, expName: s(exp.data.experimentName) };
+    const base = { expId: exp.id, expName: s(exp.data.experimentName), folderName: exp.folderName || exp.id };
 
     if (state.shared) {
         const sectionData = state.sharedData || state.byTreatment[0] || {};
@@ -607,7 +623,7 @@ function flattenIrrigationFert(exp) {
         // Irrigation records
         (section.irrigationData || []).forEach(r => {
             recordNum++;
-            const zipPath = r.fileUrl ? `attachments/${ctx.expId}/השקיה ודשן/${r.fileName || 'file'}` : '';
+            const zipPath = r.fileUrl ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || 'file'}` : '';
             rows.push([
                 ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                 recordNum, 'השקיה',
@@ -620,7 +636,7 @@ function flattenIrrigationFert(exp) {
         // Fertilization records
         (section.fertilizationData || []).forEach(r => {
             recordNum++;
-            const zipPath = r.fileUrl ? `attachments/${ctx.expId}/השקיה ודשן/${r.fileName || 'file'}` : '';
+            const zipPath = r.fileUrl ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || 'file'}` : '';
             rows.push([
                 ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                 recordNum, 'דישון',
@@ -683,7 +699,7 @@ function flattenClimateSensors(exp) {
             files.forEach(f => {
                 recordNum++;
                 const zipPath = f.fileURL || f.fileUrl
-                    ? `attachments/${ctx.expId}/אקלים וסנסורים/${f.fileName || 'file'}`
+                    ? `attachments/${ctx.folderName}/אקלים וסנסורים/${f.fileName || 'file'}`
                     : '';
                 rows.push([
                     ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
@@ -859,8 +875,9 @@ function normalizeYieldData(raw = {}) {
 function flattenEventLog(exp) {
     const events = exp.data.events || [];
     return events.map((e, i) => {
+        const folderName = exp.folderName || exp.id;
         const zipPath = (e.fileUrl || e.fileURL)
-            ? `attachments/${exp.id}/יומן אירועים/${e.fileName || 'file'}`
+            ? `attachments/${folderName}/יומן אירועים/${e.fileName || 'file'}`
             : '';
         return [
             exp.id, s(exp.data.experimentName),
@@ -877,8 +894,9 @@ function flattenEventLog(exp) {
 function flattenFinancialAnalysis(exp) {
     const files = exp.data.financialFiles || exp.data.financialAnalysis?.financialFiles || [];
     return files.map((f, i) => {
+        const folderName = exp.folderName || exp.id;
         const zipPath = (f.fileURL || f.fileUrl)
-            ? `attachments/${exp.id}/ניתוחים פיננסים/${f.fileName || 'file'}`
+            ? `attachments/${folderName}/ניתוחים פיננסים/${f.fileName || 'file'}`
             : '';
         return [
             exp.id, s(exp.data.experimentName),
@@ -934,8 +952,9 @@ async function downloadAllAttachments(experiments, zip) {
         const storagePath = `users/${exp.ownerUid}/experiments/${exp.id}`;
         const storageRef = ref(storage, storagePath);
 
+        const folderName = exp.folderName || exp.id;
         try {
-            await scanStorageFolder(storageRef, attachmentsFolder.folder(exp.id), exp.id);
+            await scanStorageFolder(storageRef, attachmentsFolder.folder(folderName), exp.id);
         } catch (err) {
             console.warn(`Cannot scan storage for ${exp.id}:`, err.message);
         }

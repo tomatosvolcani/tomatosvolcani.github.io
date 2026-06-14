@@ -1539,97 +1539,438 @@ mark.fuse-highlight {
 }
 
 .export-modal {
-    background: #ffffff;
-    border-radius: var(--radius-lg);
-    width: min(540px, 92vw);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
+    width: min(850px, 95vw);
     max-height: 85vh;
     overflow-y: auto;
     padding: 32px;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 24px 80px rgba(10, 47, 114, 0.15), 0 8px 32px rgba(0, 0, 0, 0.08);
     animation: modalSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.export-modal-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 28px;
+    margin-bottom: 20px;
+    align-items: start;
+}
+
+.export-modal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.export-modal-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+.flowchart-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flowchart-card:hover {
+    border-color: var(--primary-400);
+    box-shadow: 0 4px 12px rgba(10, 47, 114, 0.08);
+    transform: translateY(-2px);
+}
+
+.flowchart-zoom-hint {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 47, 114, 0.6);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    z-index: 10;
+}
+
+.flowchart-card:hover .flowchart-zoom-hint {
+    opacity: 1;
+}
+
+.flowchart-zoom-hint i {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.mermaid-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+}
+
+.mermaid-container svg {
+    max-width: 100%;
+    height: auto;
+    min-height: 250px;
+}
+
+/* Maximized Flowchart Modal Overlay */
+.flowchart-large-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    animation: fadeOverlayIn 0.2s ease;
+}
+
+.flowchart-large-overlay.visible {
+    display: flex;
+}
+
+.flowchart-large-modal {
+    background: #ffffff;
+    border-radius: 20px;
+    width: min(1100px, 95vw);
+    height: min(850px, 90vh);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.flowchart-large-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.flowchart-large-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.flowchart-zoom-instruction {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--primary-800);
+    background: var(--primary-100);
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-weight: 600;
+    border: 1px solid rgba(10, 47, 114, 0.1);
+    box-shadow: 0 2px 6px rgba(10, 47, 114, 0.04);
+}
+
+.btn-close-large-flowchart {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close-large-flowchart:hover {
+    color: #ef4444;
+}
+
+.flowchart-large-body {
+    flex: 1;
+    overflow: hidden; /* Prevent scrollbars from appearing */
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    position: relative;
+}
+
+.flowchart-large-body .mermaid-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible; /* Avoid wrapper clipping */
+}
+
+.flowchart-large-body .mermaid-container svg {
+    max-height: 85%;
+    max-width: 85%;
+    overflow: visible !important; /* Prevent internal SVG boundaries clipping */
+    transform-origin: center center;
+}
+
+@media (max-width: 768px) {
+    .export-modal-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .flowchart-card {
+        min-height: auto;
+        padding: 12px;
+    }
 }
 
 .export-modal-title {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 1.3rem;
+    font-size: 1.45rem;
     font-weight: 800;
-    color: #0a2f72;
-    margin-bottom: 20px;
+    color: var(--primary-900);
+    margin-bottom: 24px;
+    border-bottom: 2px solid #eff6ff;
+    padding-bottom: 16px;
 }
 
 .export-modal-title i {
-    font-size: 1.2rem;
-    color: #1a4db3;
+    font-size: 1.3rem;
+    color: var(--primary-700);
 }
 
 .export-modal-section {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 }
 
 .export-modal-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--neutral-500);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
-.export-modal-count {
-    font-size: 28px;
-    font-weight: 900;
-    color: var(--primary-800);
-    margin-bottom: 4px;
+/* Redesigned ZIP Explorer Visualizer */
+.export-zip-explorer {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
 }
 
-.export-modal-sheets {
+.explorer-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.explorer-header i {
+    color: #f59e0b; /* Amber ZIP icon color */
+    font-size: 16px;
+}
+
+.explorer-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.explorer-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+}
+
+.explorer-item.excel-item {
+    border-left: 4px solid #16a34a;
+    background: #f0fdf4;
+}
+
+.explorer-item i {
+    font-size: 18px;
+}
+
+.explorer-item.excel-item i {
+    color: #16a34a;
+}
+
+.explorer-item.folder i {
+    color: #3b82f6; /* Blue folder color */
+}
+
+.explorer-item.folder-more i {
+    color: #64748b;
+}
+
+.explorer-item .item-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.explorer-item .item-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--neutral-850);
+}
+
+.explorer-item .item-desc {
+    font-size: 11.5px;
+    color: var(--neutral-500);
+}
+
+.explorer-folders-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 12px;
+}
+
+.explorer-group-title {
+    font-size: 12.5px;
+    font-weight: 750;
+    color: var(--neutral-600);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.explorer-group-title i {
+    color: #64748b;
+}
+
+.explorer-folders-list {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding: 2px;
 }
 
-.export-modal-sheet-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
+.explorer-item.folder {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 6px 10px;
+}
+
+.folder-name {
+    font-size: 12.5px;
+    font-weight: 600;
     color: var(--neutral-700);
-    padding: 5px 8px;
-    border-radius: 4px;
-    background: var(--neutral-50);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.export-modal-sheet-item i {
-    color: #16a34a;
-    font-size: 12px;
-}
-
-.export-modal-files-note {
-    display: flex;
-    align-items: center;
+/* Redesigned Sheet Tag Grid */
+.export-modal-sheets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: 8px;
-    padding: 10px 14px;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    color: #15803d;
-    font-weight: 500;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    max-height: 180px;
+    overflow-y: auto;
 }
 
-.export-modal-files-note i {
-    font-size: 14px;
+.export-sheet-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--neutral-700);
+    background: #ffffff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.export-sheet-tag i {
+    color: #16a34a;
+    font-size: 11px;
+}
+
+/* Redesigned ZIP Warning Box */
+.export-alert-box {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-radius: 12px;
+    color: #b45309;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.export-alert-box .alert-icon {
+    font-size: 16px;
+    color: #d97706;
+    margin-top: 2px;
 }
 
 .export-modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    margin-top: 24px;
-    padding-top: 18px;
-    border-top: 1px solid var(--neutral-150);
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
 }
 
 .btn-modal-back {
