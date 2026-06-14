@@ -1,30 +1,5 @@
 // js/smart-search.js
 import { auth, db } from "./firebase-config.js";
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-
-try {
-    mermaid.initialize({
-        startOnLoad: false,
-        theme: 'base',
-        themeVariables: {
-            primaryColor: '#eff6ff',
-            primaryTextColor: '#1e3a8a',
-            primaryBorderColor: '#bfdbfe',
-            lineColor: '#64748b',
-            secondaryColor: '#f0fdf4',
-            tertiaryColor: '#f8fafc',
-            fontFamily: 'Heebo, sans-serif'
-        },
-        securityLevel: 'loose',
-        flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis'
-        }
-    });
-} catch (err) {
-    console.error("Failed to initialize Mermaid", err);
-}
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -284,13 +259,6 @@ function initEventListeners() {
     // Close modal on overlay click
     document.getElementById("export-modal-overlay")?.addEventListener("click", (event) => {
         if (event.target === event.currentTarget) hideExportModal();
-    });
-
-    // Flowchart Zoom event listeners
-    document.getElementById("flowchart-card-trigger")?.addEventListener("click", openLargeFlowchart);
-    document.getElementById("btn-close-large-flowchart")?.addEventListener("click", closeLargeFlowchart);
-    document.getElementById("flowchart-large-overlay")?.addEventListener("click", (event) => {
-        if (event.target === event.currentTarget) closeLargeFlowchart();
     });
 }
 
@@ -1390,13 +1358,28 @@ function showExportSummaryModal() {
             const selectedList = Array.from(selectedExperiments.values());
             const visibleCount = 4;
             
+            const usedNames = new Set();
             let html = "";
             selectedList.slice(0, visibleCount).forEach((exp) => {
-                const name = exp.experimentName || exp.data?.experimentName || "ניסוי ללא שם";
+                const rawName = exp.experimentName || exp.data?.experimentName || "ניסוי ללא שם";
+                
+                // Sanitize exactly as done in smart-export.js
+                let sanitizedName = String(rawName).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
+                if (usedNames.has(sanitizedName)) {
+                    let counter = 2;
+                    let candidate = `${sanitizedName}_${counter}`;
+                    while (usedNames.has(candidate)) {
+                        counter++;
+                        candidate = `${sanitizedName}_${counter}`;
+                    }
+                    sanitizedName = candidate;
+                }
+                usedNames.add(sanitizedName);
+                
                 html += `
-                    <div class="explorer-item folder" title="${escapeHtml(name)}">
+                    <div class="explorer-item folder" title="${escapeHtml(rawName)}">
                         <i class="fas fa-folder"></i>
-                        <span class="folder-name">${escapeHtml(name)}/</span>
+                        <span class="folder-name">${escapeHtml(sanitizedName)}/</span>
                     </div>
                 `;
             });
@@ -1415,241 +1398,7 @@ function showExportSummaryModal() {
         }
 
         overlay.classList.add("visible");
-        setTimeout(() => {
-            renderExportFlowchart();
-        }, 50);
     }
-}
-
-async function renderExportFlowchart() {
-    const container = document.getElementById("export-flowchart");
-    if (!container) return;
-
-    // Clean previous chart
-    container.innerHTML = `<div style="color:var(--neutral-500); font-size:13px; text-align:center; padding: 40px 0;"><i class="fas fa-spinner fa-spin"></i> מייצר את מבנה השליפה...</div>`;
-    container.removeAttribute("data-processed");
-
-    try {
-        const selectedList = Array.from(selectedExperiments.values());
-        const totalCount = selectedList.length;
-        if (totalCount === 0) {
-            container.innerHTML = `<div style="color:var(--neutral-500); font-size:13px; text-align:center; padding: 40px 0;">לא נבחרו ניסויים.</div>`;
-            return;
-        }
-
-        // Prepare nodes for selected experiments (max 4)
-        const maxVisibleExps = 4;
-        let expNodesDef = "";
-        let expConnectionsDef = "";
-
-        selectedList.slice(0, maxVisibleExps).forEach((exp, idx) => {
-            const rawName = exp.experimentName || exp.data?.experimentName || `ניסוי ${idx + 1}`;
-            const safeName = escapeMermaidLabel(rawName);
-            expNodesDef += `        Exp${idx}["🧪 ${safeName}"]\n`;
-            expNodesDef += `        style Exp${idx} fill:#eff6ff,stroke:#3b82f6,stroke-width:1.5px,rx:8px,ry:8px\n`;
-            expConnectionsDef += `    Exp${idx} --> Consolidate\n`;
-        });
-
-        if (totalCount > maxVisibleExps) {
-            const remainingCount = totalCount - maxVisibleExps;
-            expNodesDef += `        ExpMore["➕ עוד ${remainingCount} ניסויים..."]\n`;
-            expNodesDef += `        style ExpMore fill:#f1f5f9,stroke:#64748b,stroke-width:1px,stroke-dasharray: 3 3,rx:8px,ry:8px\n`;
-            expConnectionsDef += `    ExpMore --> Consolidate\n`;
-        }
-
-        // Assemble the Mermaid code
-        const graphDefinition = `
-graph TD
-    subgraph Selected ["ניסויים שנבחרו לייצוא"]
-        direction TB
-${expNodesDef}    end
-    style Selected fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,rx:10px,ry:10px
-    
-    Consolidate["⚙️ מנגנון איגום ושליפה"]
-    style Consolidate fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,rx:10px,ry:10px
-    
-    Excel["📊 Excel Export"]
-    style Excel fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,rx:8px,ry:8px
-    
-    Zip["📦 attachments.zip (נספחים)"]
-    style Zip fill:#fffbeb,stroke:#d97706,stroke-width:1.5px,rx:8px,ry:8px
-    
-    subgraph Sheets ["גיליונות שיווצרו ב-Excel"]
-        direction LR
-        subgraph G1 ["רקע ומבנה"]
-            direction TB
-            S1["מטה-דאטה"]
-            S2["פרטי הגידול"]
-            S3["מבנה"]
-            S4["טיפול בקרקע"]
-        end
-        style G1 fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px
-        
-        subgraph G2 ["השקיה ואגרוטכניקה"]
-            direction TB
-            S5["פריסת טפטוף"]
-            S6["השקיה ודשן"]
-            S9["אגרוטכניקה"]
-            S10["הגנת הצומח"]
-        end
-        style G2 fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px
-        
-        subgraph G3 ["מדדים ותוצאות"]
-            direction TB
-            S7["מדדי צימוח"]
-            S8["אקלים וסנסורים"]
-            S11["נתוני יבול"]
-            S12["יומן אירועים"]
-            S13["פיננסיים"]
-        end
-        style G3 fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px
-    end
-    style Sheets fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,rx:8px,ry:8px
-    
-    style S1 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S2 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S3 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S4 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S5 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S6 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S7 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S8 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S9 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S10 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S11 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S12 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    style S13 fill:#ffffff,stroke:#cbd5e1,stroke-width:1.5px,rx:6px,ry:6px
-    
-${expConnectionsDef}
-    Consolidate --> Excel
-    Consolidate --> Zip
-    Excel -.-> Sheets
-`;
-
-        // Render using Mermaid API
-        const uniqueId = `mermaid-svg-${Date.now()}`;
-        const { svg } = await mermaid.render(uniqueId, graphDefinition);
-        container.innerHTML = svg;
-    } catch (error) {
-        console.error("Failed to render Mermaid flowchart", error);
-        container.innerHTML = `<div style="color:var(--neutral-400); font-size:12px; text-align:center; padding: 20px;">מבנה השליפה אינו זמין (שגיאת עיבוד)</div>`;
-    }
-}
-
-let largeSvgZoom = 1.0;
-let largeSvgPanX = 0;
-let largeSvgPanY = 0;
-let isPanningLargeSvg = false;
-let panStartX = 0;
-let panStartY = 0;
-
-function openLargeFlowchart() {
-    const largeOverlay = document.getElementById("flowchart-large-overlay");
-    if (!largeOverlay) return;
-    
-    const mainChart = document.getElementById("export-flowchart");
-    const largeChart = document.getElementById("export-flowchart-large");
-    if (mainChart && largeChart) {
-        largeChart.innerHTML = mainChart.innerHTML;
-        
-        // Remove duplicate IDs from copied SVG to keep HTML valid
-        const svgEl = largeChart.querySelector("svg");
-        if (svgEl) {
-            svgEl.removeAttribute("id");
-            svgEl.style.width = "100%";
-            svgEl.style.height = "100%";
-            svgEl.style.maxHeight = "70vh";
-            
-            // Initialize Zoom & Pan logic
-            initLargeSvgZoomAndPan(svgEl);
-        }
-    }
-    
-    largeOverlay.classList.add("visible");
-}
-
-function initLargeSvgZoomAndPan(svgEl) {
-    if (!svgEl) return;
-    
-    largeSvgZoom = 1.0;
-    largeSvgPanX = 0;
-    largeSvgPanY = 0;
-    isPanningLargeSvg = false;
-    
-    svgEl.style.cursor = "grab";
-    svgEl.style.userSelect = "none";
-    svgEl.style.pointerEvents = "auto";
-    
-    const gEl = svgEl.querySelector("g");
-    if (!gEl) return;
-    
-    // Set up transform origin on the inner group
-    gEl.style.transformOrigin = "center center";
-    
-    function applyTransform() {
-        gEl.style.transform = `translate(${largeSvgPanX}px, ${largeSvgPanY}px) scale(${largeSvgZoom})`;
-        gEl.style.transition = isPanningLargeSvg ? "none" : "transform 0.15s ease-out";
-    }
-    
-    // Wheel zoom
-    svgEl.addEventListener("wheel", (event) => {
-        event.preventDefault();
-        
-        const zoomIntensity = 0.08;
-        const delta = event.deltaY < 0 ? 1 : -1;
-        
-        const nextZoom = largeSvgZoom + delta * zoomIntensity;
-        largeSvgZoom = Math.max(0.3, Math.min(5.0, nextZoom));
-        
-        applyTransform();
-    }, { passive: false });
-    
-    // Pointer Drag to pan
-    svgEl.addEventListener("pointerdown", (event) => {
-        if (event.button !== 0) return; // only left click
-        
-        isPanningLargeSvg = true;
-        svgEl.style.cursor = "grabbing";
-        panStartX = event.clientX - largeSvgPanX;
-        panStartY = event.clientY - largeSvgPanY;
-        svgEl.setPointerCapture(event.pointerId);
-        event.preventDefault();
-    });
-    
-    svgEl.addEventListener("pointermove", (event) => {
-        if (!isPanningLargeSvg) return;
-        
-        largeSvgPanX = event.clientX - panStartX;
-        largeSvgPanY = event.clientY - panStartY;
-        applyTransform();
-    });
-    
-    svgEl.addEventListener("pointerup", (event) => {
-        if (!isPanningLargeSvg) return;
-        isPanningLargeSvg = false;
-        svgEl.style.cursor = "grab";
-        svgEl.releasePointerCapture(event.pointerId);
-    });
-    
-    svgEl.addEventListener("pointercancel", (event) => {
-        if (!isPanningLargeSvg) return;
-        isPanningLargeSvg = false;
-        svgEl.style.cursor = "grab";
-    });
-}
-
-function closeLargeFlowchart() {
-    const largeOverlay = document.getElementById("flowchart-large-overlay");
-    if (largeOverlay) {
-        largeOverlay.classList.remove("visible");
-    }
-}
-
-function escapeMermaidLabel(label) {
-    return String(label || "")
-        .replace(/["'\[\]\(\)\{\}]/g, "")
-        .replace(/[<>]/g, "")
-        .trim();
 }
 
 function hideExportModal() {

@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260602-1">
     <link rel="stylesheet" href="css/layout.css?v=20260602-1">
-    <link rel="stylesheet" href="css/smart-search.css?v=20260614-1">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260614-5">
     <link rel="stylesheet" href="css/accessibility.css?v=20260602-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260602-1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -287,124 +287,90 @@
             <!-- Export Summary Modal -->
             <div class="export-modal-overlay" id="export-modal-overlay">
                 <div class="export-modal">
-                    <div class="export-modal-title">
-                        <i class="fas fa-file-zipper"></i>
-                        סיכום שליפה
+
+                    <!-- Modal Header with title + action buttons in one bar -->
+                    <div class="export-modal-header">
+                        <div class="export-modal-title">
+                            <i class="fas fa-file-zipper"></i>
+                            סיכום שליפה
+                        </div>
+                        <div class="export-modal-actions">
+                            <button class="btn-modal-back" id="btn-modal-back" type="button">
+                                <i class="fas fa-arrow-right"></i>
+                                חזור
+                            </button>
+                            <button class="btn-modal-confirm" id="btn-modal-confirm" type="button">
+                                <i class="fas fa-download"></i>
+                                כן, בצע שליפה
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="export-modal-grid">
-                        <!-- Right Column: Text Details -->
-                        <div class="export-modal-details">
-                            <!-- Visual ZIP Explorer Tree -->
-                            <div class="export-modal-section">
-                                <div class="export-modal-section-title">
-                                    <i class="fas fa-folder-tree"></i>
-                                    מבנה קובץ הייצוא שיתקבל
+                    <div class="export-modal-details">
+                        <!-- Visual ZIP Explorer Tree -->
+                        <div class="export-modal-section">
+                            <div class="export-modal-section-title">
+                                <i class="fas fa-folder-tree"></i>
+                                מבנה קובץ הייצוא שיתקבל
+                            </div>
+                            <div class="export-zip-explorer">
+                                <div class="explorer-header">
+                                    <i class="fas fa-file-archive"></i>
+                                    <span id="modal-zip-name-label">שליפה_חכמה_חץ.zip</span>
                                 </div>
-                                <div class="export-zip-explorer">
-                                    <div class="explorer-header">
-                                        <i class="fas fa-file-archive"></i>
-                                        <span id="modal-zip-name-label">שליפה_חכמה_חץ.zip</span>
+                                <div class="explorer-body">
+                                    <!-- Unified Excel Datasheet -->
+                                    <div class="explorer-item excel-item">
+                                        <i class="far fa-file-excel"></i>
+                                        <div class="item-content">
+                                            <span class="item-title">experiments_flat_export.xlsx</span>
+                                            <span class="item-desc">קובץ גיליונות נתונים מאוחד (13 גיליונות)</span>
+                                        </div>
                                     </div>
-                                    <div class="explorer-body">
-                                        <!-- Unified Excel Datasheet -->
-                                        <div class="explorer-item excel-item">
-                                            <i class="far fa-file-excel"></i>
+                                    
+                                    <!-- attachments/ parent folder -->
+                                    <div class="attachments-parent-folder">
+                                        <div class="explorer-item folder parent-folder">
+                                            <i class="fas fa-folder-open" style="color: #f59e0b;"></i>
                                             <div class="item-content">
-                                                <span class="item-title">experiments_flat_export.xlsx</span>
-                                                <span class="item-desc">קובץ גיליונות נתונים מאוחד (13 גיליונות)</span>
+                                                <span class="item-title">attachments/</span>
+                                                <span class="item-desc">תיקיית נספחים (קבצים מצורפים)</span>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Experiment Folders containing files -->
-                                        <div class="explorer-folders-group">
-                                            <div class="explorer-group-title">
-                                                <i class="fas fa-folder-open"></i>
-                                                <span>תיקיות קבצי ניסויים (קבצים מצורפים):</span>
-                                            </div>
-                                            <div class="explorer-folders-list" id="modal-experiment-folders-list">
-                                                <!-- Dynamically populated by JavaScript based on selected experiments -->
-                                            </div>
+                                        <!-- Nested list of experiment folders inside attachments/ -->
+                                        <div class="explorer-folders-list" id="modal-experiment-folders-list">
+                                            <!-- Dynamically populated by JavaScript based on selected experiments -->
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Excel sheets preview tag list -->
-                            <div class="export-modal-section">
-                                <div class="export-modal-section-title">
-                                    <i class="fas fa-list-ol"></i>
-                                    מבנה הגיליונות בקובץ ה-Excel
-                                </div>
-                                <div class="export-modal-sheets">
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> מטה-דאטה</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> פרטי הגידול</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> מבנה</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> טיפול בקרקע</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> פריסת טפטוף</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> השקיה ודשן</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> צימוח</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> אקלים וסנסורים</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> אגרוטכניקה</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> הגנת הצומח</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> נתוני יבול</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> יומן אירועים</div>
-                                    <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> פיננסיים</div>
-                                </div>
+                        <!-- Excel sheets preview - compact horizontal strip -->
+                        <div class="export-modal-section">
+                            <div class="export-modal-section-title">
+                                <i class="fas fa-table-columns"></i>
+                                גיליונות Excel
                             </div>
-
-                            <!-- ZIP Attachments alert box -->
-                            <div class="export-alert-box">
-                                <div class="alert-icon"><i class="fas fa-paperclip"></i></div>
-                                <div class="alert-text">
-                                    קבצים מצורפים יישמרו בתיקיות נפרדות עבור כל ניסוי בתוך ה-ZIP, במידה וקיימים במערכת.
-                                </div>
+                            <div class="export-modal-sheets">
+                                <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> מטה-דאטה</div>
+                                <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> פרטי הגידול</div>
+                                <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> מבנה</div>
+                                <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> קרקע</div>
+                                <div class="export-sheet-tag"><i class="fas fa-check-circle"></i> טפטוף</div>
+                                <div class="export-sheet-tag export-sheet-more">+8 גיליונות נוספים...</div>
                             </div>
                         </div>
 
-                        <!-- Left Column: Flowchart Diagram -->
-                        <div class="export-modal-diagram">
-                            <div class="export-modal-section-title"><i class="fas fa-project-diagram"></i> מבנה השליפה הנוכחית</div>
-                            <div class="flowchart-card" id="flowchart-card-trigger">
-                                <div class="mermaid-container">
-                                    <div class="mermaid" id="export-flowchart"></div>
-                                </div>
-                                <div class="flowchart-zoom-hint">
-                                    <i class="fas fa-magnifying-glass-plus"></i>
-                                    <span>לחץ/י להגדלת התרשים</span>
-                                </div>
+                        <!-- ZIP Attachments alert box -->
+                        <div class="export-alert-box">
+                            <div class="alert-icon"><i class="fas fa-paperclip"></i></div>
+                            <div class="alert-text">
+                                קבצים מצורפים יישמרו בתיקיות נפרדות עבור כל ניסוי בתוך ה-ZIP, במידה וקיימים במערכת.
                             </div>
                         </div>
                     </div>
 
-                    <div class="export-modal-actions">
-                        <button class="btn-modal-back" id="btn-modal-back" type="button">חזור אחורה</button>
-                        <button class="btn-modal-confirm" id="btn-modal-confirm" type="button">
-                            <i class="fas fa-download"></i>
-                            כן, בצע שליפה
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Maximized Flowchart Overlay -->
-            <div class="flowchart-large-overlay" id="flowchart-large-overlay">
-                <div class="flowchart-large-modal">
-                    <div class="flowchart-large-header">
-                        <h3><i class="fas fa-project-diagram"></i> מבנה השליפה הנוכחית</h3>
-                        <span class="flowchart-zoom-instruction">
-                            <i class="fas fa-circle-info"></i>
-                            ניתן להגדיל/להקטין עם גלגלת העכבר ולגרור להזזה
-                        </span>
-                        <button class="btn-close-large-flowchart" id="btn-close-large-flowchart" aria-label="סגור תצוגה מוגדלת">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <div class="flowchart-large-body">
-                        <div class="mermaid-container">
-                            <div class="mermaid" id="export-flowchart-large"></div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -462,6 +428,6 @@
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="js/accessibility.js?v=20260602-1"></script>
     <script src="js/chatbot.js?v=20260602-1"></script>
-    <script type="module" src="js/smart-search.js?v=20260614-1"></script>
+    <script type="module" src="js/smart-search.js?v=20260614-5"></script>
 </body>
 </html>
