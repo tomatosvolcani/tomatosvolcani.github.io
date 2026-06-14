@@ -144,6 +144,7 @@ const STORAGE_FOLDER_MAP = {
 let currentUser = null;
 let userData = null;
 let isAdmin = false;
+let isExportActive = false;
 
 // ═══════════════════════════════════════
 // DOM Ready
@@ -152,6 +153,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     document.getElementById('btn-back-search')?.addEventListener('click', () => {
         window.location.href = 'smart-search.html';
+    });
+
+    // Prevent accidental navigation
+    window.addEventListener('beforeunload', (e) => {
+        if (isExportActive) {
+            e.preventDefault();
+            e.returnValue = 'תהליך השליפה עדיין בעיצומו. יציאה מהעמוד תפסיק את התהליך ותאלץ להתחיל אותו מחדש.';
+            return e.returnValue;
+        }
     });
 });
 
@@ -234,6 +244,7 @@ async function runSmartExport() {
         return;
     }
 
+    isExportActive = true;
     renderExperimentList(selections);
 
     // Step 1: Check permissions & load data
@@ -329,6 +340,10 @@ async function runSmartExport() {
     saveAs(zipBlob, `smart_export_${ts}.zip`);
 
     completeStep(5);
+    isExportActive = false; // Disable page unload prompt
+    const warningNote = document.getElementById('export-warning-note');
+    if (warningNote) warningNote.classList.add('hidden');
+
     const area = document.getElementById('progress-area');
     if (area) area.classList.add('success');
     setProgressText('הייצוא הושלם בהצלחה!');
@@ -988,6 +1003,10 @@ function setProgressText(text) {
 }
 
 function setStepError(text) {
+    isExportActive = false; // Disable page unload prompt
+    const warningNote = document.getElementById('export-warning-note');
+    if (warningNote) warningNote.classList.add('hidden');
+
     setProgressText(text);
     const area = document.getElementById('progress-area');
     if (area) area.classList.add('error');
