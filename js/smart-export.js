@@ -329,6 +329,8 @@ async function runSmartExport() {
     saveAs(zipBlob, `smart_export_${ts}.zip`);
 
     completeStep(5);
+    const area = document.getElementById('progress-area');
+    if (area) area.classList.add('success');
     setProgressText('הייצוא הושלם בהצלחה!');
     showToast('קובץ ZIP הורד בהצלחה!', 'success');
 

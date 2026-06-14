@@ -187,6 +187,15 @@
     content: "\f057"; /* fa-circle-xmark */
 }
 
+.export-progress-area.success .progress-spinner i {
+    color: var(--success-700);
+    animation: none;
+}
+
+.export-progress-area.success .progress-spinner i::before {
+    content: "\f058"; /* fa-circle-check */
+}
+
 .progress-steps {
     display: flex;
     align-items: center;
