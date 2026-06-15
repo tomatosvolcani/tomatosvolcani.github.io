@@ -136,6 +136,7 @@ let allExperiments = [];
 let sharedOnlyExperiments = [];
 let filteredExperiments = [];
 let currentFuseResultsByKey = new Map();
+let selectedExperiments = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
     initEventListeners();
@@ -246,6 +247,18 @@ function initEventListeners() {
 
     document.querySelectorAll('input[name="logical-mode"]').forEach((radio) => {
         radio.addEventListener("change", applyFiltersAndSearch);
+    });
+
+    // Selection controls
+    document.getElementById("select-all-checkbox")?.addEventListener("change", toggleSelectAll);
+    document.getElementById("btn-clear-selection")?.addEventListener("click", clearSelection);
+    document.getElementById("btn-prepare-export")?.addEventListener("click", showExportSummaryModal);
+    document.getElementById("btn-modal-back")?.addEventListener("click", hideExportModal);
+    document.getElementById("btn-modal-confirm")?.addEventListener("click", proceedToSmartExport);
+
+    // Close modal on overlay click
+    document.getElementById("export-modal-overlay")?.addEventListener("click", (event) => {
+        if (event.target === event.currentTarget) hideExportModal();
     });
 }
 
@@ -661,9 +674,14 @@ function renderResults() {
         const score = fuseResult?.score;
         const matchToggle = renderMatchInsights(experiment, fuseResult, searchWords);
         const matchDetailsRow = renderMatchDetailsRow(experiment, fuseResult, searchWords);
+        const expKey = getExperimentKey(experiment.ownerUid, experiment.id);
+        const isSelected = selectedExperiments.has(expKey);
 
         return `
-            <tr class="result-row" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}">
+            <tr class="result-row${isSelected ? ' selected-row' : ''}" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}" data-exp-key="${escapeHtml(expKey)}">
+                <td class="td-checkbox">
+                    <input type="checkbox" class="exp-checkbox" data-exp-key="${escapeHtml(expKey)}" ${isSelected ? 'checked' : ''}>
+                </td>
                 <td data-label="שם הניסוי">
                     <strong>${highlightText(experiment.experimentName || "ניסוי ללא שם", searchWords)}</strong>
                     ${matchToggle}
@@ -686,9 +704,21 @@ function renderResults() {
         `;
     }).join("");
 
+    // Checkbox event listeners
+    tbody.querySelectorAll(".exp-checkbox").forEach((checkbox) => {
+        checkbox.addEventListener("change", (event) => {
+            event.stopPropagation();
+            const key = checkbox.dataset.expKey;
+            toggleExperimentSelection(key);
+            const row = checkbox.closest("tr.result-row");
+            if (row) row.classList.toggle("selected-row", checkbox.checked);
+            updateSelectAllState();
+        });
+    });
+
     tbody.querySelectorAll("tr.result-row").forEach((row) => {
         row.addEventListener("click", (event) => {
-            if (event.target.closest(".btn-view-exp") || event.target.closest(".match-toggle-btn")) return;
+            if (event.target.closest(".btn-view-exp") || event.target.closest(".match-toggle-btn") || event.target.closest(".td-checkbox")) return;
             viewExperiment(row.dataset.experimentId, row.dataset.ownerUid);
         });
     });
@@ -706,6 +736,9 @@ function renderResults() {
             button.setAttribute("aria-expanded", String(isOpen));
         });
     });
+
+    updateSelectionUI();
+    updateSelectAllState();
 }
 
 function updateResultsStats() {
@@ -810,7 +843,7 @@ function renderMatchDetailsRow(experiment, fuseResult, searchWords) {
 
     return `
         <tr class="match-details-row" id="${detailsRowId}" hidden>
-            <td class="match-details-cell" colspan="9">
+            <td class="match-details-cell" colspan="10">
                 <div class="match-details-list" role="region" aria-label="מקורות התאמה עבור ${escapeHtml(experiment.experimentName || 'ניסוי ללא שם')}">
                     ${insights.map((insight) => `
                         <div class="match-source-card">
@@ -1231,6 +1264,158 @@ function escapeRegExp(value) {
 
 function stripHtml(value) {
     return stringValue(value).replace(/<[^>]*>/g, "");
+}
+
+// ═══════════════════════════════════════
+// Selection Management for Smart Export
+// ═══════════════════════════════════════
+const SMART_EXPORT_SESSION_KEY = 'smart-export-selections';
+
+function toggleExperimentSelection(expKey) {
+    if (selectedExperiments.has(expKey)) {
+        selectedExperiments.delete(expKey);
+    } else {
+        const experiment = findExperimentByKey(expKey);
+        if (experiment) {
+            selectedExperiments.set(expKey, experiment);
+        }
+    }
+    updateSelectionUI();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (!selectAllCheckbox) return;
+
+    if (selectAllCheckbox.checked) {
+        filteredExperiments.forEach((exp) => {
+            const key = getExperimentKey(exp.ownerUid, exp.id);
+            selectedExperiments.set(key, exp);
+        });
+    } else {
+        filteredExperiments.forEach((exp) => {
+            const key = getExperimentKey(exp.ownerUid, exp.id);
+            selectedExperiments.delete(key);
+        });
+    }
+    updateSelectionUI();
+    updateRowCheckboxes();
+}
+
+function clearSelection() {
+    selectedExperiments.clear();
+    updateSelectionUI();
+    updateRowCheckboxes();
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+}
+
+function updateSelectionUI() {
+    const bar = document.getElementById("selection-action-bar");
+    const countEl = document.getElementById("selection-bar-count");
+    const count = selectedExperiments.size;
+
+    if (countEl) countEl.textContent = count;
+    if (bar) bar.classList.toggle("visible", count > 0);
+}
+
+function updateRowCheckboxes() {
+    document.querySelectorAll(".exp-checkbox").forEach((checkbox) => {
+        const key = checkbox.dataset.expKey;
+        const isSelected = selectedExperiments.has(key);
+        checkbox.checked = isSelected;
+        const row = checkbox.closest("tr.result-row");
+        if (row) row.classList.toggle("selected-row", isSelected);
+    });
+    updateSelectAllState();
+}
+
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (!selectAllCheckbox) return;
+
+    const visibleCheckboxes = document.querySelectorAll(".exp-checkbox");
+    const allChecked = visibleCheckboxes.length > 0 && Array.from(visibleCheckboxes).every((cb) => cb.checked);
+    selectAllCheckbox.checked = allChecked;
+}
+
+function findExperimentByKey(key) {
+    return allExperiments.find((exp) => getExperimentKey(exp.ownerUid, exp.id) === key) || null;
+}
+
+function showExportSummaryModal() {
+    const overlay = document.getElementById("export-modal-overlay");
+    if (overlay) {
+        // Update the zip header label with the count of selected experiments
+        const zipLabel = document.getElementById("modal-zip-name-label");
+        if (zipLabel) {
+            zipLabel.textContent = `שליפה_חכמה_חץ.zip (${selectedExperiments.size} ניסויים)`;
+        }
+
+        // Dynamically build the folder structure representing selected experiments inside the ZIP
+        const foldersContainer = document.getElementById("modal-experiment-folders-list");
+        if (foldersContainer) {
+            const selectedList = Array.from(selectedExperiments.values());
+            const visibleCount = 4;
+            
+            const usedNames = new Set();
+            let html = "";
+            selectedList.slice(0, visibleCount).forEach((exp) => {
+                const rawName = exp.experimentName || exp.data?.experimentName || "ניסוי ללא שם";
+                
+                // Sanitize exactly as done in smart-export.js
+                let sanitizedName = String(rawName).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
+                if (usedNames.has(sanitizedName)) {
+                    let counter = 2;
+                    let candidate = `${sanitizedName}_${counter}`;
+                    while (usedNames.has(candidate)) {
+                        counter++;
+                        candidate = `${sanitizedName}_${counter}`;
+                    }
+                    sanitizedName = candidate;
+                }
+                usedNames.add(sanitizedName);
+                
+                html += `
+                    <div class="explorer-item folder" title="${escapeHtml(rawName)}">
+                        <i class="fas fa-folder"></i>
+                        <span class="folder-name">${escapeHtml(sanitizedName)}/</span>
+                    </div>
+                `;
+            });
+            
+            if (selectedList.length > visibleCount) {
+                const remaining = selectedList.length - visibleCount;
+                html += `
+                    <div class="explorer-item folder-more" title="עוד ${remaining} תיקיות ניסויים">
+                        <i class="fas fa-folder-plus"></i>
+                        <span class="folder-name">עוד ${remaining} ניסויים...</span>
+                    </div>
+                `;
+            }
+            
+            foldersContainer.innerHTML = html || `<div style="grid-column: 1 / -1; color: var(--neutral-400); font-size:12px; text-align:center; padding: 10px;">לא נבחרו ניסויים</div>`;
+        }
+
+        overlay.classList.add("visible");
+    }
+}
+
+function hideExportModal() {
+    const overlay = document.getElementById("export-modal-overlay");
+    if (overlay) overlay.classList.remove("visible");
+}
+
+function proceedToSmartExport() {
+    const selections = Array.from(selectedExperiments.values()).map((exp) => ({
+        id: exp.id,
+        ownerUid: exp.ownerUid,
+        name: exp.experimentName || exp.data?.experimentName || '',
+        researcher: exp.leadResearcher || exp.data?.leadResearcher || ''
+    }));
+
+    sessionStorage.setItem(SMART_EXPORT_SESSION_KEY, JSON.stringify(selections));
+    window.location.href = 'smart-export.html';
 }
 
 async function handleLogout() {
