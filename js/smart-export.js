@@ -1368,6 +1368,7 @@ function findParsedFile(parsedFiles, fileRef, options = {}) {
 function normalizeHeader(value) {
     return s(value)
         .replace(/["'״׳`]/g, '')
+        .replace(/\s*\/\s*/g, ' / ')   // normalize spaces around /
         .replace(/\s+/g, ' ')
         .trim();
 }
