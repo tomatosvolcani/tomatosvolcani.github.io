@@ -1282,8 +1282,19 @@ async function parseAttachmentToRows(blob, fileName) {
     const ext = String(fileName || '').split('.').pop().toLowerCase();
     if (!['csv', 'xlsx', 'xls'].includes(ext)) return null;
     try {
-        const buf = await blob.arrayBuffer();
-        const wb = XLSX.read(buf, { type: 'array' });
+        let wb;
+        if (ext === 'csv') {
+            // CSV: read as text first so Hebrew/UTF-8 content is decoded correctly.
+            // Reading raw bytes causes SheetJS to default to Latin-1, garbling
+            // non-ASCII headers and making column matching impossible.
+            const text = await blob.text();            // Blob.text() decodes as UTF-8
+            wb = XLSX.read(text, { type: 'string' });  // SheetJS accepts string input
+        } else {
+            // Excel binary formats (xlsx/xls) embed their own encoding — safe to
+            // read as raw bytes.
+            const buf = await blob.arrayBuffer();
+            wb = XLSX.read(buf, { type: 'array' });
+        }
         const sheetName = wb.SheetNames[0];
         if (!sheetName) return null;
         const ws = wb.Sheets[sheetName];
@@ -1292,6 +1303,7 @@ async function parseAttachmentToRows(blob, fileName) {
         if (nonEmpty.length < 2) return null; // need a header row + at least one data row
         const headers = (nonEmpty[0] || []).map(h => s(h));
         const rows = nonEmpty.slice(1);
+        console.log(`[extract] parsed ${fileName}: ${headers.length} columns, ${rows.length} data rows, headers:`, headers);
         return { headers, rows };
     } catch (err) {
         console.warn(`Cannot parse attachment ${fileName}:`, err.message);
@@ -1364,7 +1376,9 @@ function normalizeFileRef(value) {
     let out = s(value);
     if (!out) return '';
     try { out = decodeURIComponent(out); } catch { /* keep raw */ }
-    out = out.replace(/^https?:\/\/[^/]+\/[^/]+\/o\//, '');
+    // Strip Firebase Storage download-URL prefix.
+    // Actual format: https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<path>
+    out = out.replace(/^https?:\/\/[^/]+\/v0\/b\/[^/]+\/o\//, '');
     out = out.split('?')[0];
     return out.toLowerCase().trim();
 }
