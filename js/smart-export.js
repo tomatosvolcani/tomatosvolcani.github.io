@@ -33,6 +33,17 @@ const IRRIGATION_EXTRACT_TARGETS = [
     { header: 'סה״כ כמות דשן', accepted: ['סהכ כמות דשן', 'כמות דשן'] }
 ];
 
+// Columns in the "אקלים וסנסורים" sheet that can be filled from an attached file.
+const CLIMATE_EXTRACT_TARGETS = [
+    { header: 'נתון', accepted: ['נתון', 'סוג נתון'] },
+    { header: 'מיקום מדידה', accepted: ['מיקום מדידה'] },
+    { header: 'מיקום חיישן במרחב', accepted: ['מיקום חיישן במרחב', 'מיקום חיישן'] },
+    { header: 'גובה / עומק חיישן', accepted: ['גובה / עומק חיישן', 'גובה עומק חיישן', 'גובה חיישן', 'עומק חיישן'] },
+    { header: 'תאריך התחלה', accepted: ['תאריך התחלה'] },
+    { header: 'תאריך סיום', accepted: ['תאריך סיום'] },
+    { header: 'הערות', accepted: ['הערות'] }
+];
+
 const SHEET_ORDER = [
     'metadata', 'cropDetails', 'structure', 'soilTreatment', 'dripLayout',
     'irrigationFert', 'growth', 'climateSensors', 'agrotechPoll',
@@ -350,7 +361,7 @@ async function runSmartExport() {
         workbookRows.dripLayout.push(...flattenDripLayout(exp));
         workbookRows.irrigationFert.push(...flattenIrrigationFert(exp, parsedAttachments));
         workbookRows.growth.push(...flattenGrowth(exp));
-        workbookRows.climateSensors.push(...flattenClimateSensors(exp));
+        workbookRows.climateSensors.push(...flattenClimateSensors(exp, parsedAttachments));
         workbookRows.agrotechPoll.push(...flattenAgrotechPoll(exp));
         workbookRows.plantProtection.push(...flattenPlantProtection(exp));
         workbookRows.yieldData.push(...flattenYieldData(exp));
@@ -690,7 +701,16 @@ function flattenIrrigationFert(exp, parsedAttachments) {
             fileRecords.forEach(({ rec, label }) => {
                 const parsed = findParsedFile(parsedFiles, rec.fileName);
                 if (!parsed) return;
-                const extracted = buildExtractedIrrigationRows(parsed, ctx, label, () => ++recordNum);
+                const extracted = buildExtractedRows({
+                    parsed,
+                    sheetKey: 'irrigationFert',
+                    targets: IRRIGATION_EXTRACT_TARGETS,
+                    ctx,
+                    nextRecordNum: () => ++recordNum,
+                    fileNameCol: 7,   // 'שם הקובץ'
+                    tagCol: 6,        // 'סוג רשומה'
+                    tagPrefix: label  // 'השקיה' / 'דישון'
+                });
                 rows.push(...extracted);
             });
         }
@@ -698,14 +718,22 @@ function flattenIrrigationFert(exp, parsedAttachments) {
     return rows;
 }
 
-// Build XLSX rows for "השקיה ודשן" from a parsed attachment whose column headers
-// match the irrigation/fertilization fields. One XLSX row per file data row.
-function buildExtractedIrrigationRows(parsed, ctx, recordTypeLabel, nextRecordNum) {
-    const headerLen = HEADERS.irrigationFert.length;
+// Build XLSX rows from a parsed attachment whose column headers match a sheet's
+// extractable fields. One XLSX row per file data row.
+//   sheetKey      — key into HEADERS / SHEET_ORDER
+//   targets       — *_EXTRACT_TARGETS describing which columns are fillable
+//   ctx           — identity context (expId/expName/treatment…) from forEachTreatment
+//   nextRecordNum — () => number, continues the section's record counter
+//   fileNameCol   — column index to stamp the source file name into (optional)
+//   tagCol        — column index to carry the "(נשלף מתוך קובץ מצורף)" tag
+//   tagPrefix     — when set, tagCol = `${tagPrefix} ${TAG}`; otherwise the tag is
+//                   appended to whatever already sits in tagCol
+function buildExtractedRows({ parsed, sheetKey, targets, ctx, nextRecordNum, fileNameCol, tagCol, tagPrefix }) {
+    const headerLen = HEADERS[sheetKey].length;
 
     const colMatches = [];
     parsed.headers.forEach((header, fileColIndex) => {
-        const targetIndex = matchIrrigationColumn(header);
+        const targetIndex = matchColumnIndex(header, targets, sheetKey);
         if (targetIndex !== -1) colMatches.push({ targetIndex, fileColIndex });
     });
     if (!colMatches.length) return [];
@@ -722,32 +750,33 @@ function buildExtractedIrrigationRows(parsed, ctx, recordTypeLabel, nextRecordNu
         row[3] = ctx.treatmentName;
         row[4] = ctx.sameForAll;
         row[5] = nextRecordNum();
-        row[6] = `${recordTypeLabel} ${FILE_SOURCE_TAG}`;
-        row[7] = parsed.name;
+
         colMatches.forEach(m => { row[m.targetIndex] = s(fileRow[m.fileColIndex]); });
+
+        if (fileNameCol != null && !row[fileNameCol]) row[fileNameCol] = parsed.name;
+
+        if (tagCol != null) {
+            row[tagCol] = tagPrefix != null
+                ? `${tagPrefix} ${FILE_SOURCE_TAG}`
+                : (row[tagCol] ? `${row[tagCol]} ` : '') + FILE_SOURCE_TAG;
+        }
         out.push(row);
     });
     return out;
 }
 
-// Resolve a file column header to a target column index in HEADERS.irrigationFert,
+// Resolve a file column header to a target column index in HEADERS[sheetKey],
 // or -1 if it doesn't match any extractable field (exact match, punctuation-insensitive).
-function matchIrrigationColumn(rawHeader) {
+function matchColumnIndex(rawHeader, targets, sheetKey) {
     const norm = normalizeHeader(rawHeader);
     if (!norm) return -1;
-    for (const target of IRRIGATION_EXTRACT_TARGETS) {
+    for (const target of targets) {
         if (target.accepted.some(name => normalizeHeader(name) === norm)) {
-            return findIrrigationHeaderIndex(target.header);
+            const wanted = normalizeHeader(target.header);
+            return HEADERS[sheetKey].findIndex(h => normalizeHeader(h) === wanted);
         }
     }
     return -1;
-}
-
-// Find a column index in HEADERS.irrigationFert by normalized header text, so a
-// punctuation/gershayim difference can't silently break the mapping.
-function findIrrigationHeaderIndex(headerText) {
-    const wanted = normalizeHeader(headerText);
-    return HEADERS.irrigationFert.findIndex(h => normalizeHeader(h) === wanted);
 }
 
 // ── 7. צימוח ──
@@ -773,8 +802,9 @@ function flattenGrowth(exp) {
 }
 
 // ── 8. אקלים וסנסורים ──
-function flattenClimateSensors(exp) {
+function flattenClimateSensors(exp, parsedAttachments) {
     const rows = [];
+    const parsedFiles = parsedAttachments?.get(exp.id) || [];
     forEachTreatment(exp, 'climate', true, { climateData: exp.data.climateData || [] },
         (section, ctx) => {
             let recordNum = 0;
@@ -809,6 +839,24 @@ function flattenClimateSensors(exp) {
                     s(f.fileName), s(f.fileURL || f.fileUrl), zipPath, ''
                 ]);
             });
+
+            // Extract matching columns from attached CSV/Excel files (opt-in)
+            if (parsedFiles.length) {
+                files.filter(f => f.fileName).forEach(f => {
+                    const parsed = findParsedFile(parsedFiles, f.fileName);
+                    if (!parsed) return;
+                    const extracted = buildExtractedRows({
+                        parsed,
+                        sheetKey: 'climateSensors',
+                        targets: CLIMATE_EXTRACT_TARGETS,
+                        ctx,
+                        nextRecordNum: () => ++recordNum,
+                        fileNameCol: 12,  // 'שם קובץ מצורף'
+                        tagCol: 15        // 'הערות' (tag appended)
+                    });
+                    rows.push(...extracted);
+                });
+            }
         });
     return rows;
 }
