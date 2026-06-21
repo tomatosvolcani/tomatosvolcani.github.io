@@ -6172,6 +6172,7 @@ function addProgressRow(tbody, fields, labels, data, options) {
     // Store file metadata on row if provided
     if (data.fileUrl) tr.dataset.fileUrl = data.fileUrl;
     if (data.filePath) tr.dataset.filePath = data.filePath;
+    if (data.originalFileName) tr.dataset.originalFileName = data.originalFileName;
 
     fields.forEach(field => {
         const td = document.createElement('td');
@@ -6460,6 +6461,7 @@ function collectProgressRows(tbodyId, fields) {
         // Include file metadata if present
         if (tr.dataset.fileUrl) obj.fileUrl = tr.dataset.fileUrl;
         if (tr.dataset.filePath) obj.filePath = tr.dataset.filePath;
+        if (tr.dataset.originalFileName) obj.originalFileName = tr.dataset.originalFileName;
         rows.push(obj);
     });
     return rows;
@@ -7159,7 +7161,8 @@ async function saveIrrigationFile() {
         endDate,
         totalWater: totalWater,
         fileUrl: fileUrl || '',
-        filePath: filePath || ''
+        filePath: filePath || '',
+        originalFileName: file ? file.name : ''
     });
 
     markUserEdited();
@@ -7238,7 +7241,8 @@ async function saveFertilizationFile() {
         company: company,
         totalFert: totalFert,
         fileUrl: fileUrl || '',
-        filePath: filePath || ''
+        filePath: filePath || '',
+        originalFileName: file ? file.name : ''
     }, {
         dynamicDatalists: FERTILIZATION_DYNAMIC_DATALISTS
     });
@@ -7328,7 +7332,7 @@ async function uploadProgressFile(file, folder, progressId, fillId, textId) {
                 try {
                     const url = await getDownloadURL(uploadTask.snapshot.ref);
                     if (progressEl) progressEl.classList.add('hidden');
-                    resolve({ url, path });
+                    resolve({ url, path, originalName: file.name });
                 } catch (err) { reject(err); }
             }
         );
