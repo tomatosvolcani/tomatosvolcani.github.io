@@ -18,6 +18,20 @@ import { canRead, timestampToDate } from "./permissions-utils.js";
 // Constants
 // ═══════════════════════════════════════
 const SESSION_KEY = 'smart-export-selections';
+const EXTRACT_FILES_KEY = 'smart-export-extract-files';
+
+// Tag appended to record-type cells for values pulled from an attached CSV/Excel file
+const FILE_SOURCE_TAG = '(נשלף מתוך קובץ מצורף)';
+
+// Columns in the "השקיה ודשן" sheet that can be filled from an attached file.
+// `header` is the exact XLSX header (used to resolve the target column index);
+// `accepted` is the list of file-column header names (normalized) that map to it.
+const IRRIGATION_EXTRACT_TARGETS = [
+    { header: 'סה״כ כמות מים בליטר', accepted: ['סהכ כמות מים', 'כמות מים', 'סהכ כמות מים בליטר'] },
+    { header: 'סוג הדשן', accepted: ['סוג הדשן'] },
+    { header: 'חברה', accepted: ['חברה'] },
+    { header: 'סה״כ כמות דשן', accepted: ['סהכ כמות דשן', 'כמות דשן'] }
+];
 
 const SHEET_ORDER = [
     'metadata', 'cropDetails', 'structure', 'soilTreatment', 'dripLayout',
@@ -244,6 +258,11 @@ async function runSmartExport() {
         return;
     }
 
+    let extractFromFiles = false;
+    try {
+        extractFromFiles = JSON.parse(sessionStorage.getItem(EXTRACT_FILES_KEY) || 'false') === true;
+    } catch { extractFromFiles = false; }
+
     isExportActive = true;
     renderExperimentList(selections);
 
@@ -300,8 +319,21 @@ async function runSmartExport() {
     completeStep(1);
     setProgressText(`נטענו ${experiments.length} ניסויים בהצלחה`);
 
-    // Step 2: Flatten data
+    // Create the ZIP container up-front — attachments may need to be downloaded
+    // before flattening (when extracting data from attached files).
+    const zip = new JSZip();
+
+    // Step 2: Flatten data (optionally pre-download + parse attachments for extraction)
     activateStep(2);
+
+    let parsedAttachments = null;
+    if (extractFromFiles) {
+        setProgressText('מוריד קבצים מצורפים לצורך חילוץ נתונים...');
+        const attachmentBlobs = await downloadAllAttachments(experiments, zip);
+        setProgressText('מנתח קבצי CSV/Excel מצורפים...');
+        parsedAttachments = await parseAttachmentsForExtraction(attachmentBlobs);
+    }
+
     setProgressText('מנרמל נתונים למבנה שטוח...');
 
     const workbookRows = {};
@@ -316,7 +348,7 @@ async function runSmartExport() {
         workbookRows.structure.push(...flattenStructure(exp));
         workbookRows.soilTreatment.push(...flattenSoilTreatment(exp));
         workbookRows.dripLayout.push(...flattenDripLayout(exp));
-        workbookRows.irrigationFert.push(...flattenIrrigationFert(exp));
+        workbookRows.irrigationFert.push(...flattenIrrigationFert(exp, parsedAttachments));
         workbookRows.growth.push(...flattenGrowth(exp));
         workbookRows.climateSensors.push(...flattenClimateSensors(exp));
         workbookRows.agrotechPoll.push(...flattenAgrotechPoll(exp));
@@ -332,17 +364,18 @@ async function runSmartExport() {
     activateStep(3);
     setProgressText('בונה קובץ Excel...');
     const wb = buildFlatWorkbook(workbookRows);
-    completeStep(3);
-
-    // Step 4: Download attachments + build ZIP
-    activateStep(4);
-    setProgressText('מכין קובץ ZIP...');
-    const zip = new JSZip();
     const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     zip.file('experiments_flat_export.xlsx', xlsxData);
+    completeStep(3);
 
-    setProgressText('מוריד קבצים מצורפים מ-Storage...');
-    await downloadAllAttachments(experiments, zip);
+    // Step 4: Download attachments into ZIP (skip if already downloaded for extraction)
+    activateStep(4);
+    if (extractFromFiles) {
+        setProgressText('הקבצים המצורפים כבר הורדו');
+    } else {
+        setProgressText('מוריד קבצים מצורפים מ-Storage...');
+        await downloadAllAttachments(experiments, zip);
+    }
     completeStep(4);
 
     // Step 5: Generate & download ZIP
@@ -369,6 +402,7 @@ async function runSmartExport() {
 
     // Cleanup
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(EXTRACT_FILES_KEY);
 }
 
 // ═══════════════════════════════════════
@@ -612,8 +646,9 @@ function flattenDripLayout(exp) {
 }
 
 // ── 6. השקיה ודשן ──
-function flattenIrrigationFert(exp) {
+function flattenIrrigationFert(exp, parsedAttachments) {
     const rows = [];
+    const parsedFiles = parsedAttachments?.get(exp.id) || [];
     forEachTreatment(exp, 'irrigation', true, {
         irrigationData: exp.data.irrigationData || [],
         fertilizationData: exp.data.fertilizationData || []
@@ -645,8 +680,74 @@ function flattenIrrigationFert(exp) {
                 s(r.fileUrl), zipPath, s(r.notes)
             ]);
         });
+
+        // Extract matching columns from attached CSV/Excel files (opt-in)
+        if (parsedFiles.length) {
+            const fileRecords = [
+                ...(section.irrigationData || []).filter(r => r.fileName).map(r => ({ rec: r, label: 'השקיה' })),
+                ...(section.fertilizationData || []).filter(r => r.fileName).map(r => ({ rec: r, label: 'דישון' }))
+            ];
+            fileRecords.forEach(({ rec, label }) => {
+                const parsed = findParsedFile(parsedFiles, rec.fileName);
+                if (!parsed) return;
+                const extracted = buildExtractedIrrigationRows(parsed, ctx, label, () => ++recordNum);
+                rows.push(...extracted);
+            });
+        }
     });
     return rows;
+}
+
+// Build XLSX rows for "השקיה ודשן" from a parsed attachment whose column headers
+// match the irrigation/fertilization fields. One XLSX row per file data row.
+function buildExtractedIrrigationRows(parsed, ctx, recordTypeLabel, nextRecordNum) {
+    const headerLen = HEADERS.irrigationFert.length;
+
+    const colMatches = [];
+    parsed.headers.forEach((header, fileColIndex) => {
+        const targetIndex = matchIrrigationColumn(header);
+        if (targetIndex !== -1) colMatches.push({ targetIndex, fileColIndex });
+    });
+    if (!colMatches.length) return [];
+
+    const out = [];
+    parsed.rows.forEach(fileRow => {
+        const hasValue = colMatches.some(m => s(fileRow[m.fileColIndex]) !== '');
+        if (!hasValue) return;
+
+        const row = new Array(headerLen).fill('');
+        row[0] = ctx.expId;
+        row[1] = ctx.expName;
+        row[2] = ctx.treatmentNum;
+        row[3] = ctx.treatmentName;
+        row[4] = ctx.sameForAll;
+        row[5] = nextRecordNum();
+        row[6] = `${recordTypeLabel} ${FILE_SOURCE_TAG}`;
+        row[7] = parsed.name;
+        colMatches.forEach(m => { row[m.targetIndex] = s(fileRow[m.fileColIndex]); });
+        out.push(row);
+    });
+    return out;
+}
+
+// Resolve a file column header to a target column index in HEADERS.irrigationFert,
+// or -1 if it doesn't match any extractable field (exact match, punctuation-insensitive).
+function matchIrrigationColumn(rawHeader) {
+    const norm = normalizeHeader(rawHeader);
+    if (!norm) return -1;
+    for (const target of IRRIGATION_EXTRACT_TARGETS) {
+        if (target.accepted.some(name => normalizeHeader(name) === norm)) {
+            return findIrrigationHeaderIndex(target.header);
+        }
+    }
+    return -1;
+}
+
+// Find a column index in HEADERS.irrigationFert by normalized header text, so a
+// punctuation/gershayim difference can't silently break the mapping.
+function findIrrigationHeaderIndex(headerText) {
+    const wanted = normalizeHeader(headerText);
+    return HEADERS.irrigationFert.findIndex(h => normalizeHeader(h) === wanted);
 }
 
 // ── 7. צימוח ──
@@ -945,6 +1046,7 @@ function buildFlatWorkbook(workbookRows) {
 // ═══════════════════════════════════════
 async function downloadAllAttachments(experiments, zip) {
     const attachmentsFolder = zip.folder('attachments');
+    const blobMap = new Map();
     let totalFiles = 0;
     let errorCount = 0;
 
@@ -953,14 +1055,16 @@ async function downloadAllAttachments(experiments, zip) {
         const storageRef = ref(storage, storagePath);
 
         const folderName = exp.folderName || exp.id;
+        const expFiles = [];
+        blobMap.set(exp.id, expFiles);
         try {
-            await scanStorageFolder(storageRef, attachmentsFolder.folder(folderName), exp.id);
+            await scanStorageFolder(storageRef, attachmentsFolder.folder(folderName), exp.id, expFiles);
         } catch (err) {
             console.warn(`Cannot scan storage for ${exp.id}:`, err.message);
         }
     }
 
-    async function scanStorageFolder(storageRef, zipFolder, expId) {
+    async function scanStorageFolder(storageRef, zipFolder, expId, expFiles) {
         let result;
         try {
             result = await listAll(storageRef);
@@ -974,6 +1078,7 @@ async function downloadAllAttachments(experiments, zip) {
                 setProgressText(`מוריד קובץ ${totalFiles}: ${itemRef.name}`);
                 const blob = await getBlob(itemRef);
                 zipFolder.file(itemRef.name, blob);
+                expFiles.push({ name: itemRef.name, blob });
             } catch (err) {
                 errorCount++;
                 console.error(`Failed to download ${itemRef.fullPath}:`, err.message);
@@ -982,7 +1087,7 @@ async function downloadAllAttachments(experiments, zip) {
 
         for (const prefixRef of result.prefixes) {
             const hebrewName = STORAGE_FOLDER_MAP[prefixRef.name] || prefixRef.name;
-            await scanStorageFolder(prefixRef, zipFolder.folder(hebrewName), expId);
+            await scanStorageFolder(prefixRef, zipFolder.folder(hebrewName), expId, expFiles);
         }
     }
 
@@ -994,6 +1099,78 @@ async function downloadAllAttachments(experiments, zip) {
     } else {
         setProgressText(`${totalFiles - errorCount}/${totalFiles} קבצים הורדו`);
     }
+
+    return blobMap;
+}
+
+// ═══════════════════════════════════════
+// Attachment Parsing (in-file extraction)
+// ═══════════════════════════════════════
+
+// Parse every CSV/Excel attachment to { name, headers, rows }. Non-tabular files
+// (images, PDFs, etc.) and unreadable files are skipped silently.
+async function parseAttachmentsForExtraction(blobMap) {
+    const parsedMap = new Map();
+    for (const [expId, files] of blobMap.entries()) {
+        const parsedFiles = [];
+        for (const f of files) {
+            const parsed = await parseAttachmentToRows(f.blob, f.name);
+            if (parsed) parsedFiles.push({ name: f.name, headers: parsed.headers, rows: parsed.rows });
+        }
+        if (parsedFiles.length) parsedMap.set(expId, parsedFiles);
+    }
+    return parsedMap;
+}
+
+// Read a CSV/Excel blob into a header row + data rows using the already-loaded
+// SheetJS (XLSX) library. Returns null when the file isn't tabular or has no data.
+async function parseAttachmentToRows(blob, fileName) {
+    const ext = String(fileName || '').split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(ext)) return null;
+    try {
+        const buf = await blob.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheetName = wb.SheetNames[0];
+        if (!sheetName) return null;
+        const ws = wb.Sheets[sheetName];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+        const nonEmpty = aoa.filter(row => Array.isArray(row) && row.some(c => s(c) !== ''));
+        if (nonEmpty.length < 2) return null; // need a header row + at least one data row
+        const headers = (nonEmpty[0] || []).map(h => s(h));
+        const rows = nonEmpty.slice(1);
+        return { headers, rows };
+    } catch (err) {
+        console.warn(`Cannot parse attachment ${fileName}:`, err.message);
+        return null;
+    }
+}
+
+// Find the parsed file that belongs to a record by its stored fileName.
+// Tries an exact match first, then a suffix/contains match (storage names may
+// carry prefixes or be URL-encoded).
+function findParsedFile(parsedFiles, fileName) {
+    if (!fileName) return null;
+    let target = String(fileName).trim();
+    try { target = decodeURIComponent(target); } catch { /* keep raw */ }
+
+    let hit = parsedFiles.find(f => f.name === fileName || f.name === target);
+    if (hit) return hit;
+
+    const lower = target.toLowerCase();
+    hit = parsedFiles.find(f => {
+        const n = String(f.name).toLowerCase();
+        return n.endsWith(lower) || n.includes(lower) || lower.includes(n);
+    });
+    return hit || null;
+}
+
+// Normalize a column header for exact-but-punctuation-insensitive comparison
+// (so 'סה"כ כמות דשן' and 'סה״כ כמות דשן' are treated as equal).
+function normalizeHeader(value) {
+    return s(value)
+        .replace(/["'״׳`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 // ═══════════════════════════════════════

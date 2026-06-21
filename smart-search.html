@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260602-1">
     <link rel="stylesheet" href="css/layout.css?v=20260602-1">
-    <link rel="stylesheet" href="css/smart-search.css?v=20260621-2">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260621-3">
     <link rel="stylesheet" href="css/accessibility.css?v=20260602-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260602-1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -330,7 +330,7 @@
                                     <!-- attachments/ parent folder -->
                                     <div class="attachments-parent-folder">
                                         <div class="explorer-item folder parent-folder">
-                                            <i class="fas fa-folder-open" style="color: #f59e0b;"></i>
+                                            <i class="fas fa-folder-open"></i>
                                             <div class="item-content">
                                                 <span class="item-title">attachments/</span>
                                                 <span class="item-desc">תיקיית נספחים (קבצים מצורפים)</span>
@@ -368,6 +368,16 @@
                                 קבצים מצורפים יישמרו בתיקיות נפרדות עבור כל ניסוי בתוך ה-ZIP, במידה וקיימים במערכת.
                             </div>
                         </div>
+
+                        <!-- Extract data from attached files option -->
+                        <label class="export-extract-toggle" for="chk-extract-from-files">
+                            <input type="checkbox" id="chk-extract-from-files">
+                            <span class="extract-toggle-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                            <span class="extract-toggle-text">
+                                <span class="extract-toggle-title">חלץ נתונים גם מקבצי CSV/Excel מצורפים</span>
+                                <span class="extract-toggle-desc">אם קיימות בקבצים עמודות בעלות שם זהה לשדות הנשלפים, ערכיהן יתווספו לגיליון השטוח ויסומנו "(נשלף מתוך קובץ מצורף)".</span>
+                            </span>
+                        </label>
                     </div>
 
                 </div>
@@ -427,6 +437,6 @@
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="js/accessibility.js?v=20260602-1"></script>
     <script src="js/chatbot.js?v=20260602-1"></script>
-    <script type="module" src="js/smart-search.js?v=20260621-2"></script>
+    <script type="module" src="js/smart-search.js?v=20260621-3"></script>
 </body>
 </html>

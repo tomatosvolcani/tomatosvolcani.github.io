@@ -1277,6 +1277,7 @@ function stripHtml(value) {
 // Selection Management for Smart Export
 // ═══════════════════════════════════════
 const SMART_EXPORT_SESSION_KEY = 'smart-export-selections';
+const SMART_EXPORT_EXTRACT_FILES_KEY = 'smart-export-extract-files';
 
 function toggleExperimentSelection(expKey) {
     if (selectedExperiments.has(expKey)) {
@@ -1421,7 +1422,10 @@ function proceedToSmartExport() {
         researcher: exp.leadResearcher || exp.data?.leadResearcher || ''
     }));
 
+    const extractFromFiles = document.getElementById('chk-extract-from-files')?.checked || false;
+
     sessionStorage.setItem(SMART_EXPORT_SESSION_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(SMART_EXPORT_EXTRACT_FILES_KEY, JSON.stringify(extractFromFiles));
     window.location.href = 'smart-export.html';
 }
 
