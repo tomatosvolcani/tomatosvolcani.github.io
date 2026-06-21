@@ -27,10 +27,10 @@ const FILE_SOURCE_TAG = '(נשלף מתוך קובץ מצורף)';
 // `header` is the exact XLSX header (used to resolve the target column index);
 // `accepted` is the list of file-column header names (normalized) that map to it.
 const IRRIGATION_EXTRACT_TARGETS = [
-    { header: 'סה״כ כמות מים בליטר', accepted: ['סהכ כמות מים', 'כמות מים', 'סהכ כמות מים בליטר'] },
-    { header: 'סוג הדשן', accepted: ['סוג הדשן'] },
-    { header: 'חברה', accepted: ['חברה'] },
-    { header: 'סה״כ כמות דשן', accepted: ['סהכ כמות דשן', 'כמות דשן'] }
+    { header: 'סה״כ כמות מים בליטר', accepted: ['סהכ כמות מים', 'כמות מים', 'סהכ כמות מים בליטר', 'סהכ מים'], recordTypes: ['השקיה'] },
+    { header: 'סוג הדשן', accepted: ['סוג הדשן'], recordTypes: ['דישון'] },
+    { header: 'חברה', accepted: ['חברה'], recordTypes: ['דישון'] },
+    { header: 'סה״כ כמות דשן', accepted: ['סהכ כמות דשן', 'כמות דשן'], recordTypes: ['דישון'] }
 ];
 
 // Columns in the "אקלים וסנסורים" sheet that can be filled from an attached file.
@@ -163,6 +163,13 @@ const STORAGE_FOLDER_MAP = {
     'financial': 'ניתוחים פיננסים'
 };
 
+// Storage folder -> flat sheet key. Used only for optional extraction from CSV/Excel attachments.
+const STORAGE_SECTION_MAP = {
+    irrigation: 'irrigationFert',
+    fertilization: 'irrigationFert',
+    climate: 'climateSensors'
+};
+
 // ═══════════════════════════════════════
 // State
 // ═══════════════════════════════════════
@@ -273,6 +280,7 @@ async function runSmartExport() {
     try {
         extractFromFiles = JSON.parse(sessionStorage.getItem(EXTRACT_FILES_KEY) || 'false') === true;
     } catch { extractFromFiles = false; }
+    console.log('[extract] enabled:', extractFromFiles);
 
     isExportActive = true;
     renderExperimentList(selections);
@@ -669,7 +677,9 @@ function flattenIrrigationFert(exp, parsedAttachments) {
         // Irrigation records
         (section.irrigationData || []).forEach(r => {
             recordNum++;
-            const zipPath = r.fileUrl ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || 'file'}` : '';
+            const zipPath = r.fileUrl
+                ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || getFileNameFromUrl(r.fileUrl) || 'file'}`
+                : '';
             rows.push([
                 ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                 recordNum, 'השקיה',
@@ -682,37 +692,59 @@ function flattenIrrigationFert(exp, parsedAttachments) {
         // Fertilization records
         (section.fertilizationData || []).forEach(r => {
             recordNum++;
-            const zipPath = r.fileUrl ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || 'file'}` : '';
+            const fileUrl = r.fileUrl || r.fileURL || r.downloadUrl || '';
+            const zipPath = fileUrl
+                ? `attachments/${ctx.folderName}/השקיה ודשן/${r.fileName || getFileNameFromUrl(fileUrl) || 'file'}`
+                : '';
             rows.push([
                 ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                 recordNum, 'דישון',
                 s(r.fileName), s(r.uploadDate), s(r.startDate || r.measureDates), s(r.endDate),
                 '', s(r.fertType || r.type), s(r.company), s(r.totalFert || r.totalAmount),
-                s(r.fileUrl), zipPath, s(r.notes)
+                s(fileUrl), zipPath, s(r.notes)
             ]);
         });
 
-        // Extract matching columns from attached CSV/Excel files (opt-in)
+        // Extract matching columns from attached CSV/Excel files (opt-in).
+        // Important: do not match only by display name; uploaded Storage file names are often encoded/technical.
         if (parsedFiles.length) {
             const fileRecords = [
-                ...(section.irrigationData || []).filter(r => r.fileName).map(r => ({ rec: r, label: 'השקיה' })),
-                ...(section.fertilizationData || []).filter(r => r.fileName).map(r => ({ rec: r, label: 'דישון' }))
+                ...(section.irrigationData || [])
+                    .filter(hasAttachmentRef)
+                    .map(r => ({ rec: r, label: 'השקיה', folderKey: 'irrigation' })),
+                ...(section.fertilizationData || [])
+                    .filter(hasAttachmentRef)
+                    .map(r => ({ rec: r, label: 'דישון', folderKey: 'fertilization' }))
             ];
-            fileRecords.forEach(({ rec, label }) => {
-                const parsed = findParsedFile(parsedFiles, rec.fileName);
+
+            let addedRows = 0;
+            fileRecords.forEach(({ rec, label, folderKey }) => {
+                const parsed = findParsedFile(parsedFiles, rec, { sectionKey: 'irrigationFert', folderKey });
                 if (!parsed) return;
+
+                const targets = IRRIGATION_EXTRACT_TARGETS.filter(t =>
+                    !Array.isArray(t.recordTypes) || t.recordTypes.includes(label)
+                );
+                const fileUrl = rec.fileUrl || rec.fileURL || rec.downloadUrl || '';
                 const extracted = buildExtractedRows({
                     parsed,
                     sheetKey: 'irrigationFert',
-                    targets: IRRIGATION_EXTRACT_TARGETS,
+                    targets,
                     ctx,
                     nextRecordNum: () => ++recordNum,
                     fileNameCol: 7,   // 'שם הקובץ'
                     tagCol: 6,        // 'סוג רשומה'
-                    tagPrefix: label  // 'השקיה' / 'דישון'
+                    tagPrefix: label, // 'השקיה' / 'דישון'
+                    sourceFileName: rec.fileName || rec.name || parsed.displayName || parsed.name,
+                    sourceFileUrl: fileUrl,
+                    sourceZipPath: parsed.zipPath,
+                    fileUrlCol: 15,
+                    zipPathCol: 16
                 });
+                addedRows += extracted.length;
                 rows.push(...extracted);
             });
+            if (addedRows) console.log(`[extract][irrigationFert] ${ctx.expId}: added ${addedRows} rows from attached files`);
         }
     });
     return rows;
@@ -728,13 +760,27 @@ function flattenIrrigationFert(exp, parsedAttachments) {
 //   tagCol        — column index to carry the "(נשלף מתוך קובץ מצורף)" tag
 //   tagPrefix     — when set, tagCol = `${tagPrefix} ${TAG}`; otherwise the tag is
 //                   appended to whatever already sits in tagCol
-function buildExtractedRows({ parsed, sheetKey, targets, ctx, nextRecordNum, fileNameCol, tagCol, tagPrefix }) {
+function buildExtractedRows({
+    parsed,
+    sheetKey,
+    targets,
+    ctx,
+    nextRecordNum,
+    fileNameCol,
+    tagCol,
+    tagPrefix,
+    sourceFileName,
+    sourceFileUrl,
+    sourceZipPath,
+    fileUrlCol,
+    zipPathCol
+}) {
     const headerLen = HEADERS[sheetKey].length;
 
     const colMatches = [];
     parsed.headers.forEach((header, fileColIndex) => {
         const targetIndex = matchColumnIndex(header, targets, sheetKey);
-        if (targetIndex !== -1) colMatches.push({ targetIndex, fileColIndex });
+        if (targetIndex !== -1) colMatches.push({ targetIndex, fileColIndex, header });
     });
     if (!colMatches.length) return [];
 
@@ -753,7 +799,9 @@ function buildExtractedRows({ parsed, sheetKey, targets, ctx, nextRecordNum, fil
 
         colMatches.forEach(m => { row[m.targetIndex] = s(fileRow[m.fileColIndex]); });
 
-        if (fileNameCol != null && !row[fileNameCol]) row[fileNameCol] = parsed.name;
+        if (fileNameCol != null && !row[fileNameCol]) row[fileNameCol] = s(sourceFileName || parsed.displayName || parsed.name);
+        if (fileUrlCol != null && !row[fileUrlCol]) row[fileUrlCol] = s(sourceFileUrl || parsed.fileUrl || parsed.downloadUrl || '');
+        if (zipPathCol != null && !row[zipPathCol]) row[zipPathCol] = s(sourceZipPath || parsed.zipPath || '');
 
         if (tagCol != null) {
             row[tagCol] = tagPrefix != null
@@ -809,9 +857,13 @@ function flattenClimateSensors(exp, parsedAttachments) {
         (section, ctx) => {
             let recordNum = 0;
 
-            // Sensor records
+            // Sensor records. Some schemas store the attachment directly on the sensor row.
             (section.climateData || []).forEach(r => {
                 recordNum++;
+                const fileUrl = r.fileUrl || r.fileURL || r.downloadUrl || '';
+                const zipPath = fileUrl
+                    ? `attachments/${ctx.folderName}/אקלים וסנסורים/${r.fileName || getFileNameFromUrl(fileUrl) || 'file'}`
+                    : '';
                 rows.push([
                     ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                     recordNum,
@@ -821,30 +873,48 @@ function flattenClimateSensors(exp, parsedAttachments) {
                     s(r.sensorDepth || r.sensorHeight),
                     s(r.startDate || r.measureDates),
                     s(r.endDate),
-                    '', '', '', s(r.notes)
+                    s(r.fileName || r.nameOfFile), s(fileUrl), zipPath, s(r.notes)
                 ]);
             });
 
-            // Climate sensor files
-            const files = section.climateSensorFiles || exp.data.climateSensorFiles || [];
-            files.forEach(f => {
+            // Climate sensor files saved as a separate collection/array.
+            const files = [
+                ...(section.climateSensorFiles || []),
+                ...(exp.data.climateSensorFiles || [])
+            ];
+            const seen = new Set();
+            const uniqueFiles = files.filter(f => {
+                const key = s(f.filePath || f.storagePath || f.fileUrl || f.fileURL || f.downloadUrl || f.fileName || f.name);
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            uniqueFiles.forEach(f => {
                 recordNum++;
-                const zipPath = f.fileURL || f.fileUrl
-                    ? `attachments/${ctx.folderName}/אקלים וסנסורים/${f.fileName || 'file'}`
+                const fileUrl = f.fileURL || f.fileUrl || f.downloadUrl || '';
+                const zipPath = fileUrl
+                    ? `attachments/${ctx.folderName}/אקלים וסנסורים/${f.fileName || getFileNameFromUrl(fileUrl) || 'file'}`
                     : '';
                 rows.push([
                     ctx.expId, ctx.expName, ctx.treatmentNum, ctx.treatmentName, ctx.sameForAll,
                     recordNum,
                     'קובץ נתונים', '', '', '', s(f.startDate), s(f.endDate),
-                    s(f.fileName), s(f.fileURL || f.fileUrl), zipPath, ''
+                    s(f.fileName || f.name), s(fileUrl), zipPath, ''
                 ]);
             });
 
-            // Extract matching columns from attached CSV/Excel files (opt-in)
+            // Extract matching columns from attached CSV/Excel files (opt-in).
             if (parsedFiles.length) {
-                files.filter(f => f.fileName).forEach(f => {
-                    const parsed = findParsedFile(parsedFiles, f.fileName);
+                const extractionRecords = [
+                    ...(section.climateData || []).filter(hasAttachmentRef),
+                    ...uniqueFiles.filter(hasAttachmentRef)
+                ];
+                let addedRows = 0;
+                extractionRecords.forEach(f => {
+                    const parsed = findParsedFile(parsedFiles, f, { sectionKey: 'climateSensors', folderKey: 'climate' });
                     if (!parsed) return;
+                    const fileUrl = f.fileURL || f.fileUrl || f.downloadUrl || '';
                     const extracted = buildExtractedRows({
                         parsed,
                         sheetKey: 'climateSensors',
@@ -852,10 +922,17 @@ function flattenClimateSensors(exp, parsedAttachments) {
                         ctx,
                         nextRecordNum: () => ++recordNum,
                         fileNameCol: 12,  // 'שם קובץ מצורף'
-                        tagCol: 15        // 'הערות' (tag appended)
+                        tagCol: 15,       // 'הערות' (tag appended)
+                        sourceFileName: f.fileName || f.name || parsed.displayName || parsed.name,
+                        sourceFileUrl: fileUrl,
+                        sourceZipPath: parsed.zipPath,
+                        fileUrlCol: 13,
+                        zipPathCol: 14
                     });
+                    addedRows += extracted.length;
                     rows.push(...extracted);
                 });
+                if (addedRows) console.log(`[extract][climateSensors] ${ctx.expId}: added ${addedRows} rows from attached files`);
             }
         });
     return rows;
@@ -1106,13 +1183,17 @@ async function downloadAllAttachments(experiments, zip) {
         const expFiles = [];
         blobMap.set(exp.id, expFiles);
         try {
-            await scanStorageFolder(storageRef, attachmentsFolder.folder(folderName), exp.id, expFiles);
+            await scanStorageFolder(storageRef, attachmentsFolder.folder(folderName), exp.id, expFiles, {
+                zipParts: ['attachments', folderName],
+                folderKey: '',
+                sectionKey: ''
+            });
         } catch (err) {
             console.warn(`Cannot scan storage for ${exp.id}:`, err.message);
         }
     }
 
-    async function scanStorageFolder(storageRef, zipFolder, expId, expFiles) {
+    async function scanStorageFolder(storageRef, zipFolder, expId, expFiles, meta) {
         let result;
         try {
             result = await listAll(storageRef);
@@ -1126,7 +1207,18 @@ async function downloadAllAttachments(experiments, zip) {
                 setProgressText(`מוריד קובץ ${totalFiles}: ${itemRef.name}`);
                 const blob = await getBlob(itemRef);
                 zipFolder.file(itemRef.name, blob);
-                expFiles.push({ name: itemRef.name, blob });
+
+                const zipPath = [...(meta.zipParts || []), itemRef.name].join('/');
+                expFiles.push({
+                    name: itemRef.name,
+                    displayName: itemRef.name,
+                    blob,
+                    fullPath: itemRef.fullPath,
+                    storagePath: itemRef.fullPath,
+                    folderKey: meta.folderKey || '',
+                    sectionKey: meta.sectionKey || '',
+                    zipPath
+                });
             } catch (err) {
                 errorCount++;
                 console.error(`Failed to download ${itemRef.fullPath}:`, err.message);
@@ -1135,7 +1227,13 @@ async function downloadAllAttachments(experiments, zip) {
 
         for (const prefixRef of result.prefixes) {
             const hebrewName = STORAGE_FOLDER_MAP[prefixRef.name] || prefixRef.name;
-            await scanStorageFolder(prefixRef, zipFolder.folder(hebrewName), expId, expFiles);
+            const nextFolderKey = meta.folderKey || prefixRef.name;
+            const nextSectionKey = meta.sectionKey || STORAGE_SECTION_MAP[prefixRef.name] || '';
+            await scanStorageFolder(prefixRef, zipFolder.folder(hebrewName), expId, expFiles, {
+                zipParts: [...(meta.zipParts || []), hebrewName],
+                folderKey: nextFolderKey,
+                sectionKey: nextSectionKey
+            });
         }
     }
 
@@ -1159,14 +1257,31 @@ async function downloadAllAttachments(experiments, zip) {
 // (images, PDFs, etc.) and unreadable files are skipped silently.
 async function parseAttachmentsForExtraction(blobMap) {
     const parsedMap = new Map();
+    let parsedCount = 0;
     for (const [expId, files] of blobMap.entries()) {
         const parsedFiles = [];
         for (const f of files) {
             const parsed = await parseAttachmentToRows(f.blob, f.name);
-            if (parsed) parsedFiles.push({ name: f.name, headers: parsed.headers, rows: parsed.rows });
+            if (parsed) {
+                parsedCount++;
+                parsedFiles.push({
+                    ...f,
+                    headers: parsed.headers,
+                    rows: parsed.rows
+                });
+                console.log('[extract] parsed file:', {
+                    expId,
+                    name: f.name,
+                    folderKey: f.folderKey,
+                    sectionKey: f.sectionKey,
+                    headers: parsed.headers,
+                    rows: parsed.rows.length
+                });
+            }
         }
         if (parsedFiles.length) parsedMap.set(expId, parsedFiles);
     }
+    console.log('[extract] parsed files count:', parsedCount);
     return parsedMap;
 }
 
@@ -1196,20 +1311,54 @@ async function parseAttachmentToRows(blob, fileName) {
 // Find the parsed file that belongs to a record by its stored fileName.
 // Tries an exact match first, then a suffix/contains match (storage names may
 // carry prefixes or be URL-encoded).
-function findParsedFile(parsedFiles, fileName) {
-    if (!fileName) return null;
-    let target = String(fileName).trim();
-    try { target = decodeURIComponent(target); } catch { /* keep raw */ }
+function findParsedFile(parsedFiles, fileRef, options = {}) {
+    if (!Array.isArray(parsedFiles) || !parsedFiles.length) return null;
 
-    let hit = parsedFiles.find(f => f.name === fileName || f.name === target);
-    if (hit) return hit;
+    const refObj = typeof fileRef === 'object' && fileRef !== null ? fileRef : { fileName: fileRef };
+    const wantedSection = options.sectionKey || '';
+    const wantedFolder = options.folderKey || '';
 
-    const lower = target.toLowerCase();
-    hit = parsedFiles.find(f => {
-        const n = String(f.name).toLowerCase();
-        return n.endsWith(lower) || n.includes(lower) || lower.includes(n);
+    const candidates = parsedFiles.filter(f => {
+        if (wantedSection && f.sectionKey && f.sectionKey !== wantedSection) return false;
+        if (wantedFolder && f.folderKey && f.folderKey !== wantedFolder) return false;
+        return true;
     });
-    return hit || null;
+    const pool = candidates.length ? candidates : parsedFiles;
+
+    const wantedValues = [
+        refObj.filePath,
+        refObj.storagePath,
+        refObj.fullPath,
+        refObj.fileUrl,
+        refObj.fileURL,
+        refObj.downloadUrl,
+        refObj.url,
+        refObj.fileName,
+        refObj.name,
+        typeof fileRef === 'string' ? fileRef : ''
+    ].map(normalizeFileRef).filter(Boolean);
+
+    if (wantedValues.length) {
+        const exact = pool.find(f => {
+            const fileValues = [f.fullPath, f.storagePath, f.filePath, f.fileUrl, f.downloadUrl, f.name, f.displayName, f.zipPath]
+                .map(normalizeFileRef)
+                .filter(Boolean);
+            return wantedValues.some(w => fileValues.some(v => v === w || v.endsWith('/' + w) || w.endsWith('/' + v)));
+        });
+        if (exact) return exact;
+
+        const contained = pool.find(f => {
+            const fileValues = [f.fullPath, f.storagePath, f.filePath, f.fileUrl, f.downloadUrl, f.name, f.displayName, f.zipPath]
+                .map(normalizeFileRef)
+                .filter(Boolean);
+            return wantedValues.some(w => fileValues.some(v => v.includes(w) || w.includes(v)));
+        });
+        if (contained) return contained;
+    }
+
+    // Safe fallback: if there is exactly one parsed table file in the relevant section/folder, use it.
+    if (pool.length === 1) return pool[0];
+    return null;
 }
 
 // Normalize a column header for exact-but-punctuation-insensitive comparison
@@ -1219,6 +1368,27 @@ function normalizeHeader(value) {
         .replace(/["'״׳`]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function normalizeFileRef(value) {
+    let out = s(value);
+    if (!out) return '';
+    try { out = decodeURIComponent(out); } catch { /* keep raw */ }
+    out = out.replace(/^https?:\/\/[^/]+\/[^/]+\/o\//, '');
+    out = out.split('?')[0];
+    return out.toLowerCase().trim();
+}
+
+function hasAttachmentRef(value) {
+    if (!value || typeof value !== 'object') return false;
+    return Boolean(value.fileName || value.name || value.fileUrl || value.fileURL || value.downloadUrl || value.filePath || value.storagePath || value.fullPath);
+}
+
+function getFileNameFromUrl(value) {
+    const normalized = normalizeFileRef(value);
+    if (!normalized) return '';
+    const parts = normalized.split('/').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
 }
 
 // ═══════════════════════════════════════
@@ -1310,4 +1480,1785 @@ function sanitizeFileName(name) {
 
 function escapeHtml(val) {
     return s(val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+ 
+ 
+----- js\smart-search.js ----- 
+// js/smart-search.js
+import { auth, db } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+    collection,
+    collectionGroup,
+    doc,
+    getDoc,
+    getDocs,
+    limit,
+    query,
+    where
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { showToast } from "./toast.js";
+import { initServerTime, getTrustedNow } from "./server-time.js";
+import { timestampToDate } from "./permissions-utils.js";
+
+const ACTIVE_EXPERIMENT_CONTEXT_KEY = "research-map-active-experiment-context";
+const BOOT_LOADER_MIN_MS = 5000;
+const BOOT_STATUSES = [
+    "בודק הרשאות גישה...",
+    "אוסף ניסויים שיש לך הרשאה אליהם...",
+    "מכין חיפוש חכם..."
+];
+
+const bootStartedAt = Date.now();
+let bootStatusIndex = 0;
+let bootStatusTimer = null;
+let bootRevealStarted = false;
+
+const SOURCE_PRIORITY = {
+    own: 4,
+    shared: 3,
+    admin: 2,
+    public: 1
+};
+
+const SEARCH_FIELDS = [
+    { key: "searchBlocks.value", label: "כל תוכן הניסוי", checked: true },
+    { key: "experimentName", label: "שם הניסוי", checked: true },
+    { key: "leadResearcher", label: "חוקר מוביל", checked: true },
+    { key: "experimentSite", label: "אתר", checked: true },
+    { key: "experimentYear", label: "שנה", checked: true },
+    { key: "workPackage", label: "חבילת עבודה", checked: true },
+    { key: "keywordsText", label: "מילות מפתח", checked: true },
+    { key: "partnersText", label: "שותפים", checked: true },
+    { key: "studyType", label: "סוג מחקר", checked: false }
+];
+
+const DIRECT_SEARCH_LABELS = {
+    experimentName: "שם הניסוי",
+    leadResearcher: "חוקר מוביל",
+    experimentSite: "אתר",
+    experimentYear: "שנה",
+    workPackage: "חבילת עבודה",
+    keywordsText: "מילות מפתח",
+    partnersText: "שותפים",
+    studyType: "סוג מחקר",
+    "searchBlocks.value": "כל תוכן הניסוי"
+};
+
+const PATH_LABELS = {
+    experimentName: "שם הניסוי",
+    leadResearcher: "חוקר מוביל",
+    partners: "שותפים",
+    name: "שם",
+    email: "אימייל",
+    role: "תפקיד",
+    experimentYear: "שנה",
+    experimentMonth: "חודש",
+    startDate: "תאריך התחלה",
+    studyType: "סוג מחקר",
+    workPackage: "חבילת עבודה",
+    experimentSite: "אתר הניסוי",
+    siteCoordinates: "קורדינטות",
+    labCellNumber: "תא מעבדה",
+    treatmentsCount: "מספר טיפולים",
+    repetitionsCount: "מספר חזרות",
+    independentVariables: "משתנים בלתי תלויים",
+    dependentVariables: "משתנים תלויים",
+    keywords: "מילות מפתח",
+    events: "אירועים",
+    date: "תאריך",
+    description: "תיאור",
+    fileName: "שם קובץ",
+    researchMap: "מפת מחקר",
+    cropDetails: "פרטי גידול",
+    structureDetails: "מבנה",
+    soilDetails: "קרקע",
+    dripDetails: "מערכת טפטוף",
+    irrigationData: "השקיה",
+    fertilizationData: "דישון",
+    climateData: "אקלים",
+    agrotechnicsData: "אגרוטכניקה",
+    plantProtectionData: "הגנת הצומח",
+    growthData: "מדדי צימוח",
+    yieldData: "יבול",
+    data: "",
+    sharedData: "נתונים משותפים",
+    byTreatment: "לפי טיפול",
+    treatmentName: "שם טיפול",
+    cropType: "סוג גידול",
+    variety: "זן",
+    varieties: "זנים",
+    varietyType: "סוג זן",
+    nursery: "משתלה",
+    notes: "הערות",
+    plantingDate: "מועד שתילה",
+    inoculationDate1: "מועד הדבקה 1",
+    inoculationDate2: "מועד הדבקה 2",
+    graftedPlant: "צמח מורכב",
+    splitPlant: "צמח מפוצל",
+    seedlingsCount: "כמות שתילים",
+    plantingDensity: "עומד שתילה",
+    potsCount: "מספר עציצים",
+    seedlingsPerPot: "שתילים בעציץ",
+    plantingStructure: "מבנה שתילה",
+    experimentArea: "שטח הניסוי",
+    preparationName: "שם הכנה"
+};
+
+const SEARCH_BLOCK_SKIP_KEYS = new Set([
+    "fileUrl",
+    "fileURL",
+    "downloadURL",
+    "filePath",
+    "path",
+    "url"
+]);
+
+let currentUser = null;
+let userData = null;
+let currentView = "all";
+let isAdminUser = false;
+let allExperiments = [];
+let sharedOnlyExperiments = [];
+let filteredExperiments = [];
+let currentFuseResultsByKey = new Map();
+let selectedExperiments = new Map();
+
+document.addEventListener("DOMContentLoaded", () => {
+    initEventListeners();
+    initBootStatusRotator();
+    renderSearchFieldCheckboxes();
+    updateThresholdLabel();
+});
+
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    currentUser = user;
+
+    try {
+        const isApproved = await verifyApprovedUser();
+        if (!isApproved) return;
+
+        await initServerTime(db, currentUser);
+        setUserDisplayName();
+        isAdminUser = await checkAndDisplayAdminMenu();
+        await loadSmartSearchExperiments();
+    } catch (error) {
+        console.error("Smart search initialization failed:", error);
+        showToast("שגיאה בטעינת עמוד השליפה החכמה", "error");
+        hideLoading();
+        showEmptyState();
+    }
+});
+
+function initEventListeners() {
+    const hamburgerBtn = document.getElementById("hamburger-btn");
+    const sidebar = document.querySelector(".sidebar");
+    const overlay = document.getElementById("sidebar-overlay");
+
+    if (hamburgerBtn && sidebar) {
+        hamburgerBtn.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            if (overlay) overlay.classList.toggle("active");
+
+            const icon = hamburgerBtn.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-bars");
+                icon.classList.toggle("fa-times");
+            }
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener("click", () => {
+            sidebar?.classList.remove("open");
+            overlay.classList.remove("active");
+            const icon = hamburgerBtn?.querySelector("i");
+            if (icon) {
+                icon.classList.add("fa-bars");
+                icon.classList.remove("fa-times");
+            }
+        });
+    }
+
+    document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
+
+    document.querySelectorAll(".view-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+            const nextView = tab.dataset.view || "all";
+            if (nextView === currentView) return;
+            currentView = nextView;
+            setActiveTab();
+            populateFilterOptions();
+            applyFiltersAndSearch();
+        });
+    });
+
+    document.getElementById("smart-search-input")?.addEventListener("input", () => {
+        updateClearButtonVisibility();
+        applyFiltersAndSearch();
+    });
+
+    document.getElementById("btn-clear-search")?.addEventListener("click", () => {
+        const input = document.getElementById("smart-search-input");
+        if (input) input.value = "";
+        updateClearButtonVisibility();
+        applyFiltersAndSearch();
+    });
+
+    ["filter-year", "filter-work-package", "filter-researcher"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("change", applyFiltersAndSearch);
+    });
+
+    document.getElementById("btn-reset-filters")?.addEventListener("click", () => {
+        setSelectValue("filter-year", "");
+        setSelectValue("filter-work-package", "");
+        setSelectValue("filter-researcher", "");
+        applyFiltersAndSearch();
+    });
+
+    document.getElementById("fuse-options-toggle")?.addEventListener("click", () => {
+        document.getElementById("fuse-options-panel")?.classList.toggle("open");
+        document.getElementById("fuse-options-toggle")?.classList.toggle("expanded");
+    });
+
+    document.getElementById("fuse-threshold")?.addEventListener("input", () => {
+        updateThresholdLabel();
+        applyFiltersAndSearch();
+    });
+
+    document.querySelectorAll('input[name="logical-mode"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+            updateLogicalModeLabels();
+            applyFiltersAndSearch();
+        });
+    });
+
+    // Selection controls
+    document.getElementById("select-all-checkbox")?.addEventListener("change", toggleSelectAll);
+    document.getElementById("btn-clear-selection")?.addEventListener("click", clearSelection);
+    document.getElementById("btn-prepare-export")?.addEventListener("click", showExportSummaryModal);
+    document.getElementById("btn-modal-back")?.addEventListener("click", hideExportModal);
+    document.getElementById("btn-modal-confirm")?.addEventListener("click", proceedToSmartExport);
+
+    // Close modal on overlay click
+    document.getElementById("export-modal-overlay")?.addEventListener("click", (event) => {
+        if (event.target === event.currentTarget) hideExportModal();
+    });
+}
+
+function initBootStatusRotator() {
+    const wrapper = document.getElementById("status-wrapper");
+    const statusElement = document.getElementById("dynamic-status");
+    if (!wrapper || !statusElement) return;
+
+    statusElement.textContent = BOOT_STATUSES[0];
+
+    bootStatusTimer = window.setInterval(() => {
+        wrapper.classList.add("exit");
+
+        window.setTimeout(() => {
+            bootStatusIndex = (bootStatusIndex + 1) % BOOT_STATUSES.length;
+            statusElement.textContent = BOOT_STATUSES[bootStatusIndex];
+            wrapper.classList.remove("exit");
+            wrapper.classList.add("enter");
+
+            window.setTimeout(() => {
+                wrapper.classList.remove("enter");
+            }, 450);
+        }, 300);
+    }, 2000);
+}
+
+function revealSmartSearchWhenReady() {
+    if (bootRevealStarted) return;
+    bootRevealStarted = true;
+
+    const elapsed = Date.now() - bootStartedAt;
+    const remaining = Math.max(0, BOOT_LOADER_MIN_MS - elapsed);
+
+    window.setTimeout(() => {
+        if (bootStatusTimer) {
+            window.clearInterval(bootStatusTimer);
+            bootStatusTimer = null;
+        }
+
+        document.body.classList.remove("smart-search-booting");
+        document.body.classList.add("smart-search-ready");
+    }, remaining);
+}
+
+async function verifyApprovedUser() {
+    const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+    if (!userSnap.exists() || userSnap.data()?.isApproved !== true) {
+        await signOut(auth);
+        window.location.href = "login.html";
+        return false;
+    }
+
+    userData = userSnap.data();
+    return true;
+}
+
+function setUserDisplayName() {
+    const displayName = document.getElementById("user-display-name");
+    if (!displayName) return;
+
+    const fullName = `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim();
+    displayName.textContent = fullName || currentUser.email || "משתמש";
+}
+
+async function checkAndDisplayAdminMenu() {
+    try {
+        const usersQuery = query(collection(db, "users"), limit(2));
+        const snapshot = await getDocs(usersQuery);
+
+        if (snapshot.size > 1) {
+            displayAdminMenu();
+            return true;
+        }
+    } catch (_) {
+        return false;
+    }
+
+    return false;
+}
+
+function displayAdminMenu() {
+    const sidebar = document.querySelector(".sidebar-nav");
+    if (!sidebar || sidebar.querySelector('a[href="admin-users.html"]')) return;
+
+    sidebar.insertAdjacentHTML("beforeend", `
+        <div class="nav-separator"></div>
+        <div class="nav-section-title">ניהול מערכת</div>
+        <a href="admin-users.html" class="nav-item">
+            <i class="fas fa-users-cog"></i>
+            <span>ניהול משתמשים</span>
+        </a>
+        <a href="admin-experiments.html" class="nav-item">
+            <i class="fas fa-flask"></i>
+            <span>כל הניסויים</span>
+        </a>
+        <a href="bi.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i>
+            <span>לוח BI</span>
+        </a>
+    `);
+}
+
+async function loadSmartSearchExperiments() {
+    showLoading();
+
+    try {
+        const sharedExperiments = await fetchSharedExperiments();
+        const sharedKeys = new Set(sharedExperiments.map((exp) => getExperimentKey(exp.ownerUid, exp.id)));
+        const loadedExperiments = [...sharedExperiments];
+
+        if (isAdminUser) {
+            loadedExperiments.push(...await fetchAdminExperiments(sharedKeys));
+        } else {
+            loadedExperiments.push(...await fetchOwnExperiments());
+            loadedExperiments.push(...await fetchPublicExperiments(sharedKeys));
+        }
+
+        allExperiments = dedupeExperiments(loadedExperiments);
+        sharedOnlyExperiments = allExperiments.filter((exp) => exp.source === "shared");
+
+        updateTabCounts();
+        populateFilterOptions();
+        applyFiltersAndSearch();
+    } catch (error) {
+        console.error("Error loading smart search experiments:", error);
+        showToast("שגיאה בטעינת הניסויים", "error");
+        showEmptyState();
+    } finally {
+        hideLoading();
+        revealSmartSearchWhenReady();
+    }
+}
+
+async function fetchOwnExperiments() {
+    const ownSnap = await getDocs(collection(db, "users", currentUser.uid, "experiments"));
+
+    return ownSnap.docs.map((docSnap) => normalizeExperiment({
+        id: docSnap.id,
+        ownerUid: currentUser.uid,
+        data: docSnap.data(),
+        source: "own"
+    }));
+}
+
+async function fetchSharedExperiments() {
+    const sharedSnap = await getDocs(collection(db, "users", currentUser.uid, "sharedExperiments"));
+
+    const results = await Promise.all(sharedSnap.docs.map(async (sharedDoc) => {
+        const sharedData = sharedDoc.data();
+        const ownerUid = sharedData.ownerUid;
+        const experimentId = sharedData.experimentId || sharedDoc.id;
+
+        if (!ownerUid || !experimentId) return null;
+
+        if (sharedData.cachedExperiment && typeof sharedData.cachedExperiment === "object") {
+            return normalizeExperiment({
+                id: experimentId,
+                ownerUid,
+                data: sharedData.cachedExperiment,
+                source: "shared"
+            });
+        }
+
+        try {
+            const originalSnap = await getDoc(doc(db, "users", ownerUid, "experiments", experimentId));
+            if (!originalSnap.exists()) return null;
+
+            return normalizeExperiment({
+                id: experimentId,
+                ownerUid,
+                data: originalSnap.data(),
+                source: "shared"
+            });
+        } catch (error) {
+            console.warn("Could not load shared experiment", experimentId, error);
+            return null;
+        }
+    }));
+
+    return results.filter(Boolean);
+}
+
+async function fetchPublicExperiments(sharedKeys) {
+    const publicQuery = query(
+        collectionGroup(db, "experiments"),
+        where("visibility", "==", "public")
+    );
+    const publicSnap = await getDocs(publicQuery);
+
+    return publicSnap.docs
+        .map((docSnap) => {
+            const ownerUid = getOwnerUidFromExperimentPath(docSnap.ref.path);
+            if (!ownerUid || ownerUid === currentUser.uid) return null;
+
+            const key = getExperimentKey(ownerUid, docSnap.id);
+            if (sharedKeys.has(key)) return null;
+
+            return normalizeExperiment({
+                id: docSnap.id,
+                ownerUid,
+                data: docSnap.data(),
+                source: "public"
+            });
+        })
+        .filter(Boolean);
+}
+
+async function fetchAdminExperiments(sharedKeys) {
+    const allSnap = await getDocs(collectionGroup(db, "experiments"));
+
+    return allSnap.docs
+        .map((docSnap) => {
+            const ownerUid = getOwnerUidFromExperimentPath(docSnap.ref.path);
+            if (!ownerUid) return null;
+
+            let source = "admin";
+            const key = getExperimentKey(ownerUid, docSnap.id);
+            const data = docSnap.data();
+
+            if (ownerUid === currentUser.uid) {
+                source = "own";
+            } else if (sharedKeys.has(key)) {
+                source = "shared";
+            } else if (data.visibility === "public") {
+                source = "public";
+            }
+
+            return normalizeExperiment({
+                id: docSnap.id,
+                ownerUid,
+                data,
+                source
+            });
+        })
+        .filter(Boolean);
+}
+
+function dedupeExperiments(experiments) {
+    const byKey = new Map();
+
+    experiments.forEach((experiment) => {
+        const key = getExperimentKey(experiment.ownerUid, experiment.id);
+        const existing = byKey.get(key);
+        if (!existing || SOURCE_PRIORITY[experiment.source] > SOURCE_PRIORITY[existing.source]) {
+            byKey.set(key, experiment);
+        }
+    });
+
+    return Array.from(byKey.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
+function normalizeExperiment({ id, ownerUid, data, source }) {
+    const safeData = data || {};
+    const partners = Array.isArray(safeData.partners) ? safeData.partners : [];
+    const keywords = Array.isArray(safeData.keywords) ? safeData.keywords : [];
+
+    const normalized = {
+        id,
+        ownerUid,
+        source,
+        data: safeData,
+        experimentName: stringValue(safeData.experimentName),
+        leadResearcher: stringValue(safeData.leadResearcher),
+        experimentSite: stringValue(safeData.experimentSite || safeData.labCellNumber),
+        experimentYear: stringValue(safeData.experimentYear),
+        workPackage: stringValue(safeData.workPackage),
+        studyType: getStudyTypeLabel(safeData.studyType),
+        keywordsText: keywords.map(stringValue).filter(Boolean).join(" "),
+        partnersText: partners.map(formatPartnerForSearch).filter(Boolean).join(" "),
+        createdAtMs: timestampToDate(safeData.createdAt)?.getTime() || 0
+    };
+
+    normalized.searchBlocks = buildSearchBlocks(safeData);
+    normalized.fullText = normalized.searchBlocks.map((block) => block.value).join(" ");
+    normalized.searchKey = getExperimentKey(ownerUid, id);
+
+    return normalized;
+}
+
+function renderSearchFieldCheckboxes() {
+    const grid = document.getElementById("search-fields-grid");
+    if (!grid) return;
+
+    grid.innerHTML = SEARCH_FIELDS.map((field) => `
+        <label class="search-field-check ${field.checked ? "checked" : ""}">
+            <input type="checkbox" value="${field.key}" ${field.checked ? "checked" : ""}>
+            <span>${escapeHtml(field.label)}</span>
+        </label>
+    `).join("");
+
+    grid.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+            checkbox.closest(".search-field-check")?.classList.toggle("checked", checkbox.checked);
+            applyFiltersAndSearch();
+        });
+    });
+}
+
+function populateFilterOptions() {
+    const base = getCurrentViewExperiments();
+
+    populateSelect("filter-year", uniqueSortedValues(base, "experimentYear", true));
+    populateSelect("filter-work-package", uniqueSortedValues(base, "workPackage"));
+    populateSelect("filter-researcher", uniqueSortedValues(base, "leadResearcher"));
+}
+
+function populateSelect(id, values) {
+    const select = document.getElementById(id);
+    if (!select) return;
+
+    const previousValue = select.value;
+    select.innerHTML = '<option value="">הכל</option>';
+
+    values.forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+    });
+
+    select.value = values.includes(previousValue) ? previousValue : "";
+}
+
+function applyFiltersAndSearch() {
+    const base = getCurrentViewExperiments();
+    const year = document.getElementById("filter-year")?.value || "";
+    const workPackage = document.getElementById("filter-work-package")?.value || "";
+    const researcher = document.getElementById("filter-researcher")?.value || "";
+
+    const filtered = base.filter((experiment) => {
+        return (!year || experiment.experimentYear === year)
+            && (!workPackage || experiment.workPackage === workPackage)
+            && (!researcher || experiment.leadResearcher === researcher);
+    });
+
+    filteredExperiments = runFuseSearch(filtered);
+    renderResults();
+}
+
+function runFuseSearch(experiments) {
+    currentFuseResultsByKey = new Map();
+
+    const searchInput = document.getElementById("smart-search-input");
+    const searchTerm = searchInput?.value.trim() || "";
+    if (!searchTerm) {
+        return experiments;
+    }
+
+    const FuseCtor = window.Fuse;
+    if (!FuseCtor) {
+        console.warn("Fuse.js is not available");
+        return experiments;
+    }
+
+    const selectedFields = getSelectedSearchFields();
+    if (selectedFields.length === 0) {
+        selectFallbackSearchField();
+        showToast("יש לבחור לפחות שדה אחד לחיפוש", "warning");
+        return runFuseSearch(experiments);
+    }
+
+    const fuse = new FuseCtor(experiments, {
+        keys: selectedFields,
+        includeScore: true,
+        includeMatches: true,
+        ignoreLocation: true,
+        threshold: getFuseThreshold(),
+        minMatchCharLength: 1
+    });
+
+    const words = splitSearchTerms(searchTerm);
+    const logicalMode = document.querySelector('input[name="logical-mode"]:checked')?.value || "and";
+    const queryExpression = buildLogicalQuery(words, selectedFields, logicalMode);
+    const results = fuse.search(queryExpression);
+
+    results.forEach((result) => {
+        currentFuseResultsByKey.set(result.item.searchKey, result);
+    });
+
+    return results.map((result) => result.item);
+}
+
+function buildLogicalQuery(words, selectedFields, logicalMode) {
+    const clauses = words.map((word) => {
+        const fieldClauses = selectedFields.map((fieldKey) => ({ [fieldKey]: word }));
+        return fieldClauses.length === 1 ? fieldClauses[0] : { $or: fieldClauses };
+    });
+
+    if (clauses.length === 1) return clauses[0];
+    return logicalMode === "or" ? { $or: clauses } : { $and: clauses };
+}
+
+function renderResults() {
+    const tbody = document.getElementById("results-table-body");
+    if (!tbody) return;
+
+    updateResultsStats();
+
+    if (filteredExperiments.length === 0) {
+        document.getElementById("results-table-wrapper").style.display = "none";
+        showEmptyState();
+        tbody.innerHTML = "";
+        return;
+    }
+
+    document.getElementById("empty-state").style.display = "none";
+    document.getElementById("results-table-wrapper").style.display = "block";
+
+    const searchWords = splitSearchTerms(document.getElementById("smart-search-input")?.value || "");
+
+    tbody.innerHTML = filteredExperiments.map((experiment) => {
+        const fuseResult = currentFuseResultsByKey.get(experiment.searchKey);
+        const score = fuseResult?.score;
+        const matchToggle = renderMatchInsights(experiment, fuseResult, searchWords);
+        const matchDetailsRow = renderMatchDetailsRow(experiment, fuseResult, searchWords);
+        const expKey = getExperimentKey(experiment.ownerUid, experiment.id);
+        const isSelected = selectedExperiments.has(expKey);
+
+        return `
+            <tr class="result-row${isSelected ? ' selected-row' : ''}" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}" data-exp-key="${escapeHtml(expKey)}">
+                <td class="td-checkbox">
+                    <input type="checkbox" class="exp-checkbox" data-exp-key="${escapeHtml(expKey)}" ${isSelected ? 'checked' : ''}>
+                </td>
+                <td data-label="שם הניסוי">
+                    <strong>${highlightText(experiment.experimentName || "ניסוי ללא שם", searchWords)}</strong>
+                    ${matchToggle}
+                </td>
+                <td data-label="חוקר מוביל">${highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
+                <td data-label="אתר">${highlightText(experiment.experimentSite || "לא צוין", searchWords)}</td>
+                <td data-label="שנה">${highlightText(experiment.experimentYear || "-", searchWords)}</td>
+                <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
+                <td data-label="מקור">${renderSourceBadge(experiment.source)}</td>
+                <td data-label="חשיפה">${renderVisibilityBadge(experiment.data)}</td>
+                <td data-label="פעולות">
+                    <button class="btn-view-exp" type="button" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}">
+                        <i class="fas fa-eye"></i>
+                        צפייה
+                    </button>
+                </td>
+            </tr>
+            ${matchDetailsRow}
+        `;
+    }).join("");
+
+    // Checkbox event listeners
+    tbody.querySelectorAll(".exp-checkbox").forEach((checkbox) => {
+        checkbox.addEventListener("change", (event) => {
+            event.stopPropagation();
+            const key = checkbox.dataset.expKey;
+            toggleExperimentSelection(key);
+            const row = checkbox.closest("tr.result-row");
+            if (row) row.classList.toggle("selected-row", checkbox.checked);
+            updateSelectAllState();
+        });
+    });
+
+    tbody.querySelectorAll("tr.result-row").forEach((row) => {
+        row.addEventListener("click", (event) => {
+            if (event.target.closest(".btn-view-exp") || event.target.closest(".match-toggle-btn") || event.target.closest(".td-checkbox")) return;
+            viewExperiment(row.dataset.experimentId, row.dataset.ownerUid);
+        });
+    });
+
+    tbody.querySelectorAll(".match-toggle-btn").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const targetId = button.dataset.target;
+            const detailsRow = document.getElementById(targetId);
+            if (!detailsRow) return;
+            const isOpen = detailsRow.hidden;
+            detailsRow.hidden = !isOpen;
+            detailsRow.classList.toggle("open", isOpen);
+            button.classList.toggle("open", isOpen);
+            button.setAttribute("aria-expanded", String(isOpen));
+        });
+    });
+
+    updateSelectionUI();
+    updateSelectAllState();
+}
+
+function updateResultsStats() {
+    const stats = document.getElementById("results-stats");
+    if (stats) stats.style.display = "flex";
+
+    setText("results-count", filteredExperiments.length);
+
+    const searchTerm = document.getElementById("smart-search-input")?.value.trim() || "";
+    const termDisplay = document.getElementById("search-term-display");
+    if (termDisplay) {
+        termDisplay.textContent = searchTerm ? ` עבור "${searchTerm}"` : "";
+    }
+
+    const ownCount = filteredExperiments.filter((exp) => exp.source === "own").length;
+    const sharedCount = filteredExperiments.filter((exp) => exp.source === "shared").length;
+    const publicCount = filteredExperiments.filter((exp) => exp.source === "public" || exp.source === "admin").length;
+
+    updateStatBadge("stat-own", "stat-own-count", ownCount);
+    updateStatBadge("stat-shared", "stat-shared-count", sharedCount);
+    updateStatBadge("stat-public", "stat-public-count", publicCount);
+}
+
+function updateStatBadge(wrapperId, countId, count) {
+    const wrapper = document.getElementById(wrapperId);
+    setText(countId, count);
+    if (wrapper) wrapper.style.display = count > 0 ? "inline-flex" : "none";
+}
+
+function renderSourceBadge(source) {
+    const config = {
+        own: { className: "own", icon: "fa-user-check", label: "שלי" },
+        shared: { className: "shared", icon: "fa-users", label: "שותף/ה" },
+        public: { className: "public-exp", icon: "fa-globe", label: "ציבורי" },
+        admin: { className: "public-exp", icon: "fa-shield-halved", label: "ניהול" }
+    }[source] || { className: "public-exp", icon: "fa-globe", label: "ציבורי" };
+
+    return `
+        <span class="source-badge ${config.className}">
+            <i class="fas ${config.icon}"></i>
+            ${config.label}
+        </span>
+    `;
+}
+
+function renderVisibilityBadge(data) {
+    const isPrivate = data?.visibility === "private" && isPrivateStillActive(data.privateUntil);
+    const className = isPrivate ? "private" : "public";
+    const icon = isPrivate ? "fa-lock" : "fa-globe";
+    const label = isPrivate ? "חסוי" : "חשוף";
+
+    return `
+        <span class="vis-badge ${className}">
+            <i class="fas ${icon}"></i>
+            ${label}
+        </span>
+    `;
+}
+
+function renderScore(score) {
+    if (typeof score !== "number") {
+        return '<span class="score-indicator"><span class="score-dot excellent"></span>מלאה</span>';
+    }
+
+    const percentage = Math.max(0, Math.min(100, Math.round((1 - score) * 100)));
+    let level = "fair";
+    if (score <= 0.25) level = "excellent";
+    else if (score <= 0.55) level = "good";
+
+    return `
+        <span class="score-indicator">
+            <span class="score-dot ${level}"></span>
+            ${percentage}%
+        </span>
+    `;
+}
+
+function renderMatchInsights(experiment, fuseResult, searchWords) {
+    if (!searchWords.length || !fuseResult?.matches?.length) return "";
+    const insights = getMatchInsights(experiment, fuseResult);
+    if (!insights.length) return "";
+    const detailsRowId = getMatchDetailsRowId(experiment);
+    const totalCount = insights.length;
+    return `
+        <div class="match-insights-wrapper">
+            <button type="button" class="match-toggle-btn" data-target="${detailsRowId}" aria-expanded="false" aria-controls="${detailsRowId}">
+                <i class="fas fa-location-dot"></i>
+                <span>${totalCount} מקורות התאמה</span>
+                <i class="fas fa-chevron-down match-toggle-chevron"></i>
+            </button>
+        </div>
+    `;
+}
+
+function renderMatchDetailsRow(experiment, fuseResult, searchWords) {
+    if (!searchWords.length || !fuseResult?.matches?.length) return "";
+
+    const insights = getMatchInsights(experiment, fuseResult);
+    if (!insights.length) return "";
+
+    const detailsRowId = getMatchDetailsRowId(experiment);
+
+    return `
+        <tr class="match-details-row" id="${detailsRowId}" hidden>
+            <td class="match-details-cell" colspan="10">
+                <div class="match-details-list" role="region" aria-label="מקורות התאמה עבור ${escapeHtml(experiment.experimentName || 'ניסוי ללא שם')}">
+                    ${insights.map((insight) => `
+                        <div class="match-source-card">
+                            <div class="match-source-icon" aria-hidden="true">
+                                <i class="fas fa-location-dot"></i>
+                            </div>
+                            <div class="match-source-content">
+                                <div class="match-source-label">נמצא ב: ${escapeHtml(insight.label)}</div>
+                                <div class="match-source-snippet">${insight.snippet}</div>
+                            </div>
+                        </div>
+                    `).join("")}
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function getMatchDetailsRowId(experiment) {
+    const rawKey = experiment.searchKey || `${experiment.ownerUid || ''}-${experiment.id || ''}`;
+    const safeKey = String(rawKey).replace(/[^a-zA-Z0-9_-]/g, "-");
+    return `match-details-${safeKey}`;
+}
+
+function getMatchInsights(experiment, fuseResult) {
+    const insights = [];
+    const seen = new Set();
+
+    fuseResult.matches.forEach((match) => {
+        const insight = buildInsightFromMatch(experiment, match);
+        if (!insight) return;
+
+        const dedupeKey = `${insight.label}:${stripHtml(insight.snippet)}`;
+        if (seen.has(dedupeKey)) return;
+
+        seen.add(dedupeKey);
+        insights.push(insight);
+    });
+
+    return insights.sort((a, b) => b.specificity - a.specificity);
+}
+
+function buildInsightFromMatch(experiment, match) {
+    const key = String(match.key || "");
+
+    if (key === "searchBlocks.value") {
+        const block = typeof match.refIndex === "number"
+            ? experiment.searchBlocks?.[match.refIndex]
+            : experiment.searchBlocks?.find((item) => item.value === match.value);
+        if (!block?.value) return null;
+
+        return {
+            label: block.label || DIRECT_SEARCH_LABELS[key],
+            snippet: renderIndexedSnippet(block.value, match.indices || []),
+            specificity: 3
+        };
+    }
+
+    const rawValue = match.value || experiment[key];
+    if (!rawValue) return null;
+
+    return {
+        label: DIRECT_SEARCH_LABELS[key] || key,
+        snippet: renderIndexedSnippet(rawValue, match.indices || []),
+        specificity: key === "fullText" ? 1 : 2
+    };
+}
+
+function renderIndexedSnippet(value, indices) {
+    const text = stringValue(value).replace(/\s+/g, " ");
+    if (!text) return "";
+
+    if (!indices?.length) {
+        return escapeHtml(text.length > 110 ? `${text.slice(0, 110)}...` : text);
+    }
+
+    const normalizedRanges = normalizeRanges(indices);
+    if (!normalizedRanges.length) {
+        return escapeHtml(text.length > 110 ? `${text.slice(0, 110)}...` : text);
+    }
+
+    const firstRange = normalizedRanges[0];
+    const lastRange = normalizedRanges[Math.min(normalizedRanges.length - 1, 2)];
+    const snippetStart = Math.max(0, firstRange[0] - 38);
+    const snippetEnd = Math.min(text.length, lastRange[1] + 48);
+    const snippet = text.slice(snippetStart, snippetEnd);
+    const relativeRanges = normalizedRanges
+        .map(([start, end]) => [
+            Math.max(0, start - snippetStart),
+            Math.min(snippet.length - 1, end - snippetStart)
+        ])
+        .filter(([start, end]) => start <= end);
+
+    return `${snippetStart > 0 ? "..." : ""}${highlightByRanges(snippet, relativeRanges)}${snippetEnd < text.length ? "..." : ""}`;
+}
+
+function normalizeRanges(indices) {
+    const sorted = indices
+        .filter((range) => Array.isArray(range) && range.length === 2)
+        .map(([start, end]) => [Number(start), Number(end)])
+        .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && start <= end)
+        .sort((a, b) => a[0] - b[0]);
+
+    return sorted.reduce((merged, range) => {
+        const last = merged[merged.length - 1];
+        if (!last || range[0] > last[1] + 1) {
+            merged.push(range);
+        } else {
+            last[1] = Math.max(last[1], range[1]);
+        }
+        return merged;
+    }, []);
+}
+
+function highlightByRanges(text, ranges) {
+    if (!ranges.length) return escapeHtml(text);
+
+    let html = "";
+    let cursor = 0;
+
+    ranges.forEach(([start, end]) => {
+        if (start > cursor) html += escapeHtml(text.slice(cursor, start));
+        html += `<mark class="fuse-highlight">${escapeHtml(text.slice(start, end + 1))}</mark>`;
+        cursor = end + 1;
+    });
+
+    if (cursor < text.length) html += escapeHtml(text.slice(cursor));
+    return html;
+}
+
+function viewExperiment(experimentId, ownerUid) {
+    if (!experimentId) return;
+
+    try {
+        localStorage.setItem(
+            ACTIVE_EXPERIMENT_CONTEXT_KEY,
+            JSON.stringify({ experimentId, ownerUid: ownerUid || currentUser.uid })
+        );
+    } catch (error) {
+        console.warn("Could not persist active experiment context", error);
+    }
+
+    if (!ownerUid || ownerUid === currentUser.uid) {
+        window.location.href = `experiment.html?id=${encodeURIComponent(experimentId)}`;
+        return;
+    }
+
+    window.location.href = `experiment.html?id=${encodeURIComponent(experimentId)}&owner=${encodeURIComponent(ownerUid)}`;
+}
+
+function getCurrentViewExperiments() {
+    return currentView === "shared" ? sharedOnlyExperiments : allExperiments;
+}
+
+function setActiveTab() {
+    document.querySelectorAll(".view-tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.view === currentView);
+    });
+}
+
+function updateTabCounts() {
+    setText("count-all", allExperiments.length);
+    setText("count-shared", sharedOnlyExperiments.length);
+}
+
+function showLoading() {
+    const loading = document.getElementById("loading-state");
+    if (loading) loading.style.display = "flex";
+    const table = document.getElementById("results-table-wrapper");
+    if (table) table.style.display = "none";
+    const empty = document.getElementById("empty-state");
+    if (empty) empty.style.display = "none";
+}
+
+function hideLoading() {
+    const loading = document.getElementById("loading-state");
+    if (loading) loading.style.display = "none";
+}
+
+function showEmptyState() {
+    const empty = document.getElementById("empty-state");
+    if (empty) empty.style.display = "block";
+}
+
+function updateClearButtonVisibility() {
+    const input = document.getElementById("smart-search-input");
+    const button = document.getElementById("btn-clear-search");
+    if (!button) return;
+    button.classList.toggle("visible", Boolean(input?.value));
+}
+
+function updateThresholdLabel() {
+    const range = document.getElementById("fuse-threshold");
+    const label = document.getElementById("fuse-threshold-value");
+    if (!range || !label) return;
+    label.textContent = getFuseThreshold().toFixed(2).replace(/0$/, "");
+}
+
+function updateLogicalModeLabels() {
+    // Function to update labels dynamically if needed in the future
+    // Currently labels are static in HTML
+}
+
+function getFuseThreshold() {
+    const value = Number(document.getElementById("fuse-threshold")?.value || 40);
+    return Math.max(0, Math.min(1, value / 100));
+}
+
+function getSelectedSearchFields() {
+    return Array.from(document.querySelectorAll('#search-fields-grid input[type="checkbox"]:checked'))
+        .map((input) => input.value)
+        .filter(Boolean);
+}
+
+function selectFallbackSearchField() {
+    const checkbox = document.querySelector('#search-fields-grid input[value="searchBlocks.value"]');
+    if (!checkbox) return;
+    checkbox.checked = true;
+    checkbox.closest(".search-field-check")?.classList.add("checked");
+}
+
+function splitSearchTerms(value) {
+    return String(value || "")
+        .trim()
+        .split(/\s+/)
+        .map((word) => word.trim())
+        .filter(Boolean);
+}
+
+function highlightText(value, words) {
+    const text = stringValue(value) || "";
+    if (!words.length) return escapeHtml(text);
+
+    const escapedWords = words
+        .map(escapeRegExp)
+        .filter(Boolean);
+    if (!escapedWords.length) return escapeHtml(text);
+
+    const pattern = new RegExp(`(${escapedWords.join("|")})`, "gi");
+    return escapeHtml(text).replace(pattern, '<mark class="fuse-highlight">$1</mark>');
+}
+
+function uniqueSortedValues(items, key, numericDesc = false) {
+    const values = Array.from(new Set(items.map((item) => item[key]).filter(Boolean)));
+    return values.sort((a, b) => {
+        if (numericDesc) return Number(b) - Number(a);
+        return a.localeCompare(b, "he");
+    });
+}
+
+function buildSearchBlocks(value, path = [], seen = new WeakSet()) {
+    if (value === null || value === undefined) return [];
+
+    if (isPrimitiveSearchValue(value) || isTimestampLike(value)) {
+        const displayValue = formatSearchValue(value);
+        if (!displayValue || path.length === 0) return [];
+
+        return [{
+            path: path.join("."),
+            label: buildPathLabel(path),
+            value: displayValue
+        }];
+    }
+
+    if (Array.isArray(value)) {
+        if (value.every((item) => isPrimitiveSearchValue(item) || isTimestampLike(item))) {
+            const displayValue = value.map(formatSearchValue).filter(Boolean).join(", ");
+            if (!displayValue || path.length === 0) return [];
+
+            return [{
+                path: path.join("."),
+                label: buildPathLabel(path),
+                value: displayValue
+            }];
+        }
+
+        return value.flatMap((item, index) => buildSearchBlocks(item, path.concat(`[${index + 1}]`), seen));
+    }
+
+    if (typeof value === "object") {
+        if (seen.has(value)) return [];
+        seen.add(value);
+
+        return Object.entries(value).flatMap(([key, item]) => {
+            if (SEARCH_BLOCK_SKIP_KEYS.has(key) || /url|downloadURL|filePath/i.test(key)) return [];
+            return buildSearchBlocks(item, path.concat(key), seen);
+        });
+    }
+
+    return [];
+}
+
+function isPrimitiveSearchValue(value) {
+    return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function formatSearchValue(value) {
+    if (value === null || value === undefined) return "";
+
+    if (isTimestampLike(value)) {
+        const date = timestampToDate(value);
+        return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("he-IL") : "";
+    }
+
+    if (typeof value === "boolean") return value ? "כן" : "לא";
+    return stringValue(value);
+}
+
+function buildPathLabel(path) {
+    const labels = path.map((segment, index) => {
+        const arrayMatch = String(segment).match(/^\[(\d+)\]$/);
+        if (arrayMatch) {
+            const previous = path[index - 1];
+            return previous === "byTreatment" ? `טיפול ${arrayMatch[1]}` : `פריט ${arrayMatch[1]}`;
+        }
+
+        if (PATH_LABELS[segment] !== undefined) return PATH_LABELS[segment];
+        return formatUnknownFieldLabel(segment);
+    }).filter(Boolean);
+
+    return labels.filter((label, index) => label !== labels[index - 1]).join(" > ");
+}
+
+function formatUnknownFieldLabel(key) {
+    return stringValue(key)
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/[_-]+/g, " ")
+        .trim();
+}
+
+function collectPrimitiveText(value, seen = new WeakSet()) {
+    if (value === null || value === undefined) return "";
+
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+    }
+
+    const date = timestampToDate(value);
+    if (date && !Number.isNaN(date.getTime()) && isTimestampLike(value)) {
+        return date.toLocaleDateString("he-IL");
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => collectPrimitiveText(item, seen)).filter(Boolean).join(" ");
+    }
+
+    if (typeof value === "object") {
+        if (seen.has(value)) return "";
+        seen.add(value);
+
+        return Object.entries(value)
+            .filter(([key]) => !/url|downloadURL|filePath/i.test(key))
+            .map(([, item]) => collectPrimitiveText(item, seen))
+            .filter(Boolean)
+            .join(" ");
+    }
+
+    return "";
+}
+
+function isTimestampLike(value) {
+    return Boolean(value && typeof value === "object" && (
+        typeof value.toDate === "function"
+        || typeof value.seconds === "number"
+        || value instanceof Date
+    ));
+}
+
+function formatPartnerForSearch(partner) {
+    if (!partner || typeof partner !== "object") return stringValue(partner);
+    return [partner.name, partner.email, partner.role].map(stringValue).filter(Boolean).join(" ");
+}
+
+function getStudyTypeLabel(value) {
+    if (value === "field") return "שדה";
+    if (value === "lab") return "מעבדה";
+    return stringValue(value);
+}
+
+function isPrivateStillActive(privateUntil) {
+    const until = timestampToDate(privateUntil);
+    return Boolean(until && until > getTrustedNow());
+}
+
+function getOwnerUidFromExperimentPath(path) {
+    const parts = String(path || "").split("/");
+    const usersIndex = parts.indexOf("users");
+    if (usersIndex === -1) return "";
+    return parts[usersIndex + 1] || "";
+}
+
+function getExperimentKey(ownerUid, experimentId) {
+    return `${ownerUid || ""}:${experimentId || ""}`;
+}
+
+function setSelectValue(id, value) {
+    const select = document.getElementById(id);
+    if (select) select.value = value;
+}
+
+function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+}
+
+function stringValue(value) {
+    if (value === null || value === undefined) return "";
+    return String(value).trim();
+}
+
+function escapeHtml(value) {
+    return stringValue(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function escapeRegExp(value) {
+    return stringValue(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripHtml(value) {
+    return stringValue(value).replace(/<[^>]*>/g, "");
+}
+
+// ═══════════════════════════════════════
+// Selection Management for Smart Export
+// ═══════════════════════════════════════
+const SMART_EXPORT_SESSION_KEY = 'smart-export-selections';
+const SMART_EXPORT_EXTRACT_FILES_KEY = 'smart-export-extract-files';
+
+function toggleExperimentSelection(expKey) {
+    if (selectedExperiments.has(expKey)) {
+        selectedExperiments.delete(expKey);
+    } else {
+        const experiment = findExperimentByKey(expKey);
+        if (experiment) {
+            selectedExperiments.set(expKey, experiment);
+        }
+    }
+    updateSelectionUI();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (!selectAllCheckbox) return;
+
+    if (selectAllCheckbox.checked) {
+        filteredExperiments.forEach((exp) => {
+            const key = getExperimentKey(exp.ownerUid, exp.id);
+            selectedExperiments.set(key, exp);
+        });
+    } else {
+        filteredExperiments.forEach((exp) => {
+            const key = getExperimentKey(exp.ownerUid, exp.id);
+            selectedExperiments.delete(key);
+        });
+    }
+    updateSelectionUI();
+    updateRowCheckboxes();
+}
+
+function clearSelection() {
+    selectedExperiments.clear();
+    updateSelectionUI();
+    updateRowCheckboxes();
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+}
+
+function updateSelectionUI() {
+    const bar = document.getElementById("selection-action-bar");
+    const countEl = document.getElementById("selection-bar-count");
+    const count = selectedExperiments.size;
+
+    if (countEl) countEl.textContent = count;
+    if (bar) bar.classList.toggle("visible", count > 0);
+}
+
+function updateRowCheckboxes() {
+    document.querySelectorAll(".exp-checkbox").forEach((checkbox) => {
+        const key = checkbox.dataset.expKey;
+        const isSelected = selectedExperiments.has(key);
+        checkbox.checked = isSelected;
+        const row = checkbox.closest("tr.result-row");
+        if (row) row.classList.toggle("selected-row", isSelected);
+    });
+    updateSelectAllState();
+}
+
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    if (!selectAllCheckbox) return;
+
+    const visibleCheckboxes = document.querySelectorAll(".exp-checkbox");
+    const allChecked = visibleCheckboxes.length > 0 && Array.from(visibleCheckboxes).every((cb) => cb.checked);
+    selectAllCheckbox.checked = allChecked;
+}
+
+function findExperimentByKey(key) {
+    return allExperiments.find((exp) => getExperimentKey(exp.ownerUid, exp.id) === key) || null;
+}
+
+function showExportSummaryModal() {
+    const overlay = document.getElementById("export-modal-overlay");
+    if (overlay) {
+        // Update the zip header label with the count of selected experiments
+        const zipLabel = document.getElementById("modal-zip-name-label");
+        if (zipLabel) {
+            zipLabel.textContent = `שליפה_חכמה_חץ.zip (${selectedExperiments.size} ניסויים)`;
+        }
+
+        // Dynamically build the folder structure representing selected experiments inside the ZIP
+        const foldersContainer = document.getElementById("modal-experiment-folders-list");
+        if (foldersContainer) {
+            const selectedList = Array.from(selectedExperiments.values());
+            const visibleCount = 4;
+            
+            const usedNames = new Set();
+            let html = "";
+            selectedList.slice(0, visibleCount).forEach((exp) => {
+                const rawName = exp.experimentName || exp.data?.experimentName || "ניסוי ללא שם";
+                
+                // Sanitize exactly as done in smart-export.js
+                let sanitizedName = String(rawName).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
+                if (usedNames.has(sanitizedName)) {
+                    let counter = 2;
+                    let candidate = `${sanitizedName}_${counter}`;
+                    while (usedNames.has(candidate)) {
+                        counter++;
+                        candidate = `${sanitizedName}_${counter}`;
+                    }
+                    sanitizedName = candidate;
+                }
+                usedNames.add(sanitizedName);
+                
+                html += `
+                    <div class="explorer-item folder" title="${escapeHtml(rawName)}">
+                        <i class="fas fa-folder"></i>
+                        <span class="folder-name">${escapeHtml(sanitizedName)}/</span>
+                    </div>
+                `;
+            });
+            
+            if (selectedList.length > visibleCount) {
+                const remaining = selectedList.length - visibleCount;
+                html += `
+                    <div class="explorer-item folder-more" title="עוד ${remaining} תיקיות ניסויים">
+                        <i class="fas fa-folder-plus"></i>
+                        <span class="folder-name">עוד ${remaining} ניסויים...</span>
+                    </div>
+                `;
+            }
+            
+            foldersContainer.innerHTML = html || `<div style="grid-column: 1 / -1; color: var(--neutral-400); font-size:12px; text-align:center; padding: 10px;">לא נבחרו ניסויים</div>`;
+        }
+
+        overlay.classList.add("visible");
+    }
+}
+
+function hideExportModal() {
+    const overlay = document.getElementById("export-modal-overlay");
+    if (overlay) overlay.classList.remove("visible");
+}
+
+function proceedToSmartExport() {
+    const selections = Array.from(selectedExperiments.values()).map((exp) => ({
+        id: exp.id,
+        ownerUid: exp.ownerUid,
+        name: exp.experimentName || exp.data?.experimentName || '',
+        researcher: exp.leadResearcher || exp.data?.leadResearcher || ''
+    }));
+
+    const extractFromFiles = document.getElementById('chk-extract-from-files')?.checked || false;
+
+    sessionStorage.setItem(SMART_EXPORT_SESSION_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(SMART_EXPORT_EXTRACT_FILES_KEY, JSON.stringify(extractFromFiles));
+    window.location.href = 'smart-export.html';
+}
+
+async function handleLogout() {
+    try {
+        await signOut(auth);
+        window.location.href = "login.html";
+    } catch (error) {
+        console.error("Error signing out:", error);
+        showToast("שגיאה בהתנתקות", "error");
+    }
+} 
+ 
+----- js\system-tour.js ----- 
+// js/system-tour.js
+// מודול מדריך למשתמש (System Tour) - מבוסס Driver.js
+// ניתן לשנות ולהרחיב קובץ זה בלבד מבלי לגעת בקבצים אחרים
+
+export function initSystemTour() {
+    if (!window.driver || !window.driver.js) {
+        console.warn('Driver.js is not loaded');
+        return;
+    }
+
+    const driver = window.driver.js.driver;
+
+    // ===== עיצוב מותאם לסיור =====
+    if (!document.getElementById('tour-custom-style')) {
+        const style = document.createElement('style');
+        style.id = 'tour-custom-style';
+        style.innerHTML = `
+            /* ---- פופאובר כללי ---- */
+            .driver-popover {
+                border-radius: 14px !important;
+                box-shadow: 0 8px 32px rgba(10, 47, 114, 0.22), 0 2px 8px rgba(0,0,0,0.12) !important;
+                border: 1.5px solid rgba(37, 99, 235, 0.15) !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                max-width: 380px !important;
+                font-family: 'Heebo', sans-serif !important;
+                direction: rtl !important;
+            }
+
+            /* ---- כותרת הפופאובר ---- */
+            .driver-popover-title {
+                background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%) !important;
+                color: #fff !important;
+                padding: 14px 18px 12px !important;
+                font-size: 1.05rem !important;
+                font-weight: 700 !important;
+                letter-spacing: 0.01em !important;
+                border-bottom: none !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                text-align: right !important;
+            }
+
+            /* ---- תוכן הפופאובר ---- */
+            .driver-popover-description {
+                padding: 14px 18px !important;
+                font-size: 0.92rem !important;
+                color: #1e293b !important;
+                line-height: 1.7 !important;
+                text-align: right !important;
+                direction: rtl !important;
+            }
+
+            /* ---- כפתורי ניווט ---- */
+            .driver-popover-footer {
+                padding: 10px 18px 14px !important;
+                border-top: 1px solid #e2e8f0 !important;
+                display: flex !important;
+                gap: 8px !important;
+                justify-content: flex-start !important;
+                direction: rtl !important;
+            }
+            .driver-popover-next-btn,
+            .driver-popover-prev-btn,
+            .driver-popover-done-btn {
+                border-radius: 8px !important;
+                font-family: 'Heebo', sans-serif !important;
+                font-size: 0.88rem !important;
+                font-weight: 600 !important;
+                padding: 7px 16px !important;
+                border: none !important;
+                cursor: pointer !important;
+                transition: opacity 0.2s !important;
+            }
+            .driver-popover-next-btn,
+            .driver-popover-done-btn {
+                background: #2563eb !important;
+                color: #fff !important;
+            }
+            .driver-popover-next-btn:hover,
+            .driver-popover-done-btn:hover {
+                opacity: 0.88 !important;
+            }
+            .driver-popover-prev-btn {
+                background: #f1f5f9 !important;
+                color: #334155 !important;
+            }
+            .driver-popover-prev-btn:hover {
+                background: #e2e8f0 !important;
+            }
+
+            /* ---- מונה שלבים ---- */
+            .driver-popover-progress-text {
+                font-size: 0.8rem !important;
+                color: #94a3b8 !important;
+                margin-right: auto !important;
+                align-self: center !important;
+            }
+
+            /* ---- כפתור סגירה ---- */
+            .driver-popover-close-btn {
+                color: rgba(255,255,255,0.7) !important;
+                top: 10px !important;
+                left: 12px !important;
+                right: auto !important;
+                font-size: 1.1rem !important;
+            }
+            .driver-popover-close-btn:hover {
+                color: #fff !important;
+            }
+
+            /* ---- שלט הבדגש ---- */
+            .tour-badge {
+                display: inline-block;
+                background: rgba(255,255,255,0.22);
+                color: #fff;
+                font-size: 0.78rem;
+                font-weight: 600;
+                padding: 2px 9px;
+                border-radius: 20px;
+                margin-right: 6px;
+                vertical-align: middle;
+            }
+
+            /* ---- רשימת נקודות בתיאור ---- */
+            .tour-list {
+                margin: 6px 0 0 0;
+                padding-right: 18px;
+                list-style: none;
+            }
+            .tour-list li {
+                margin-bottom: 4px;
+                padding-right: 2px;
+                position: relative;
+            }
+            .tour-list li::before {
+                content: "←";
+                position: absolute;
+                right: -16px;
+                color: #2563eb;
+                font-size: 0.8rem;
+                top: 2px;
+            }
+
+            /* ---- צבע הדגשה בטקסט ---- */
+            .tour-accent {
+                color: #1d4ed8;
+                font-weight: 700;
+            }
+
+            /* ---- קו הפרדה קל ---- */
+            .tour-divider {
+                border: none;
+                border-top: 1px solid #e2e8f0;
+                margin: 8px 0;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // ===== שלבי הסיור =====
+    const tourDriver = driver({
+        showProgress: true,
+        animate: true,
+        allowClose: true,
+        overlayColor: 'rgba(15, 35, 90, 0.65)',
+        nextBtnText: 'הבא ←',
+        prevBtnText: '→ הקודם',
+        doneBtnText: '✓ סיום הסיור',
+        progressText: 'שלב {{current}} מתוך {{total}}',
+
+        steps: [
+            // ── שלב 1: ברכה ──
+            {
+                element: '.dashboard-main h1',
+                popover: {
+                    title: '👋 ברוכים הבאים למערכת איגום נתונים - למיזם ח"ץ!',
+                    description: `
+                        זהו <span class="tour-accent">מסך הבית</span> שלכם — כאן מוצגים כל הניסויים שלכם,
+                        גם אלו שיצרתם וגם כאלו שחוקרים אחרים שיתפו איתכם.
+                        <hr class="tour-divider">
+                        הסיור הקצר הבא ינחה אתכם בכל חלקי המערכת 🚀
+                    `,
+                    side: 'bottom',
+                    align: 'start'
+                }
+            },
+
+            // ── שלב 2: תפריט ניווט ──
+            {
+                element: '.sidebar-nav',
+                popover: {
+                    title: '🗂️ תפריט ניווט',
+                    description: `
+                        מהתפריט הצדדי תוכלו לגשת לכל חלקי המערכת:
+                        <ul class="tour-list">
+                            <li><span class="tour-accent">בית</span> — רשימת הניסויים שלכם</li>
+                            <li><span class="tour-accent">שליפת ניסוי</span> — ייצוא נתונים לאקסל</li>
+                            <li><span class="tour-accent">הסטטיסטיקה שלי</span> — גרפים וניתוחי BI אישיים</li>
+                        </ul>
+                    `,
+                    side: 'left',
+                    align: 'center'
+                }
+            },
+
+            // ── שלב 3: מקרא ──
+            {
+                element: '.experiments-legend',
+                popover: {
+                    title: '🏷️ זיהוי סוג הניסוי',
+                    description: `
+                        כל ניסוי מסומן בצבע שונה כדי להבחין בקלות:
+                        <ul class="tour-list">
+                            <li>סמל <span class="tour-accent">ירוק (✔️)</span> — ניסוי שאתם הקמתם</li>
+                            <li>סמל <span class="tour-accent">כחול (👥)</span> — ניסוי שחוקר אחר שיתף אתכם בו</li>
+                        </ul>
+                        <hr class="tour-divider">
+                        בניסויים משותפים תוכלו לראות וגם לערוך נתונים (בהתאם להרשאות).
+                    `,
+                    side: 'bottom',
+                    align: 'center'
+                }
+            },
+
+            // ── שלב 4: כפתור ניסוי חדש ──
+            {
+                element: '#add-experiment-btn',
+                popover: {
+                    title: '🧪 יצירת ניסוי חדש',
+                    description: `
+                        <strong>לחצו על הריבוע הזה</strong> כדי להתחיל תיעוד ניסוי חדש.
+                        <hr class="tour-divider">
+                        תוכלו ליצור כמה ניסויים שתרצו — כל ניסוי מאוחסן בנפרד ואפשר לעבוד עליו מכל מקום.
+                    `,
+                    side: 'right',
+                    align: 'center'
+                },
+                onNextClick: () => {
+                    document.getElementById('add-experiment-btn').click();
+                    setTimeout(() => tourDriver.moveNext(), 400);
+                }
+            },
+
+            // ── שלב 5: מודאל יצירת ניסוי ──
+            {
+                element: '#new-experiment-modal .modal',
+                popover: {
+                    title: '✏️ שם הניסוי',
+                    description: `
+                        הזינו <span class="tour-accent">שם תיאורי לניסוי</span> (למשל: "עגבניות חממה 2025")
+                        ולחצו על <strong>"יצירת ניסוי"</strong>.
+                        <hr class="tour-divider">
+                        לאחר הלחיצה תועברו ישירות לדף הניסוי שבו תוכלו למלא את כל הפרטים.
+                    `,
+                    side: 'top',
+                    align: 'center'
+                },
+                onDeselected: () => {
+                    const modal = document.getElementById('new-experiment-modal');
+                    if (modal && !modal.classList.contains('hidden')) {
+                        modal.classList.add('hidden');
+                    }
+                },
+                onNextClick: () => {
+                    const modal = document.getElementById('new-experiment-modal');
+                    if (modal && !modal.classList.contains('hidden')) {
+                        modal.classList.add('hidden');
+                    }
+                    tourDriver.moveNext();
+                }
+            },
+
+            // ── שלב 6: שליפה לאקסל ──
+            {
+                element: 'a[href="export.html"]',
+                popover: {
+                    title: '📊 שליפת נתונים לאקסל',
+                    description: `
+                        בסיום (או בכל שלב) תוכלו לייצא את נתוני הניסוי לאקסל דרך
+                        <span class="tour-accent">שליפת ניסוי</span> בתפריט.
+                        <hr class="tour-divider">
+                        בחרו ניסוי, סמנו אילו נתונים לייצא — והקובץ יורד ישירות למחשב שלכם.
+                    `,
+                    side: 'left',
+                    align: 'center'
+                }
+            },
+
+            // ── שלב 7: סיום ──
+            {
+                element: '.sidebar-footer',
+                popover: {
+                    title: '✅ מוכנים להתחיל!',
+                    description: `
+                        אתם מוכנים לעבוד עם מערכת ח"ץ.
+                        <hr class="tour-divider">
+                        <ul class="tour-list">
+                            <li>נתקלתם בבעיה? השתמשו ב<span class="tour-accent">דיווח תקלות</span> כאן למטה</li>
+                            <li>יש שאלות? פנו לצ'אטבוט המובנה בפינה השמאלית</li>
+                            <li>בתוך כל ניסוי — לחצו על <span class="tour-accent">סיור בניסוי</span> לקבלת הדרכה מפורטת</li>
+                        </ul>
+                        <hr class="tour-divider">
+                        <strong>בהצלחה! 🌟</strong>
+                    `,
+                    side: 'top',
+                    align: 'start'
+                }
+            }
+        ]
+    });
+
+    // ── מאזין לכפתור סיור במערכת ──
+    const tourBtn = document.getElementById('btn-start-tour');
+    if (tourBtn) {
+        tourBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // סגירת המודאל אם פתוח
+            const modal = document.getElementById('new-experiment-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+
+            // סגירת התפריט במובייל אם פתוח
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar && sidebar.classList.contains('open')) {
+                const overlay = document.getElementById('sidebar-overlay');
+                if (overlay) overlay.click();
+            }
+
+            tourDriver.drive();
+        });
+    }
 }
