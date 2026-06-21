@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260602-1">
     <link rel="stylesheet" href="css/layout.css?v=20260602-1">
-    <link rel="stylesheet" href="css/smart-search.css?v=20260614-5">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260621-2">
     <link rel="stylesheet" href="css/accessibility.css?v=20260602-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260602-1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -185,11 +185,11 @@
                         <div class="logical-radio-group">
                             <label>
                                 <input type="radio" name="logical-mode" value="and" checked>
-                                <span>$and — כל המילים חייבות להופיע</span>
+                                <span id="label-and">חיפוש מדוייק - התאמה לכל המילים</span>
                             </label>
                             <label>
                                 <input type="radio" name="logical-mode" value="or">
-                                <span>$or — מספיק שמילה אחת תמצא</span>
+                                <span id="label-or">חיפוש רחב - התאמה לפחות למילה אחת</span>
                             </label>
                         </div>
                     </div>
@@ -201,6 +201,7 @@
                 <div class="stats-text">
                     נמצאו <strong id="results-count">0</strong> ניסויים
                     <span id="search-term-display"></span>
+                    <span class="sort-hint"><i class="fas fa-arrow-down-short-wide"></i> תוצאות ממוינות לפי רלוונטיות</span>
                 </div>
                 <div class="stats-badges">
                     <span class="stat-badge own" id="stat-own" style="display:none;">
@@ -247,15 +248,14 @@
                 <table class="results-table" id="results-table">
                     <colgroup>
                         <col class="col-checkbox">
-                        <col style="width: 22%;">
+                        <col style="width: 24%;">
+                        <col style="width: 13%;">
                         <col style="width: 11%;">
+                        <col style="width: 8%;">
+                        <col style="width: 14%;">
+                        <col style="width: 9%;">
+                        <col style="width: 9%;">
                         <col style="width: 10%;">
-                        <col style="width: 7%;">
-                        <col style="width: 12%;">
-                        <col style="width: 8%;">
-                        <col style="width: 8%;">
-                        <col style="width: 9%;">
-                        <col style="width: 9%;">
                     </colgroup>
                     <thead>
                         <tr>
@@ -267,7 +267,6 @@
                             <th>חבילת עבודה</th>
                             <th>מקור</th>
                             <th>חשיפה</th>
-                            <th>התאמה</th>
                             <th>פעולות</th>
                         </tr>
                     </thead>
@@ -428,6 +427,6 @@
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="js/accessibility.js?v=20260602-1"></script>
     <script src="js/chatbot.js?v=20260602-1"></script>
-    <script type="module" src="js/smart-search.js?v=20260614-5"></script>
+    <script type="module" src="js/smart-search.js?v=20260621-2"></script>
 </body>
 </html>

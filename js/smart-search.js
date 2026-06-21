@@ -246,7 +246,10 @@ function initEventListeners() {
     });
 
     document.querySelectorAll('input[name="logical-mode"]').forEach((radio) => {
-        radio.addEventListener("change", applyFiltersAndSearch);
+        radio.addEventListener("change", () => {
+            updateLogicalModeLabels();
+            applyFiltersAndSearch();
+        });
     });
 
     // Selection controls
@@ -692,7 +695,6 @@ function renderResults() {
                 <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
                 <td data-label="מקור">${renderSourceBadge(experiment.source)}</td>
                 <td data-label="חשיפה">${renderVisibilityBadge(experiment.data)}</td>
-                <td data-label="התאמה">${renderScore(score)}</td>
                 <td data-label="פעולות">
                     <button class="btn-view-exp" type="button" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}">
                         <i class="fas fa-eye"></i>
@@ -1040,6 +1042,11 @@ function updateThresholdLabel() {
     const label = document.getElementById("fuse-threshold-value");
     if (!range || !label) return;
     label.textContent = getFuseThreshold().toFixed(2).replace(/0$/, "");
+}
+
+function updateLogicalModeLabels() {
+    // Function to update labels dynamically if needed in the future
+    // Currently labels are static in HTML
 }
 
 function getFuseThreshold() {
