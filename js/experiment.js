@@ -33,6 +33,7 @@ import {
 
 document.addEventListener('DOMContentLoaded', () => {
     initExperimentTour();
+    initNetworkListeners();
 });
 
 
@@ -70,11 +71,12 @@ let hasShownPrivacyFallbackToast = false;
 // =========================================
 const AUTO_SAVE_DELAY = 3000; // 3 seconds debounce
 let autoSaveTimeoutId = null;
-let autoSaveState = 'idle'; // 'idle' | 'unsaved' | 'saving' | 'saved' | 'error'
+let autoSaveState = 'idle'; // 'idle' | 'unsaved' | 'saving' | 'saved' | 'error' | 'offline'
 let isAutoSaveEnabled = true;
 let autoSaveInProgress = false;
 let activeAutoSavePromise = null;
 let autoSaveQueued = false;
+let isNetworkOffline = !navigator.onLine;
 
 const SHARED_VIEW_TO_SECTION = {
     crop: 'crop',
@@ -464,12 +466,65 @@ function markUserEdited() {
 }
 
 // =========================================
+// Network Awareness for Auto-Save
+// =========================================
+function isNetworkError(error) {
+    if (!error) return false;
+    const code = error?.code || '';
+    const message = (error?.message || '').toLowerCase();
+    const networkCodes = ['unavailable', 'deadline-exceeded', 'cancelled', 'resource-exhausted'];
+    if (networkCodes.includes(code)) return true;
+    if (message.includes('network') || message.includes('failed to fetch') ||
+        message.includes('offline') || message.includes('timeout') ||
+        message.includes('err_internet_disconnected') || message.includes('err_network')) {
+        return true;
+    }
+    return !navigator.onLine;
+}
+
+function initNetworkListeners() {
+    window.addEventListener('offline', () => {
+        isNetworkOffline = true;
+        console.warn('Network: browser went offline');
+        // If auto-save has pending changes, show offline indicator
+        if (hasUserEditedSinceSave || autoSaveState === 'detecting' || autoSaveState === 'saving') {
+            updateAutoSaveIndicator('offline');
+        }
+    });
+
+    window.addEventListener('online', () => {
+        isNetworkOffline = false;
+        console.info('Network: browser came back online');
+        // If we were showing offline state, try saving now
+        if (autoSaveState === 'offline') {
+            updateAutoSaveIndicator('detecting');
+            showToast('החיבור חזר – שומר שינויים...', 'info', 3000);
+            // Small delay to let the connection stabilize
+            setTimeout(() => {
+                if (hasUserEditedSinceSave || autoSaveQueued) {
+                    performAutoSave();
+                } else {
+                    updateAutoSaveIndicator('idle');
+                }
+            }, 1500);
+        }
+    });
+}
+
+// =========================================
 // Auto-Save Infrastructure
 // =========================================
 function scheduleAutoSave() {
     if (!isAutoSaveEnabled) return;
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return;
     if (!permissionsState?.canEdit) return;
+
+    // If currently offline, show offline indicator and queue for when connection returns
+    if (isNetworkOffline) {
+        autoSaveQueued = true;
+        updateAutoSaveIndicator('offline');
+        return;
+    }
 
     // If save is in progress, queue another save
     if (autoSaveInProgress) {
@@ -582,6 +637,8 @@ async function performAutoSave() {
                 clearTimeout(autoSaveRetryTimer);
                 autoSaveRetryTimer = null;
             }
+            // If we were in offline mode, successful save proves connectivity is back
+            isNetworkOffline = false;
             
             updateAutoSaveIndicator('saved');
             saveSucceeded = true;
@@ -602,9 +659,26 @@ async function performAutoSave() {
                 return false;
             }
 
+            // Classify as network error or generic error
+            if (isNetworkError(error)) {
+                isNetworkOffline = true;
+                updateAutoSaveIndicator('offline');
+                // The 'online' event listener will handle retry
+                // Also set a fallback retry timer in case online event doesn't fire
+                if (autoSaveRetryTimer) clearTimeout(autoSaveRetryTimer);
+                autoSaveRetryTimer = setTimeout(() => {
+                    autoSaveRetryTimer = null;
+                    if (autoSaveState === 'offline' && navigator.onLine) {
+                        isNetworkOffline = false;
+                        performAutoSave();
+                    }
+                }, 30000);
+                return false;
+            }
+
             updateAutoSaveIndicator('error');
             showToast('שגיאה בשמירה אוטומטית. ינסה שוב בעוד 20 שניות.', 'error');
-            // Retry automatically after 20s for network recovery
+            // Retry automatically after 20s for non-network errors
             if (autoSaveRetryTimer) clearTimeout(autoSaveRetryTimer);
             autoSaveRetryTimer = setTimeout(() => {
                 autoSaveRetryTimer = null;
@@ -702,7 +776,7 @@ function updateAutoSaveIndicator(state) {
     }
 
     // Reset
-    indicator.classList.remove('idle', 'detecting', 'saving', 'saved', 'error');
+    indicator.classList.remove('idle', 'detecting', 'saving', 'saved', 'error', 'offline');
     indicator.style.opacity = '';
     if (retryBtn) retryBtn.style.display = 'none';
 
@@ -755,6 +829,17 @@ function updateAutoSaveIndicator(state) {
             // Dot turns red — stays until retry succeeds
             if (lastEditedFieldGroup) {
                 setFieldDot(lastEditedFieldGroup, 'error');
+            }
+            break;
+
+        case 'offline':
+            indicator.classList.add('offline');
+            iconEl.innerHTML = '<i class="fas fa-cloud"></i> <i class="fas fa-wifi" style="font-size: 11px; opacity: 0.5;"></i>';
+            textEl.textContent = 'בעיית רשת — השאירו חלון פתוח, הנתונים יישמרו כשהחיבור יחזור';
+            if (retryBtn) retryBtn.style.display = 'none';
+            // Dot turns orange — stays until connectivity returns
+            if (lastEditedFieldGroup) {
+                setFieldDot(lastEditedFieldGroup, 'offline');
             }
             break;
     }

@@ -2778,6 +2778,22 @@
     pointer-events: auto;
 }
 
+/* offline — כתום, נשאר עד שהרשת חוזרת */
+.auto-save-indicator.offline {
+    opacity: 1;
+    transform: translateY(0);
+    color: #92400e;
+    background: #fffbeb;
+    border-top-color: #fbbf24;
+    pointer-events: none;
+    animation: offline-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes offline-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.75; }
+}
+
 .auto-save-retry {
     background: none;
     border: none;
@@ -2882,6 +2898,11 @@
 
 .field-save-dot.error {
     background: #ef4444;
+}
+
+.field-save-dot.offline {
+    background: #f59e0b;
+    animation: dot-pulse 1.5s ease-in-out infinite alternate;
 }
 
 @keyframes dot-pulse {
