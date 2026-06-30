@@ -20,6 +20,17 @@ let currentUser = null;
 /** @type {Array<Object>} - כל הניסויים שנטענו */
 let allExperiments = [];
 
+const WORK_PACKAGE_LABELS = {
+    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
+    wp2: 'חבילת עבודה 2 – הגנה"צ',
+    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
+    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
+    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
+    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
+    'not-related': 'לא שייך למיזם ח"ץ',
+};
+function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
+
 // ======================================================
 // Bootstrap
 // ======================================================
@@ -340,7 +351,7 @@ function renderChartByYear(exps) {
 // Chart: Experiments per Work Package
 // ======================================================
 function renderChartByPackage(exps) {
-    const freq = freqMap(exps, e => norm(e.workPackage) || 'לא צוין');
+    const freq = freqMap(exps, e => wpLabel(norm(e.workPackage)) || 'לא צוין');
     const sorted = sortedEntries(freq, 8);
     drawDoughnutChart('chart-by-package', sorted.map(x => x[0]), sorted.map(x => x[1]));
 }
@@ -529,24 +540,23 @@ function drawDoughnutChart(canvasId, labels, data) {
     const ctx = getCtx(canvasId);
     if (!ctx) return;
     new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
             labels,
             datasets: [{
                 data,
                 backgroundColor: PALETTE.slice(0, labels.length),
-                borderWidth: 2,
-                borderColor: '#fff'
+                borderRadius: 6,
+                maxBarThickness: 40
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: { font: { family: 'Heebo', size: 12 }, padding: 10, boxWidth: 14 }
-                }
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { font: { family: 'Heebo' }, color: '#374151' } },
+                y: { beginAtZero: true, ticks: { font: { family: 'Heebo' }, color: '#374151', precision: 0 } }
             }
         }
     });

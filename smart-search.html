@@ -6,11 +6,11 @@
     <title>שליפה חכמה - מערכת איגום נתונים מיזם ח"ץ</title>
     <meta name="description" content="שליפה חכמה וחיפוש מתקדם של ניסויים במערכת מיזם ח״ץ">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css?v=20260621-2">
-    <link rel="stylesheet" href="css/layout.css?v=20260621-2">
-    <link rel="stylesheet" href="css/smart-search.css?v=20260621-2">
-    <link rel="stylesheet" href="css/accessibility.css?v=20260621-2">
-    <link rel="stylesheet" href="css/chatbot.css?v=20260621-2">
+    <link rel="stylesheet" href="css/main.css?v=20260630-1">
+    <link rel="stylesheet" href="css/layout.css?v=20260630-1">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260630-2">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260630-1">
+    <link rel="stylesheet" href="css/chatbot.css?v=20260630-1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body data-page-context="smart-search" class="smart-search-booting">
@@ -87,18 +87,22 @@
                 <p>חיפוש מתקדם בניסויים עם Fuzzy Search, סינון חכם ותמיכה בחיפוש לוגי</p>
             </div>
 
-            <!-- View Tabs -->
-            <div class="view-tabs">
-                <button class="view-tab active" id="tab-all-accessible" data-view="all">
-                    <i class="fas fa-globe-americas"></i>
-                    <span>כלל הניסויים שיש לי הרשאת גישה</span>
-                    <span class="tab-count" id="count-all">0</span>
-                </button>
-                <button class="view-tab" id="tab-shared-only" data-view="shared">
-                    <i class="fas fa-users"></i>
-                    <span>ניסויים שאני שותף/ה להם</span>
-                    <span class="tab-count" id="count-shared">0</span>
-                </button>
+            <!-- Scope Banner -->
+            <div class="scope-banner" id="tab-all-accessible" data-view="all">
+                <div class="scope-banner-icon">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="scope-banner-body">
+                    <div class="scope-banner-title">
+                        כל הניסויים שלי
+                        <span class="scope-banner-count" id="count-all">0</span>
+                    </div>
+                    <div class="scope-banner-subtitle">שלי + שותפויות + חשופים במערכת</div>
+                </div>
+                <div class="scope-banner-note">
+                    <i class="fas fa-eye-slash"></i>
+                    ניסויים חסויים מוסתרים וחסומים לגישה
+                </div>
             </div>
 
             <!-- Search & Filters Panel -->
@@ -248,14 +252,13 @@
                 <table class="results-table" id="results-table">
                     <colgroup>
                         <col class="col-checkbox">
-                        <col style="width: 24%;">
-                        <col style="width: 13%;">
-                        <col style="width: 11%;">
-                        <col style="width: 8%;">
+                        <col style="width: 26%;">
                         <col style="width: 14%;">
+                        <col style="width: 12%;">
                         <col style="width: 9%;">
-                        <col style="width: 9%;">
-                        <col style="width: 10%;">
+                        <col style="width: 16%;">
+                        <col style="width: 11%;">
+                        <col style="width: 12%;">
                     </colgroup>
                     <thead>
                         <tr>
@@ -266,7 +269,6 @@
                             <th>שנה</th>
                             <th>חבילת עבודה</th>
                             <th>מקור</th>
-                            <th>חשיפה</th>
                             <th>פעולות</th>
                         </tr>
                     </thead>
@@ -435,8 +437,8 @@
 
     <!-- Fuse.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
-    <script src="js/accessibility.js?v=20260621-2"></script>
-    <script src="js/chatbot.js?v=20260621-2"></script>
-    <script type="module" src="js/smart-search.js?v=20260621-2"></script>
+    <script src="js/accessibility.js?v=20260630-1"></script>
+    <script src="js/chatbot.js?v=20260630-1"></script>
+    <script type="module" src="js/smart-search.js?v=20260630-1"></script>
 </body>
 </html>

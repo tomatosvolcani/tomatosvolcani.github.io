@@ -28,6 +28,17 @@ let bootStatusIndex = 0;
 let bootStatusTimer = null;
 let bootRevealStarted = false;
 
+const WORK_PACKAGE_LABELS = {
+    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
+    wp2: 'חבילת עבודה 2 – הגנה"צ',
+    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
+    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
+    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
+    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
+    'not-related': 'לא שייך למיזם ח"ץ',
+};
+function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
+
 const SOURCE_PRIORITY = {
     own: 4,
     shared: 3,
@@ -201,6 +212,7 @@ function initEventListeners() {
 
     document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
 
+    // Tab switching - now obsolete since we have single view, but keeping for future extensibility
     document.querySelectorAll(".view-tab").forEach((tab) => {
         tab.addEventListener("click", () => {
             const nextView = tab.dataset.view || "all";
@@ -564,11 +576,11 @@ function populateFilterOptions() {
     const base = getCurrentViewExperiments();
 
     populateSelect("filter-year", uniqueSortedValues(base, "experimentYear", true));
-    populateSelect("filter-work-package", uniqueSortedValues(base, "workPackage"));
+    populateSelect("filter-work-package", uniqueSortedValues(base, "workPackage"), wpLabel);
     populateSelect("filter-researcher", uniqueSortedValues(base, "leadResearcher"));
 }
 
-function populateSelect(id, values) {
+function populateSelect(id, values, labelFn) {
     const select = document.getElementById(id);
     if (!select) return;
 
@@ -578,7 +590,7 @@ function populateSelect(id, values) {
     values.forEach((value) => {
         const option = document.createElement("option");
         option.value = value;
-        option.textContent = value;
+        option.textContent = labelFn ? labelFn(value) : value;
         select.appendChild(option);
     });
 
@@ -692,9 +704,8 @@ function renderResults() {
                 <td data-label="חוקר מוביל">${highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
                 <td data-label="אתר">${highlightText(experiment.experimentSite || "לא צוין", searchWords)}</td>
                 <td data-label="שנה">${highlightText(experiment.experimentYear || "-", searchWords)}</td>
-                <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
+                <td data-label="חבילת עבודה">${highlightText(wpLabel(experiment.workPackage) || "-", searchWords)}</td>
                 <td data-label="מקור">${renderSourceBadge(experiment.source)}</td>
-                <td data-label="חשיפה">${renderVisibilityBadge(experiment.data)}</td>
                 <td data-label="פעולות">
                     <button class="btn-view-exp" type="button" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}">
                         <i class="fas fa-eye"></i>
@@ -718,10 +729,12 @@ function renderResults() {
         });
     });
 
-    tbody.querySelectorAll("tr.result-row").forEach((row) => {
-        row.addEventListener("click", (event) => {
-            if (event.target.closest(".btn-view-exp") || event.target.closest(".match-toggle-btn") || event.target.closest(".td-checkbox")) return;
-            viewExperiment(row.dataset.experimentId, row.dataset.ownerUid);
+    tbody.querySelectorAll(".btn-view-exp").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const experimentId = button.dataset.experimentId;
+            const ownerUid = button.dataset.ownerUid;
+            viewExperiment(experimentId, ownerUid);
         });
     });
 
@@ -997,7 +1010,8 @@ function viewExperiment(experimentId, ownerUid) {
 }
 
 function getCurrentViewExperiments() {
-    return currentView === "shared" ? sharedOnlyExperiments : allExperiments;
+    // Always return all experiments since we merged the views
+    return allExperiments;
 }
 
 function setActiveTab() {
@@ -1007,8 +1021,8 @@ function setActiveTab() {
 }
 
 function updateTabCounts() {
+    // Update the single tab count with all experiments
     setText("count-all", allExperiments.length);
-    setText("count-shared", sharedOnlyExperiments.length);
 }
 
 function showLoading() {

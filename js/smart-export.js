@@ -23,6 +23,17 @@ const EXTRACT_FILES_KEY = 'smart-export-extract-files';
 // Tag appended to record-type cells for values pulled from an attached CSV/Excel file
 const FILE_SOURCE_TAG = '(נשלף מתוך קובץ מצורף)';
 
+const WORK_PACKAGE_LABELS = {
+    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
+    wp2: 'חבילת עבודה 2 – הגנה"צ',
+    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
+    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
+    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
+    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
+    'not-related': 'לא שייך למיזם ח"ץ',
+};
+function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
+
 // Columns in the "השקיה ודשן" sheet that can be filled from an attached file.
 // `header` is the exact XLSX header (used to resolve the target column index);
 // `accepted` is the list of file-column header names (normalized) that map to it.
@@ -513,7 +524,7 @@ function flattenMetadata(exp, exportDateStr) {
         s(d.experimentMonth),
         s(d.researchPeriod || d.startDate),
         studyLabel,
-        s(d.workPackage),
+        s(wpLabel(d.workPackage)),
         s(d.experimentSite),
         s(d.siteCoordinates),
         s(d.experimentGoal),

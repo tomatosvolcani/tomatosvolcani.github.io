@@ -27,6 +27,17 @@ let hasMoreSharedExports = true;
 let isLoadingExportBatch = false;
 const renderedExportKeys = new Set();
 
+const WORK_PACKAGE_LABELS = {
+    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
+    wp2: 'חבילת עבודה 2 – הגנה"צ',
+    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
+    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
+    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
+    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
+    'not-related': 'לא שייך למיזם ח"ץ',
+};
+function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
+
 // ── DOM Ready ──
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
@@ -598,7 +609,7 @@ function buildExcelWorkbook(data) {
     addField('חודש ניסוי', data.experimentMonth);
     addField('תאריך תחילה', data.startDate);
     addField('סוג מחקר', data.studyType === 'lab' ? 'מחקר מעבדה' : 'מחקר שדה');
-    addField('חבילת עבודה', data.workPackage);
+    addField('חבילת עבודה', wpLabel(data.workPackage));
     addField('אתר הניסוי', data.experimentSite);
     addField('קורדינטות', data.studyType === 'field' ? data.siteCoordinates : '');
     addField("מס' תא", data.studyType === 'lab' ? data.labCellNumber : '');
