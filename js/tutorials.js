@@ -6,28 +6,24 @@
 // =========================================
 const VIDEOS = [
     {
-        id: 'xJh0ti5OFj8',
+        id: 'vUrNmmyDYUo',
         num: '01',
-        title: 'מבוא וסקירה כללית של המערכת',
-        desc: 'הכרת ממשק המשתמש של מיזם ח"ץ, ניווט בסיסי, צפייה בלוח הבקרה והבנת מבנה איגום הנתונים החקלאיים.'
+        title: 'הקמת ניסוי + תוכנית ניסוי'
     },
     {
-        id: 'vUrNmmyDYUo',
+        id: 'AzX2yNuZ5Qw',
         num: '02',
-        title: 'הקמת ניסוי חדש והגדרת הכנות לגידול',
-        desc: 'מדריך מפורט המציג כיצד יוצרים ניסוי, תיעוד פרטי הגידול (זנים, שתילה), מאפייני המבנה, טיפולי קרקע ומערכות הטפטוף.'
+        title: 'הכנות לניסוי'
     },
     {
         id: 'HyzCFhUV34M',
         num: '03',
-        title: 'מהלך הניסוי, הגנת הצומח ויבול',
-        desc: 'כיצד לתעד את מהלך הניסוי השוטף: קליטת נתוני השקיה ודישון, הזנת מדדי צימוח, אקלים, הגנת הצומח (מזיקים/מחלות) והזנת יבולי קטיף.'
+        title: 'מהלך הניסוי'
     },
     {
-        id: 'AzX2yNuZ5Qw',
+        id: 'xJh0ti5OFj8',
         num: '04',
-        title: 'שליפה חכמה, ניהול הרשאות וייצוא',
-        desc: 'שימוש במנוע החיפוש המתקדם (Fuzzy Search), הגדרת רמות חשיפה וסודיות לניסוי, שיתוף שותפי מחקר וייצוא מלא לאקסל ו-ZIP קבצים.'
+        title: 'תוצאות'
     }
 ];
 
@@ -71,7 +67,6 @@ function renderVideos() {
         body.className = 'video-card-body';
         body.innerHTML = `
             <h3><span class="video-number">${video.num}</span> ${video.title}</h3>
-            <p>${video.desc}</p>
             <div class="video-card-actions">
                 <a href="https://youtu.be/${video.id}" target="_blank" rel="noopener" class="btn-video-link">
                     <i class="fab fa-youtube" aria-hidden="true"></i> צפייה ישירה ב-YouTube
