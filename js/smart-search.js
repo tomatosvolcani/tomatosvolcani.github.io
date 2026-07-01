@@ -14,6 +14,7 @@ import {
 import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { timestampToDate } from "./permissions-utils.js";
+import { siteLabel, packageLabel } from "./labels.js";
 
 const ACTIVE_EXPERIMENT_CONTEXT_KEY = "research-map-active-experiment-context";
 const BOOT_LOADER_MIN_MS = 5000;
@@ -28,16 +29,6 @@ let bootStatusIndex = 0;
 let bootStatusTimer = null;
 let bootRevealStarted = false;
 
-const WORK_PACKAGE_LABELS = {
-    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
-    wp2: 'חבילת עבודה 2 – הגנה"צ',
-    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
-    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
-    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
-    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
-    'not-related': 'לא שייך למיזם ח"ץ',
-};
-function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
 
 const SOURCE_PRIORITY = {
     own: 4,
@@ -537,9 +528,10 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
         data: safeData,
         experimentName: stringValue(safeData.experimentName),
         leadResearcher: stringValue(safeData.leadResearcher),
-        experimentSite: stringValue(safeData.experimentSite || safeData.labCellNumber),
+        experimentSite: siteLabel(safeData.experimentSite) || stringValue(safeData.labCellNumber),
         experimentYear: stringValue(safeData.experimentYear),
-        workPackage: stringValue(safeData.workPackage),
+        workPackageCode: stringValue(safeData.workPackage),
+        workPackage: packageLabel(safeData.workPackage),
         studyType: getStudyTypeLabel(safeData.studyType),
         keywordsText: keywords.map(stringValue).filter(Boolean).join(" "),
         partnersText: partners.map(formatPartnerForSearch).filter(Boolean).join(" "),
@@ -576,7 +568,7 @@ function populateFilterOptions() {
     const base = getCurrentViewExperiments();
 
     populateSelect("filter-year", uniqueSortedValues(base, "experimentYear", true));
-    populateSelect("filter-work-package", uniqueSortedValues(base, "workPackage"), wpLabel);
+    populateSelect("filter-work-package", uniqueSortedValues(base, "workPackageCode"), packageLabel);
     populateSelect("filter-researcher", uniqueSortedValues(base, "leadResearcher"));
 }
 
@@ -605,7 +597,7 @@ function applyFiltersAndSearch() {
 
     const filtered = base.filter((experiment) => {
         return (!year || experiment.experimentYear === year)
-            && (!workPackage || experiment.workPackage === workPackage)
+            && (!workPackage || experiment.workPackageCode === workPackage)
             && (!researcher || experiment.leadResearcher === researcher);
     });
 
@@ -704,7 +696,7 @@ function renderResults() {
                 <td data-label="חוקר מוביל">${highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
                 <td data-label="אתר">${highlightText(experiment.experimentSite || "לא צוין", searchWords)}</td>
                 <td data-label="שנה">${highlightText(experiment.experimentYear || "-", searchWords)}</td>
-                <td data-label="חבילת עבודה">${highlightText(wpLabel(experiment.workPackage) || "-", searchWords)}</td>
+                <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
                 <td data-label="מקור">${renderSourceBadge(experiment.source)}</td>
                 <td data-label="פעולות">
                     <button class="btn-view-exp" type="button" data-experiment-id="${escapeHtml(experiment.id)}" data-owner-uid="${escapeHtml(experiment.ownerUid)}">
@@ -1114,7 +1106,7 @@ function buildSearchBlocks(value, path = [], seen = new WeakSet()) {
     if (value === null || value === undefined) return [];
 
     if (isPrimitiveSearchValue(value) || isTimestampLike(value)) {
-        const displayValue = formatSearchValue(value);
+        const displayValue = formatSearchValue(value, path[path.length - 1]);
         if (!displayValue || path.length === 0) return [];
 
         return [{
@@ -1126,7 +1118,7 @@ function buildSearchBlocks(value, path = [], seen = new WeakSet()) {
 
     if (Array.isArray(value)) {
         if (value.every((item) => isPrimitiveSearchValue(item) || isTimestampLike(item))) {
-            const displayValue = value.map(formatSearchValue).filter(Boolean).join(", ");
+            const displayValue = value.map((item) => formatSearchValue(item, path[path.length - 1])).filter(Boolean).join(", ");
             if (!displayValue || path.length === 0) return [];
 
             return [{
@@ -1156,7 +1148,7 @@ function isPrimitiveSearchValue(value) {
     return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
-function formatSearchValue(value) {
+function formatSearchValue(value, key = "") {
     if (value === null || value === undefined) return "";
 
     if (isTimestampLike(value)) {
@@ -1165,6 +1157,11 @@ function formatSearchValue(value) {
     }
 
     if (typeof value === "boolean") return value ? "כן" : "לא";
+
+    const fieldKey = String(key || "");
+    if (fieldKey === "experimentSite") return siteLabel(value) || "";
+    if (fieldKey === "workPackage") return packageLabel(value) || "";
+
     return stringValue(value);
 }
 

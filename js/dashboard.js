@@ -18,6 +18,7 @@ import { showToast } from "./toast.js";
 import { initSystemTour } from "./system-tour.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { getRole } from "./permissions-utils.js";
+import { siteLabel } from "./labels.js";
 
 let currentUser = null;
 let userData = null;
@@ -563,7 +564,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         </h3>
         <p class="date">${formatDateIL(data.createdAt)}</p>
         ${permissionLabel ? `<span class="permission-badge">${permissionLabel}</span>` : ''}
-        ${data.experimentSite ? `<p class="site">${data.experimentSite}</p>` : ''}
+        ${siteLabel(data.experimentSite) ? `<p class="site">${siteLabel(data.experimentSite)}</p>` : ''}
         ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
         
         <div class="visibility-badge-card ${visClass}">

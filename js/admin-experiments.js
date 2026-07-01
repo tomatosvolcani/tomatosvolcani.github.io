@@ -13,6 +13,7 @@ import {
     startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
+import { siteLabel } from "./labels.js";
 
 let currentUser = null;
 let allExperiments = [];
@@ -263,7 +264,7 @@ function filterExperiments(searchTerm) {
         filteredExperiments = allExperiments.filter(exp => {
             const name = (exp.experimentName || '').toLowerCase();
             const researcher = (exp.leadResearcher || '').toLowerCase();
-            const site = (exp.experimentSite || '').toLowerCase();
+            const site = (siteLabel(exp.experimentSite) || '').toLowerCase() + ' ' + (exp.experimentSite || '').toLowerCase();
 
             return name.includes(term) || researcher.includes(term) || site.includes(term);
         });
@@ -304,7 +305,7 @@ function displayExperiments() {
 
         const name = experiment.experimentName || 'ניסוי ללא שם';
         const researcher = experiment.leadResearcher || 'לא צוין';
-        const site = experiment.experimentSite || 'לא צוין';
+        const site = siteLabel(experiment.experimentSite) || 'לא צוין';
         const year = experiment.experimentYear || '-';
         const createdDate = formatDateIL(experiment.createdAt, 'לא ידוע');
 

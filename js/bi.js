@@ -15,21 +15,12 @@ import {
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
+import { siteLabel, packageLabel } from "./labels.js";
 
 let currentUser = null;
 /** @type {Array<Object>} - כל הניסויים שנטענו */
 let allExperiments = [];
 
-const WORK_PACKAGE_LABELS = {
-    wp1: 'חבילת עבודה 1 – אגרוטכניקה',
-    wp2: 'חבילת עבודה 2 – הגנה"צ',
-    wp3: 'חבילת עבודה 3 – קרקע ומים (הדשייה)',
-    wp4: 'חבילת עבודה 4 – חקלאות מקיימת',
-    wp5: 'חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות',
-    wp6: 'חבילת עבודה 6 – צמצום השימוש בידיים עובדות',
-    'not-related': 'לא שייך למיזם ח"ץ',
-};
-function wpLabel(code) { return WORK_PACKAGE_LABELS[code] || code; }
 
 // ======================================================
 // Bootstrap
@@ -209,7 +200,7 @@ function renderExperimentsMap(exps) {
         }).addTo(map);
 
         const expName = escHtml(norm(exp.experimentName) || 'ללא שם');
-        const siteName = escHtml(norm(exp.experimentSite) || 'לא צוין');
+        const siteName = escHtml(siteLabel(exp.experimentSite) || 'לא צוין');
 
         marker.bindPopup(`
             <div style="font-family: 'Heebo', sans-serif; text-align: right; direction: rtl; min-width: 180px;">
@@ -326,7 +317,7 @@ function addMapResetViewControl(map, bounds) {
 function renderKPIs(exps) {
     setText('kpi-total',       exps.length);
     setText('kpi-researchers', countUnique(exps, e => e.leadResearcher));
-    setText('kpi-sites',       countUnique(exps, e => norm(e.experimentSite)));
+    setText('kpi-sites',       countUnique(exps, e => siteLabel(e.experimentSite)));
     setText('kpi-varieties',   countUniqueFlat(exps, e => cropVarieties(e)));
     setText('kpi-keywords',    countUniqueFlat(exps, e => Array.isArray(e.keywords) ? e.keywords : []));
 }
@@ -351,7 +342,7 @@ function renderChartByYear(exps) {
 // Chart: Experiments per Work Package
 // ======================================================
 function renderChartByPackage(exps) {
-    const freq = freqMap(exps, e => wpLabel(norm(e.workPackage)) || 'לא צוין');
+    const freq = freqMap(exps, e => packageLabel(norm(e.workPackage)) || 'לא צוין');
     const sorted = sortedEntries(freq, 8);
     drawDoughnutChart('chart-by-package', sorted.map(x => x[0]), sorted.map(x => x[1]));
 }
@@ -360,7 +351,7 @@ function renderChartByPackage(exps) {
 // Chart: Experiments per Site
 // ======================================================
 function renderChartBySite(exps) {
-    const freq = freqMap(exps, e => norm(e.experimentSite) || 'לא צוין');
+    const freq = freqMap(exps, e => siteLabel(e.experimentSite) || 'לא צוין');
     const sorted = sortedEntries(freq, 8);
     drawHBarChart('chart-by-site', sorted.map(x => x[0]), sorted.map(x => x[1]), '#16a34a');
 }
