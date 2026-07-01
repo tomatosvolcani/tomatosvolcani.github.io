@@ -248,6 +248,39 @@
     color: #0a2f72;
 }
 
+.scope-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.scope-source i {
+    font-size: 0.82rem;
+    opacity: 0.7;
+}
+.scope-source.own { color: #059669; }
+.scope-source.shared { color: #d97706; }
+.scope-source.public { color: #1a4db3; }
+.scope-plus {
+    color: #94a3b8;
+    font-weight: 300;
+    font-size: 0.95rem;
+}
+.scope-source-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+}
+.scope-source.own .scope-source-count { background: #059669; }
+.scope-source.shared .scope-source-count { background: #d97706; }
+.scope-source.public .scope-source-count { background: #1a4db3; }
+
 .scope-banner-count {
     background: #1a4db3;
     color: #fff;

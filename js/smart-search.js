@@ -1013,8 +1013,14 @@ function setActiveTab() {
 }
 
 function updateTabCounts() {
-    // Update the single tab count with all experiments
-    setText("count-all", allExperiments.length);
+    const ownCount = allExperiments.filter((exp) => exp.source === "own").length;
+    const sharedCount = allExperiments.filter((exp) => exp.source === "shared").length;
+    const publicCount = allExperiments.filter(
+        (exp) => exp.source === "public" || exp.source === "admin"
+    ).length;
+    setText("count-own", ownCount);
+    setText("count-shared", sharedCount);
+    setText("count-public", publicCount);
 }
 
 function showLoading() {
