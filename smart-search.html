@@ -6,11 +6,11 @@
     <title>שליפה חכמה - מערכת איגום נתונים מיזם ח"ץ</title>
     <meta name="description" content="שליפה חכמה וחיפוש מתקדם של ניסויים במערכת מיזם ח״ץ">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/main.css?v=20260630-1">
-    <link rel="stylesheet" href="css/layout.css?v=20260630-1">
-    <link rel="stylesheet" href="css/smart-search.css?v=20260630-2">
-    <link rel="stylesheet" href="css/accessibility.css?v=20260630-1">
-    <link rel="stylesheet" href="css/chatbot.css?v=20260630-1">
+    <link rel="stylesheet" href="css/main.css?v=20260701-2">
+    <link rel="stylesheet" href="css/layout.css?v=20260701-2">
+    <link rel="stylesheet" href="css/smart-search.css?v=20260701-2">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260701-2">
+    <link rel="stylesheet" href="css/chatbot.css?v=20260701-2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body data-page-context="smart-search" class="smart-search-booting">
@@ -93,11 +93,14 @@
                     <i class="fas fa-layer-group"></i>
                 </div>
                 <div class="scope-banner-body">
-                    <div class="scope-banner-title">
-                        שלי + שותפויות + חשופים במערכת
-                        <span class="scope-banner-count" id="count-all">0</span>
+                    <div class="scope-banner-title">כלל הניסויים</div>
+                    <div class="scope-banner-subtitle">
+                        <span class="scope-source own" id="scope-own-label"><i class="fas fa-user-check"></i> שלי <span class="scope-source-count" id="count-own">0</span></span>
+                        <span class="scope-plus">+</span>
+                        <span class="scope-source shared" id="scope-shared-label"><i class="fas fa-users"></i> שותפויות <span class="scope-source-count" id="count-shared">0</span></span>
+                        <span class="scope-plus">+</span>
+                        <span class="scope-source public" id="scope-public-label"><i class="fas fa-globe"></i> חשופים במערכת <span class="scope-source-count" id="count-public">0</span></span>
                     </div>
-                    <div class="scope-banner-subtitle">כל הניסויים שיש לך הרשאה לצפות בהם</div>
                 </div>
                 <div class="scope-banner-note">
                     <i class="fas fa-eye-slash"></i>
@@ -437,8 +440,8 @@
 
     <!-- Fuse.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
-    <script src="js/accessibility.js?v=20260630-1"></script>
-    <script src="js/chatbot.js?v=20260630-1"></script>
-    <script type="module" src="js/smart-search.js?v=20260701-1"></script>
+    <script src="js/accessibility.js?v=20260701-2"></script>
+    <script src="js/chatbot.js?v=20260701-2"></script>
+    <script type="module" src="js/smart-search.js?v=20260701-2"></script>
 </body>
 </html>
