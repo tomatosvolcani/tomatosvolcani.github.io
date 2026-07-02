@@ -1,5 +1,8 @@
 // js/my-bi.js  –  לוח BI אישי למשתמש הרגיל
 // ==============================================================
+// עותק רשמי. לוח BI אישי למשתמש הרגיל.
+// הרחבות: KPIs נוספים, תרשימים חדשים (סוג מחקר, חודש, חוקר, משתלה),
+// עיצוב מודרני עם פלטת accent מרוסנת.
 // 2 קריאות Firestore קבועות (ניסויים שלי + רשימת שיתופים),
 // + קריאות מקבילות לניסויים המשותפים (Promise.all).
 // כל ניתוח הנתונים – בצד הלקוח בלבד.
@@ -23,6 +26,20 @@ let userData    = null;
 /** @type {Array<{id:string, ownerUid:string, isShared:boolean, [key:string]:any}>} */
 let allExperiments = [];
 
+const prefersReducedMotion = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+
+const STUDY_TYPE_LABELS = {
+    field: 'שדה',
+    lab: 'מעבדה'
+};
+function studyTypeLabel(code) { return STUDY_TYPE_LABELS[code] || 'לא צוין'; }
+
+const MONTH_LABELS = [
+    'ינואר','פברואר','מרץ','אפריל','מאי','יוני',
+    'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'
+];
 
 // ======================================================
 // Bootstrap
@@ -204,36 +221,174 @@ async function loadAndRender() {
 }
 
 // ======================================================
+// Single-pass aggregation
+// ======================================================
+// Walk the experiments array ONCE and build every frequency map, unique set
+// and running sum the dashboard needs. All KPIs, charts and ranking lists then
+// read from this object instead of re-iterating the array ~15 times.
+function computeStats(exps) {
+    const stats = {
+        total: exps.length,
+        ownCount: 0,
+        fieldCount: 0,
+        labCount: 0,
+        sumTreatments: 0,
+        sumRepetitions: 0,
+        sumEvents: 0,
+        mapCount: 0,
+        // unique-value sets (drive the "distinct X" KPIs)
+        siteSet: new Set(),
+        packageSet: new Set(),
+        varietySet: new Set(),
+        keywordSet: new Set(),
+        // frequency maps (drive the charts)
+        freqYear: {},
+        freqSite: {},
+        freqPackage: {},
+        freqCrop: {},
+        freqStudyType: {},
+        freqResearcher: {},
+        freqNursery: {},
+        freqKeyword: {},
+        freqVariety: {},
+        monthCounts: new Array(12).fill(0),
+        effortByPackage: {},   // label -> { treatments, repetitions }
+        researcherStats: {},   // name  -> { total, field, lab }
+        partnerStats: {}       // name  -> count
+    };
+
+    const bump = (map, key) => { map[key] = (map[key] || 0) + 1; };
+
+    exps.forEach(e => {
+        // ownership
+        if (!e.isShared) stats.ownCount += 1;
+
+        // study type
+        const study = norm(e.studyType);
+        if (study === 'field') stats.fieldCount += 1;
+        if (study === 'lab')   stats.labCount += 1;
+        bump(stats.freqStudyType, studyTypeLabel(study));
+
+        // running sums
+        const treatments  = num(e.treatmentsCount);
+        const repetitions = num(e.repetitionsCount);
+        stats.sumTreatments  += treatments;
+        stats.sumRepetitions += repetitions;
+        stats.sumEvents      += Array.isArray(e.events) ? e.events.length : 0;
+        if (e.researchMap && e.researchMap.downloadURL) stats.mapCount += 1;
+
+        // year (missing → 'לא צוין' bucket for the by-year chart)
+        bump(stats.freqYear, e.experimentYear ? String(e.experimentYear) : 'לא צוין');
+
+        // site
+        const site = siteLabel(e.experimentSite);
+        if (site) stats.siteSet.add(site);
+        bump(stats.freqSite, site || 'לא צוין');
+
+        // work-package + effort breakdown
+        const pkg = packageLabel(norm(e.workPackage));
+        if (pkg) stats.packageSet.add(pkg);
+        const pkgKey = pkg || 'לא צוין';
+        bump(stats.freqPackage, pkgKey);
+        if (!stats.effortByPackage[pkgKey]) stats.effortByPackage[pkgKey] = { treatments: 0, repetitions: 0 };
+        stats.effortByPackage[pkgKey].treatments  += treatments;
+        stats.effortByPackage[pkgKey].repetitions += repetitions;
+
+        // crop + nursery
+        bump(stats.freqCrop,    norm(cropField(e, 'cropType')) || 'לא צוין');
+        bump(stats.freqNursery, norm(cropField(e, 'nursery'))  || 'לא צוין');
+
+        // month
+        const m = num(e.experimentMonth);
+        if (m >= 1 && m <= 12) stats.monthCounts[m - 1] += 1;
+
+        // lead researcher
+        const researcher = norm(e.leadResearcher);
+        bump(stats.freqResearcher, researcher || 'לא צוין');
+        if (researcher) {
+            if (!stats.researcherStats[researcher]) stats.researcherStats[researcher] = { total: 0, field: 0, lab: 0 };
+            const rs = stats.researcherStats[researcher];
+            rs.total += 1;
+            if (study === 'field') rs.field += 1;
+            if (study === 'lab')   rs.lab   += 1;
+        }
+
+        // partners
+        partnerNames(e).forEach(name => {
+            const n = norm(name);
+            if (n) bump(stats.partnerStats, n);
+        });
+
+        // crop varieties
+        cropVarieties(e).forEach(v => {
+            const key = norm(v);
+            if (key) { stats.varietySet.add(key); bump(stats.freqVariety, key); }
+        });
+
+        // keywords
+        (Array.isArray(e.keywords) ? e.keywords : []).forEach(k => {
+            const key = norm(k);
+            if (key) { stats.keywordSet.add(key); bump(stats.freqKeyword, key); }
+        });
+    });
+
+    return stats;
+}
+
+// ======================================================
 // Render orchestrator
 // ======================================================
 function renderAll(ownCount, sharedCount) {
-    const exps = allExperiments;
+    const exps  = allExperiments;
+    const stats = computeStats(exps);   // ← the single pass
 
     // ownership badges
-    setText('own-count',    ownCount);
-    setText('shared-count', sharedCount);
+    animateCount('own-count',    ownCount);
+    animateCount('shared-count', sharedCount);
 
-    // KPIs
-    setText('kpi-total',    exps.length);
-    setText('kpi-sites',    countUnique(exps, e => siteLabel(e.experimentSite)));
-    setText('kpi-varieties',countUniqueFlat(exps, e => cropVarieties(e)));
-    setText('kpi-keywords', countUniqueFlat(exps, e => Array.isArray(e.keywords) ? e.keywords : []));
-    setText('kpi-packages', countUnique(exps, e => packageLabel(norm(e.workPackage))));
+    // KPIs – row 1 (existing metrics)
+    animateCount('kpi-total',     stats.total);
+    animateCount('kpi-sites',     stats.siteSet.size);
+    animateCount('kpi-varieties', stats.varietySet.size);
+    animateCount('kpi-keywords',  stats.keywordSet.size);
+    animateCount('kpi-packages',  stats.packageSet.size);
+
+    // KPIs – row 2 (NEW metrics)
+    animateCount('kpi-field',       stats.fieldCount);
+    animateCount('kpi-lab',         stats.labCount);
+    animateCount('kpi-researchers', Object.keys(stats.researcherStats).length);
+    animateCount('kpi-partners',    Object.keys(stats.partnerStats).length);
+    animateCount('kpi-treatments',  stats.sumTreatments);
+    animateCount('kpi-repetitions', stats.sumRepetitions);
+    animateCount('kpi-events',      stats.sumEvents);
+    animateCount('kpi-maps',        stats.mapCount);
+
+    // NEW – derived insight cards
+    renderInsightCards(stats);
 
     // Charts (client-side only)
-    renderChartByYear(exps);
-    renderChartBySite(exps);
-    renderChartByPackage(exps);
-    renderChartByCrop(exps);
+    renderChartByYear(stats);
+    renderChartBySite(stats);
+    renderChartByPackage(stats);
+    renderChartByCrop(stats);
+    renderChartByStudyType(stats);
+    renderChartByMonth(stats);
+    renderChartByResearcher(stats);
+    renderChartByNursery(stats);
 
-    // Map
+    // NEW – trends & insight charts
+    renderChartCumulative(stats);
+    renderChartEffortByPackage(stats);
+    renderChartTopVarieties(stats);
+
+    // Map (needs raw docs for coordinates)
     renderExperimentsMap(exps);
 
     // Keywords
-    renderKeywordsCloud(exps);
+    renderKeywordsCloud(stats);
 
-    // Table
-    renderExperimentsTable(exps);
+    // Tables
+    renderExperimentsTable(exps);   // needs raw docs (per-row links, createdAt sort)
 
     // Timestamp
     const label = document.getElementById('last-updated-label');
@@ -282,7 +437,7 @@ function renderExperimentsMap(exps) {
     // Add marker for each experiment
     const markers = [];
     expsWithCoords.forEach(({ exp, lat, lng }) => {
-        const color = exp.isShared ? '#3b82f6' : '#16a34a';
+        const color = exp.isShared ? '#4f46e5' : '#0f7a39';
 
         const marker = L.marker([lat, lng], {
             icon: L.divIcon({
@@ -315,7 +470,7 @@ function renderExperimentsMap(exps) {
         lines: [
             'לחיצה על סמן פותחת פרטי ניסוי',
             'ניתן להתקרב/להתרחק עם גלגלת העכבר',
-            'כפתור 🎯 מחזיר תצוגה לכל הניסויים'
+            'כפתור מיקוד מחזיר תצוגה לכל הניסויים'
         ]
     });
 
@@ -344,18 +499,11 @@ function addMapScaleControl(map) {
 function addMapHelpControl(map, config) {
     const control = L.control({ position: 'topleft' });
     control.onAdd = () => {
-        const div = L.DomUtil.create('div');
-        div.style.background = '#fff';
-        div.style.padding = '10px 12px';
-        div.style.borderRadius = '10px';
-        div.style.boxShadow = '0 1px 6px rgba(0,0,0,.2)';
-        div.style.minWidth = '220px';
-        div.style.direction = 'rtl';
-        div.style.fontFamily = 'Heebo, sans-serif';
+        const div = L.DomUtil.create('div', 'bi-map-control bi-map-help');
         div.innerHTML = `
-            <div style="font-weight:700;font-size:13px;color:#1f2937;margin-bottom:6px;">💡 ${escHtml(config.title)}</div>
-            <ul style="margin:0;padding:0 16px 0 0;color:#4b5563;font-size:12px;line-height:1.45;">
-                ${config.lines.map(line => `<li style="margin-bottom:2px;">${escHtml(line)}</li>`).join('')}
+            <div class="bi-map-ctrl-title">💡 ${escHtml(config.title)}</div>
+            <ul class="bi-map-ctrl-list">
+                ${config.lines.map(line => `<li>${escHtml(line)}</li>`).join('')}
             </ul>
         `;
         L.DomEvent.disableClickPropagation(div);
@@ -368,32 +516,31 @@ function addMapHelpControl(map, config) {
 function addMapLegendControl(map, stats) {
     const control = L.control({ position: 'topright' });
     control.onAdd = () => {
-        const div = L.DomUtil.create('div');
-        div.style.background = '#fff';
-        div.style.padding = '10px 12px';
-        div.style.borderRadius = '10px';
-        div.style.boxShadow = '0 1px 6px rgba(0,0,0,.2)';
-        div.style.minWidth = '180px';
-        div.style.direction = 'rtl';
-        div.style.fontFamily = 'Heebo, sans-serif';
+        const div = L.DomUtil.create('div', 'bi-map-control bi-map-legend');
+        div.dir = 'rtl';
 
         const ownershipRows = stats.showOwnership ? `
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:12px;color:#1f2937;">
-                <span>🟦 שותף/ה</span><strong>${stats.shared}</strong>
+            <div class="bi-map-legend-row">
+                <span class="bi-map-legend-dot bi-dot-shared"></span>
+                <span class="bi-map-legend-label">שותף/ה</span>
+                <strong class="bi-map-legend-val">${stats.shared}</strong>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;font-size:12px;color:#1f2937;">
-                <span>🟩 שלי</span><strong>${stats.own}</strong>
+            <div class="bi-map-legend-row">
+                <span class="bi-map-legend-dot bi-dot-own"></span>
+                <span class="bi-map-legend-label">שלי</span>
+                <strong class="bi-map-legend-val">${stats.own}</strong>
             </div>
         ` : '';
 
         div.innerHTML = `
-            <div style="font-weight:700;font-size:13px;color:#1f2937;margin-bottom:6px;">🧪 מקרא</div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#1f2937;">
-                <span style="width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);font-size:11px;">⚗</span>
-                <span>מיקום ניסוי</span>
+            <div class="bi-map-ctrl-title">🧪 מקרא</div>
+            <div class="bi-map-legend-row">
+                <span class="bi-map-legend-icon">⚗</span>
+                <span class="bi-map-legend-label">מיקום ניסוי</span>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:12px;color:#1f2937;">
-                <span>סה"כ על המפה</span><strong>${stats.total}</strong>
+            <div class="bi-map-legend-row bi-map-legend-total">
+                <span class="bi-map-legend-label">סה"כ על המפה</span>
+                <strong class="bi-map-legend-val">${stats.total}</strong>
             </div>
             ${ownershipRows}
         `;
@@ -408,19 +555,10 @@ function addMapLegendControl(map, stats) {
 function addMapResetViewControl(map, bounds) {
     const control = L.control({ position: 'bottomright' });
     control.onAdd = () => {
-        const button = L.DomUtil.create('button');
+        const button = L.DomUtil.create('button', 'bi-map-reset-btn');
         button.type = 'button';
         button.title = 'מיקוד לכל הניסויים';
-        button.style.width = '38px';
-        button.style.height = '38px';
-        button.style.border = 'none';
-        button.style.borderRadius = '10px';
-        button.style.cursor = 'pointer';
-        button.style.background = '#2563eb';
-        button.style.color = '#fff';
-        button.style.fontSize = '18px';
-        button.style.boxShadow = '0 1px 6px rgba(0,0,0,.25)';
-        button.textContent = '🎯';
+        button.innerHTML = '<i class="fas fa-bullseye"></i>';
         L.DomEvent.disableClickPropagation(button);
         L.DomEvent.on(button, 'click', () => map.fitBounds(bounds));
         return button;
@@ -465,41 +603,123 @@ function validateLatLng(lat, lng) {
     if (lng < -180 || lng > 180) return null;
     return { lat, lng };
 }
-function renderChartByYear(exps) {
-    const freq   = freqMap(exps, e => e.experimentYear ? String(e.experimentYear) : 'לא צוין');
-    const sorted = Object.entries(freq).sort((a, b) => a[0].localeCompare(b[0]));
-    drawBarChart('chart-by-year', sorted.map(x => x[0]), sorted.map(x => x[1]), '#3b82f6');
+
+// ======================================================
+// Chart Renderers
+// ======================================================
+// Minimalist BI palette: a single brand navy for all single-series charts,
+// with one muted secondary reserved for multi-series (stacked) charts only.
+const CHART_NAVY      = '#18408d';   // primary — every single-series chart
+const CHART_SECONDARY = '#8aaef5';   // secondary series in stacked charts
+// Back-compat aliases (all map to the primary so single-series stay uniform)
+const CHART_GREEN = CHART_NAVY;
+const CHART_AMBER = CHART_NAVY;
+const CHART_TEAL  = CHART_NAVY;
+
+function renderChartByYear(stats) {
+    const sorted = Object.entries(stats.freqYear).sort((a, b) => a[0].localeCompare(b[0]));
+    drawBarChart('chart-by-year', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_NAVY);
 }
 
-function renderChartBySite(exps) {
-    const freq   = freqMap(exps, e => siteLabel(e.experimentSite) || 'לא צוין');
-    const sorted = sortedEntries(freq, 8);
-    drawHBarChart('chart-by-site', sorted.map(x => x[0]), sorted.map(x => x[1]), '#d97706');
+function renderChartBySite(stats) {
+    const sorted = sortedEntries(stats.freqSite, 8);
+    drawHBarChart('chart-by-site', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_AMBER);
 }
 
-function renderChartByPackage(exps) {
-    const freq   = freqMap(exps, e => packageLabel(norm(e.workPackage)) || 'לא צוין');
-    const sorted = sortedEntries(freq, 8);
-    drawDoughnutChart('chart-by-package', sorted.map(x => x[0]), sorted.map(x => x[1]));
+function renderChartByPackage(stats) {
+    const sorted = sortedEntries(stats.freqPackage, 8);
+    drawHBarChart('chart-by-package', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_NAVY);
 }
 
-function renderChartByCrop(exps) {
-    const freq   = freqMap(exps, e => norm(cropField(e, 'cropType')) || 'לא צוין');
-    const sorted = sortedEntries(freq, 8);
-    drawHBarChart('chart-by-crop', sorted.map(x => x[0]), sorted.map(x => x[1]), '#16a34a');
+function renderChartByCrop(stats) {
+    const sorted = sortedEntries(stats.freqCrop, 8);
+    drawHBarChart('chart-by-crop', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_GREEN);
+}
+
+// NEW – study type (field/lab)
+function renderChartByStudyType(stats) {
+    const sorted = Object.entries(stats.freqStudyType).sort((a, b) => b[1] - a[1]);
+    drawBarChart('chart-by-study-type', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_NAVY);
+}
+
+// NEW – experiments by month
+function renderChartByMonth(stats) {
+    drawBarChart('chart-by-month', MONTH_LABELS, stats.monthCounts, CHART_TEAL);
+}
+
+// NEW – experiments by lead researcher
+function renderChartByResearcher(stats) {
+    const sorted = sortedEntries(stats.freqResearcher, 8);
+    drawHBarChart('chart-by-researcher', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_NAVY);
+}
+
+// NEW – experiments by nursery
+function renderChartByNursery(stats) {
+    const sorted = sortedEntries(stats.freqNursery, 8);
+    drawHBarChart('chart-by-nursery', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_GREEN);
+}
+
+// ======================================================
+// NEW – Derived insight cards (from precomputed stats)
+// ======================================================
+function renderInsightCards(stats) {
+    const total = stats.total;
+
+    // Average treatments per experiment
+    const avgTreatments = total ? (stats.sumTreatments / total) : 0;
+    setText('kpi-avg-treatments', total ? avgTreatments.toFixed(1) : '—');
+
+    // Busiest year (ignore the "not specified" bucket)
+    const busiest = Object.entries(stats.freqYear)
+        .filter(([year]) => year !== 'לא צוין')
+        .sort((a, b) => b[1] - a[1])[0];
+    setText('kpi-busiest-year', busiest ? busiest[0] : '—');
+    setText('kpi-busiest-year-count', busiest ? `${busiest[1]} ניסויים` : '');
+
+    // Share of own vs shared (percentage of own)
+    const ownPct = total ? Math.round((stats.ownCount / total) * 100) : 0;
+    setText('kpi-own-share', total ? `${ownPct}%` : '—');
+}
+
+// ======================================================
+// NEW – Trends & insight charts
+// ======================================================
+// Cumulative experiments accumulated by year
+function renderChartCumulative(stats) {
+    const years = Object.keys(stats.freqYear)
+        .filter(y => y !== 'לא צוין')
+        .sort((a, b) => a.localeCompare(b));
+    let running = 0;
+    const cumulative = years.map(y => (running += stats.freqYear[y]));
+    drawLineChart('chart-cumulative', years, cumulative, CHART_NAVY);
+}
+
+// Treatments vs repetitions effort per work-package (stacked HBar)
+function renderChartEffortByPackage(stats) {
+    const entries = Object.entries(stats.effortByPackage)
+        .sort((a, b) => (b[1].treatments + b[1].repetitions) - (a[1].treatments + a[1].repetitions))
+        .slice(0, 8);
+
+    drawStackedHBarChart('chart-effort-package',
+        entries.map(x => x[0]),
+        [
+            { label: 'טיפולים', data: entries.map(x => x[1].treatments), color: CHART_NAVY },
+            { label: 'חזרות',   data: entries.map(x => x[1].repetitions), color: CHART_SECONDARY }
+        ]
+    );
+}
+
+// Top crop varieties across experiments
+function renderChartTopVarieties(stats) {
+    const sorted = sortedEntries(stats.freqVariety, 8);
+    drawHBarChart('chart-top-varieties', sorted.map(x => x[0]), sorted.map(x => x[1]), CHART_GREEN);
 }
 
 // ======================================================
 // Keywords Cloud
 // ======================================================
-function renderKeywordsCloud(exps) {
-    const freq = {};
-    exps.forEach(e => {
-        (Array.isArray(e.keywords) ? e.keywords : []).forEach(k => {
-            const key = norm(k);
-            if (key) freq[key] = (freq[key] || 0) + 1;
-        });
-    });
+function renderKeywordsCloud(stats) {
+    const freq = stats.freqKeyword;
 
     const container = document.getElementById('keywords-cloud');
     if (!container) return;
@@ -528,49 +748,99 @@ function getSizeClass(count, max) {
 }
 
 // ======================================================
-// Experiments Table
+// Experiments Table (expanded with more columns)
 // ======================================================
+// The list can be long, so we render in pages: a first batch is shown and a
+// "load more" button reveals additional rows on demand. The full sorted list
+// is cached on the tbody for incremental appends.
+const EXP_TABLE_PAGE_SIZE = 8;
+let _expTableSorted = [];
+let _expTableShown = 0;
+
 function renderExperimentsTable(exps) {
     const tbody = document.getElementById('experiments-table-body');
     if (!tbody) return;
 
+    const loadMoreBtn = document.getElementById('exp-load-more');
+    const countNote   = document.getElementById('exp-count-note');
+
     if (!exps.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="no-data">אין ניסויים להצגה</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="no-data">אין ניסויים להצגה</td></tr>';
+        if (loadMoreBtn) loadMoreBtn.hidden = true;
+        if (countNote)   countNote.textContent = '';
         return;
     }
 
-    const sorted = [...exps].sort((a, b) => {
+    _expTableSorted = [...exps].sort((a, b) => {
         const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const db_ = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return db_ - da;
     });
 
-    tbody.innerHTML = sorted.map(e => {
+    _expTableShown = 0;
+    tbody.innerHTML = '';
+
+    appendExpTablePage(tbody);
+
+    if (loadMoreBtn) {
+        loadMoreBtn.hidden = _expTableShown >= _expTableSorted.length;
+        loadMoreBtn.onclick = () => {
+            appendExpTablePage(tbody);
+            loadMoreBtn.hidden = _expTableShown >= _expTableSorted.length;
+            updateExpCountNote(countNote);
+        };
+    }
+    updateExpCountNote(countNote);
+}
+
+function appendExpTablePage(tbody) {
+    const slice = _expTableSorted.slice(_expTableShown, _expTableShown + EXP_TABLE_PAGE_SIZE);
+    const html = slice.map(e => {
         const href = e.isShared
             ? `experiment.html?id=${e.id}&owner=${e.ownerUid}`
             : `experiment.html?id=${e.id}`;
         const badge = e.isShared
             ? '<span class="tag-shared">שותף/ה</span>'
             : '<span class="tag-own">שלי</span>';
+        const studyBadge = norm(e.studyType) === 'lab'
+            ? '<span class="tag-lab">מעבדה</span>'
+            : norm(e.studyType) === 'field'
+                ? '<span class="tag-field">שדה</span>'
+                : '<span class="tag-muted">—</span>';
+        const treatments = num(e.treatmentsCount);
+        const researcher = escHtml(norm(e.leadResearcher) || '-');
         return `
           <tr>
             <td><a class="exp-link" href="${href}">${escHtml(e.experimentName || 'ללא שם')}</a></td>
             <td>${e.experimentYear || '-'}</td>
             <td>${escHtml(siteLabel(e.experimentSite) || '-')}</td>
+            <td>${researcher}</td>
             <td>${escHtml(packageLabel(norm(e.workPackage)) || '-')}</td>
+            <td>${treatments ? treatments : '-'}</td>
+            <td>${studyBadge}</td>
             <td>${badge}</td>
           </tr>`;
     }).join('');
+    tbody.insertAdjacentHTML('beforeend', html);
+    _expTableShown = Math.min(_expTableShown + EXP_TABLE_PAGE_SIZE, _expTableSorted.length);
+}
+
+function updateExpCountNote(el) {
+    if (!el) return;
+    const total = _expTableSorted.length;
+    if (_expTableShown >= total) {
+        el.textContent = total ? `מציג את כל ${total} הניסויים` : '';
+    } else {
+        el.textContent = `מציג ${_expTableShown} מתוך ${total}`;
+    }
 }
 
 // ======================================================
-// Chart Factory Helpers
+// Chart Factory Helpers – bar charts only, professional styling
 // ======================================================
-const PALETTE = [
-    '#4f46e5','#0ea5e9','#16a34a','#d97706','#e11d48',
-    '#7c3aed','#0891b2','#65a30d','#f59e0b','#ef4444',
-    '#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899'
-];
+const FONT_FAM   = "'Heebo', sans-serif";
+const GRID_COLOR = 'rgba(180, 192, 210, 0.35)';
+const TICK_COLOR = '#607089';
 
 function drawBarChart(canvasId, labels, data, color) {
     const ctx = getCtx(canvasId);
@@ -579,15 +849,38 @@ function drawBarChart(canvasId, labels, data, color) {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ data, backgroundColor: color, borderRadius: 6, maxBarThickness: 40 }]
+            datasets: [{
+                data,
+                backgroundColor: color,
+                maxBarThickness: 44
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#182230',
+                    titleFont: { family: FONT_FAM, weight: '600' },
+                    bodyFont: { family: FONT_FAM },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: false
+                }
+            },
             scales: {
-                x: { ticks: { font: { family: 'Heebo' }, color: '#374151' } },
-                y: { beginAtZero: true, ticks: { font: { family: 'Heebo' }, precision: 0 } }
+                x: {
+                    grid: { display: false },
+                    border: { color: GRID_COLOR },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR, drawTicks: false },
+                    border: { display: false },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR, precision: 0, padding: 6 }
+                }
             }
         }
     });
@@ -600,42 +893,145 @@ function drawHBarChart(canvasId, labels, data, color) {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ data, backgroundColor: color, borderRadius: 4, maxBarThickness: 26 }]
+            datasets: [{
+                data,
+                backgroundColor: color,
+                maxBarThickness: 26
+            }]
         },
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#182230',
+                    titleFont: { family: FONT_FAM, weight: '600' },
+                    bodyFont: { family: FONT_FAM },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: false
+                }
+            },
             scales: {
-                x: { beginAtZero: true, ticks: { font: { family: 'Heebo' }, precision: 0 } },
-                y: { ticks: { font: { family: 'Heebo' }, color: '#374151' } }
+                x: {
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR, drawTicks: false },
+                    border: { display: false },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR, precision: 0, padding: 6 }
+                },
+                y: {
+                    grid: { display: false },
+                    border: { color: GRID_COLOR },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: '#344054', autoSkip: false }
+                }
             }
         }
     });
 }
 
-function drawDoughnutChart(canvasId, labels, data) {
+// ======================================================
+// NEW – Line + Stacked chart factories
+// ======================================================
+function drawLineChart(canvasId, labels, data, color) {
+    const ctx = getCtx(canvasId);
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                borderColor: color,
+                backgroundColor: 'rgba(24, 64, 141, 0.08)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointBackgroundColor: color,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: prefersReducedMotion ? false : { duration: 800 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#182230',
+                    titleFont: { family: FONT_FAM, weight: '600' },
+                    bodyFont: { family: FONT_FAM },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { color: GRID_COLOR },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR, drawTicks: false },
+                    border: { display: false },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR, precision: 0, padding: 6 }
+                }
+            }
+        }
+    });
+}
+
+function drawStackedHBarChart(canvasId, labels, datasets) {
     const ctx = getCtx(canvasId);
     if (!ctx) return;
     new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
-            datasets: [{
-                data,
-                backgroundColor: PALETTE.slice(0, labels.length),
-                borderRadius: 6,
-                maxBarThickness: 40
-            }]
+            datasets: datasets.map(ds => ({
+                label: ds.label,
+                data: ds.data,
+                backgroundColor: ds.color,
+                maxBarThickness: 26
+            }))
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            animation: prefersReducedMotion ? false : { duration: 700 },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR, boxWidth: 12, padding: 12 }
+                },
+                tooltip: {
+                    backgroundColor: '#182230',
+                    titleFont: { family: FONT_FAM, weight: '600' },
+                    bodyFont: { family: FONT_FAM },
+                    padding: 10,
+                    cornerRadius: 6
+                }
+            },
             scales: {
-                x: { ticks: { font: { family: 'Heebo' }, color: '#374151' } },
-                y: { beginAtZero: true, ticks: { font: { family: 'Heebo' }, color: '#374151', precision: 0 } }
+                x: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR, drawTicks: false },
+                    border: { display: false },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: TICK_COLOR, precision: 0, padding: 6 }
+                },
+                y: {
+                    stacked: true,
+                    grid: { display: false },
+                    border: { color: GRID_COLOR },
+                    ticks: { font: { family: FONT_FAM, size: 11 }, color: '#344054', autoSkip: false }
+                }
             }
         }
     });
@@ -656,29 +1052,20 @@ function cropVarieties(exp) {
     return single ? [single] : [];
 }
 
-function norm(val) { return (val || '').trim() || null; }
-
-function freqMap(exps, keyFn) {
-    const map = {};
-    exps.forEach(e => {
-        const k = keyFn(e);
-        if (k != null) map[k] = (map[k] || 0) + 1;
-    });
-    return map;
+function partnerNames(exp) {
+    const arr = Array.isArray(exp?.partners) ? exp.partners : [];
+    return arr.map(p => String(p?.name || '').trim()).filter(Boolean);
 }
+
+function num(val) {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function norm(val) { return (val || '').trim() || null; }
 
 function sortedEntries(freq, topN = 10) {
     return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, topN);
-}
-
-function countUnique(exps, keyFn) {
-    return new Set(exps.map(keyFn).filter(Boolean)).size;
-}
-
-function countUniqueFlat(exps, listFn) {
-    const set = new Set();
-    exps.forEach(e => listFn(e).forEach(k => { const n = norm(k); if (n) set.add(n); }));
-    return set.size;
 }
 
 // ======================================================
@@ -692,6 +1079,30 @@ function getCtx(id) {
 function setText(id, val) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
+}
+
+// Animated count-up for numeric KPIs (respects reduced-motion)
+function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const value = Number(target) || 0;
+    if (prefersReducedMotion || value === 0) {
+        el.textContent = String(value);
+        return;
+    }
+
+    const duration = 900;
+    const startTime = performance.now();
+    const step = (now) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        // easeOutCubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = String(Math.round(eased * value));
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = String(value);
+    };
+    requestAnimationFrame(step);
 }
 
 function escHtml(str) {
