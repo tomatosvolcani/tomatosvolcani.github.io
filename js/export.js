@@ -12,7 +12,7 @@ import {
 import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead } from "./permissions-utils.js";
-import { siteLabel, packageLabel } from "./labels.js?v=20260726-2";
+import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 
 let currentUser = null;
 let userData = null;
