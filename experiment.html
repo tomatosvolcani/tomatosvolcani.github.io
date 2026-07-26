@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/main.css?v=20260621-2">
     <link rel="stylesheet" href="css/layout.css?v=20260621-2">
     <link rel="stylesheet" href="css/forms.css?v=20260621-2">
-    <link rel="stylesheet" href="css/experiment.css?v=20260624-1">
+    <link rel="stylesheet" href="css/experiment.css?v=20260726-1">
     <link rel="stylesheet" href="css/accessibility.css?v=20260621-2">
     <link rel="stylesheet" href="css/chatbot.css?v=20260621-2">
     <link rel="stylesheet" href="css/research-map.css?v=20260621-2">
@@ -415,6 +415,7 @@
                                 <option value="wp4">חבילת עבודה 4 – חקלאות מקיימת</option>
                                 <option value="wp5">חבילת עבודה 5 – היבטים כלכליים לשיפור הרווחיות</option>
                                 <option value="wp6">חבילת עבודה 6 – צמצום השימוש בידיים עובדות</option>
+                                <option value="wp7">חבילת עבודה 7 - פיילוט זנים מסיימים</option>
                                 <option value="not-related">לא שייך למיזם ח"ץ</option>
                             </select>
                         </div>
@@ -957,6 +958,7 @@
                                         <th>תאריך התחלה</th>
                                         <th>תאריך סיום</th>
                                         <th>סה"כ כמות מים (ליטר)</th>
+                                        <th>הערות</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -983,6 +985,7 @@
                                         <th>סוג הדשן</th>
                                         <th>חברה</th>
                                         <th>סה"כ כמות דשן</th>
+                                        <th>הערות</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -1343,10 +1346,17 @@
                 <label id="irr-modal-total-label">סה"כ כמות מים (ליטר):</label>
                 <input type="number" id="irr-modal-total" class="modal-input-sm" placeholder="כמות" step="any">
             </div>
-            <div class="modal-dropzone" id="irr-modal-dropzone">
-                <input type="file" id="irr-modal-file" class="modal-file-input">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p id="irr-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
+            <div class="modal-upload-row">
+                <div class="modal-dropzone" id="irr-modal-dropzone">
+                    <input type="file" id="irr-modal-file" class="modal-file-input">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p id="irr-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
+                </div>
+                <div class="modal-form-row modal-notes-field">
+                    <label for="irr-modal-notes">הערות:</label>
+                    <textarea id="irr-modal-notes" class="modal-input-sm modal-notes-input" rows="4"
+                        placeholder="למשל: מחיר, חישוב או הערה נוספת"></textarea>
+                </div>
             </div>
             <div class="modal-upload-progress hidden" id="irr-modal-progress">
                 <div class="progress-bar"><div class="progress-bar-fill" id="irr-modal-progress-fill"></div></div>
@@ -1391,10 +1401,17 @@
                 <label>סה"כ כמות דשן:</label>
                 <input type="number" id="fert-modal-total" class="modal-input-sm" placeholder="כמות" step="any">
             </div>
-            <div class="modal-dropzone" id="fert-modal-dropzone">
-                <input type="file" id="fert-modal-file" class="modal-file-input">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p id="fert-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
+            <div class="modal-upload-row">
+                <div class="modal-dropzone" id="fert-modal-dropzone">
+                    <input type="file" id="fert-modal-file" class="modal-file-input">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p id="fert-modal-file-name">גרירת קובץ לכאן או לחיצה לבחירה</p>
+                </div>
+                <div class="modal-form-row modal-notes-field">
+                    <label for="fert-modal-notes">הערות:</label>
+                    <textarea id="fert-modal-notes" class="modal-input-sm modal-notes-input" rows="4"
+                        placeholder="למשל: מחיר, חישוב או הערה נוספת"></textarea>
+                </div>
             </div>
             <div class="modal-upload-progress hidden" id="fert-modal-progress">
                 <div class="progress-bar"><div class="progress-bar-fill" id="fert-modal-progress-fill"></div></div>
@@ -1620,6 +1637,6 @@
     <script src="js/accessibility.js?v=20260621-2"></script>
     <script src="js/chatbot.js?v=20260621-2"></script>
     <script type="module" src="js/research-map.js?v=20260621-2"></script>
-    <script type="module" src="js/experiment.js?v=20260624-1"></script>
+    <script type="module" src="js/experiment.js?v=20260726-1"></script>
 </body>
 </html>

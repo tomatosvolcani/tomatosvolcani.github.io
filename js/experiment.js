@@ -6576,10 +6576,10 @@ function normalizeLegacyRangeDates(row = {}) {
 // =========================================
 // Irrigation & Fertilization
 // =========================================
-const IRRIGATION_FIELDS = ['fileName','uploadDate','startDate','endDate','totalWater'];
-const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', totalWater:'סה"כ כמות מים (ליטר)' };
-const FERTILIZATION_FIELDS = ['fileName','uploadDate','startDate','endDate','fertType','company','totalFert'];
-const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן' };
+const IRRIGATION_FIELDS = ['fileName','uploadDate','startDate','endDate','totalWater','notes'];
+const IRRIGATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', totalWater:'סה"כ כמות מים (ליטר)', notes:'הערות' };
+const FERTILIZATION_FIELDS = ['fileName','uploadDate','startDate','endDate','fertType','company','totalFert','notes'];
+const FERTILIZATION_LABELS = { fileName:'שם הקובץ', uploadDate:'תאריך העלאה', startDate:'תאריך התחלה', endDate:'תאריך סיום', fertType:'סוג הדשן', company:'חברה', totalFert:'סה"כ כמות דשן', notes:'הערות' };
 const FERTILIZATION_DYNAMIC_DATALISTS = { fertType: 'datalist-fertilizer-type', company: 'datalist-fertilizer-company' };
 
 function getIrrigationWaterUnit() {
@@ -7193,6 +7193,7 @@ function openIrrigationModal() {
     document.getElementById('irr-modal-start-date').value = today;
     document.getElementById('irr-modal-end-date').value = today;
     document.getElementById('irr-modal-total').value = '';
+    document.getElementById('irr-modal-notes').value = '';
     document.getElementById('irr-modal-file').value = '';
     document.getElementById('irr-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('irr-modal-progress')?.classList.add('hidden');
@@ -7205,6 +7206,7 @@ async function saveIrrigationFile() {
     const startDate = document.getElementById('irr-modal-start-date').value;
     const endDate = document.getElementById('irr-modal-end-date').value;
     const totalWater = document.getElementById('irr-modal-total').value.trim();
+    const notes = document.getElementById('irr-modal-notes').value.trim();
     const fileInput = document.getElementById('irr-modal-file');
     const file = fileInput?.files[0];
 
@@ -7245,6 +7247,7 @@ async function saveIrrigationFile() {
         startDate,
         endDate,
         totalWater: totalWater,
+        notes,
         fileUrl: fileUrl || '',
         filePath: filePath || '',
         originalFileName: file ? file.name : ''
@@ -7266,6 +7269,7 @@ function openFertilizationModal() {
     document.getElementById('fert-modal-type').value = '';
     document.getElementById('fert-modal-company').value = '';
     document.getElementById('fert-modal-total').value = '';
+    document.getElementById('fert-modal-notes').value = '';
     document.getElementById('fert-modal-file').value = '';
     document.getElementById('fert-modal-file-name').textContent = 'גרירת קובץ לכאן או לחיצה לבחירה';
     document.getElementById('fert-modal-progress')?.classList.add('hidden');
@@ -7280,6 +7284,7 @@ async function saveFertilizationFile() {
     const fertType = document.getElementById('fert-modal-type').value.trim();
     const company = document.getElementById('fert-modal-company').value.trim();
     const totalFert = document.getElementById('fert-modal-total').value.trim();
+    const notes = document.getElementById('fert-modal-notes').value.trim();
     const fileInput = document.getElementById('fert-modal-file');
     const file = fileInput?.files[0];
 
@@ -7325,6 +7330,7 @@ async function saveFertilizationFile() {
         fertType: fertType,
         company: company,
         totalFert: totalFert,
+        notes,
         fileUrl: fileUrl || '',
         filePath: filePath || '',
         originalFileName: file ? file.name : ''

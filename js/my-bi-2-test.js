@@ -19,7 +19,7 @@ import {
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
-import { siteLabel, packageLabel } from "./labels.js";
+import { siteLabel, packageLabel } from "./labels.js?v=20260726-2";
 
 let currentUser = null;
 let userData    = null;

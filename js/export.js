@@ -12,7 +12,7 @@ import {
 import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead } from "./permissions-utils.js";
-import { siteLabel, packageLabel } from "./labels.js";
+import { siteLabel, packageLabel } from "./labels.js?v=20260726-2";
 
 let currentUser = null;
 let userData = null;
@@ -737,8 +737,8 @@ function buildExcelWorkbook(data) {
         if (irrigationData.length > 0) {
             rows.push(['השקיה:']);
             addTable(
-                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סה"כ כמות מים (ליטר)', 'קישור קובץ'],
-                irrigationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.totalWater || '', r.fileUrl || ''])
+                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סה"כ כמות מים (ליטר)', 'הערות', 'קישור קובץ'],
+                irrigationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.totalWater || '', r.notes || '', r.fileUrl || ''])
             );
         } else {
             addField('השקיה', 'אין נתונים');
@@ -748,8 +748,8 @@ function buildExcelWorkbook(data) {
         if (fertilizationData.length > 0) {
             rows.push(['דישון:']);
             addTable(
-                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סוג הדשן', 'חברה', 'סה"כ כמות דשן', 'קישור קובץ'],
-                fertilizationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.fertType || '', r.company || '', r.totalFert || '', r.fileUrl || ''])
+                ['שם הקובץ', 'תאריך העלאה', 'תאריכי מדידה', 'סוג הדשן', 'חברה', 'סה"כ כמות דשן', 'הערות', 'קישור קובץ'],
+                fertilizationData.map(r => [r.fileName || '', r.uploadDate || '', r.measureDates || '', r.fertType || '', r.company || '', r.totalFert || '', r.notes || '', r.fileUrl || ''])
             );
         } else {
             addField('דישון', 'אין נתונים');

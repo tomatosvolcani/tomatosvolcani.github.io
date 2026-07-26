@@ -1940,6 +1940,32 @@
     font-size: 14px;
 }
 
+/* File dropzone and per-record notes shown side by side */
+.modal-upload-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 16px;
+}
+
+.modal-upload-row .modal-dropzone {
+    min-height: 130px;
+    margin-bottom: 0;
+}
+
+.modal-notes-field {
+    min-width: 0;
+}
+
+.modal-notes-input {
+    min-height: 130px;
+    flex: 1;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
 /* Dropzone */
 .modal-dropzone {
     border: 2px dashed #d1d5db;
@@ -2021,6 +2047,11 @@
 
     .modal-form-grid {
         flex-direction: column;
+        gap: 12px;
+    }
+
+    .modal-upload-row {
+        grid-template-columns: 1fr;
         gap: 12px;
     }
 }
