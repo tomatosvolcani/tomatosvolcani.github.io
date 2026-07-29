@@ -10,10 +10,12 @@ import {
     getDoc,
     collection,
     limit,
-    startAfter
+    startAfter,
+    getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { siteLabel } from "./labels.js";
+import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260729-1";
 
 let currentUser = null;
 let allExperiments = [];
@@ -90,8 +92,22 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     await loadUserInfo();
 
-    // מנסים לטעון ניסויים - אם אין הרשאות, loadAllExperiments תטפל בזה
-    await loadAllExperiments();
+    const hasAdminAccess = await checkAdminAccess(user);
+    if (!hasAdminAccess) {
+        showToast('אין לך הרשאות גישה לדף זה', 'error');
+        setTimeout(() => {
+            window.location.href = "dashboard.html";
+        }, 1500);
+        return;
+    }
+
+    showAdminStatusBadge();
+
+    // טבלת הניסויים והמדדים נטענים בנפרד: העימוד אינו משפיע על הספירה.
+    await Promise.all([
+        loadAllExperiments(),
+        loadSystemStatistics()
+    ]);
 });
 
 
@@ -130,9 +146,6 @@ async function loadAllExperiments() {
 
         await fetchNextExperimentsPage();
 
-        // עדכון סטטיסטיקות
-        updateStatistics();
-
         // הצגת הניסויים
         filteredExperiments = [...allExperiments];
         displayExperiments();
@@ -164,7 +177,6 @@ async function loadMoreExperiments() {
     try {
         await fetchNextExperimentsPage();
         filterExperiments(currentSearchTerm);
-        updateStatistics();
         updateLoadMoreButtonVisibility();
     } catch (error) {
         console.error("Error loading more experiments:", error);
@@ -240,17 +252,53 @@ function hideLoadMoreButton() {
     if (wrapper) wrapper.classList.add('hidden');
 }
 
-// עדכון סטטיסטיקות
-function updateStatistics() {
-    // סה"כ ניסויים
+async function countResearchersWithExperiments() {
+    const publicUsersSnapshot = await getDocs(collection(db, "publicUsers"));
+    const userDocs = publicUsersSnapshot.docs;
+    const batchSize = 10;
+    let researchersCount = 0;
+
+    // Count queries return only aggregate numbers; batches avoid a large burst
+    // of simultaneous requests if the user directory grows.
+    for (let index = 0; index < userDocs.length; index += batchSize) {
+        const batch = userDocs.slice(index, index + batchSize);
+        const countSnapshots = await Promise.all(batch.map((userDoc) =>
+            getCountFromServer(collection(db, "users", userDoc.id, "experiments"))
+        ));
+
+        researchersCount += countSnapshots.filter(
+            snapshot => snapshot.data().count > 0
+        ).length;
+    }
+
+    return researchersCount;
+}
+
+async function loadSystemStatistics() {
+    updateStatistics('…', '…');
+
+    try {
+        const [experimentsSnapshot, researchersCount] = await Promise.all([
+            getCountFromServer(collectionGroup(db, "experiments")),
+            countResearchersWithExperiments()
+        ]);
+
+        updateStatistics(
+            experimentsSnapshot.data().count,
+            researchersCount
+        );
+    } catch (error) {
+        console.error("Error loading system statistics:", error);
+        updateStatistics('—', '—');
+        showToast('לא ניתן לטעון כרגע את נתוני הסיכום', 'warning');
+    }
+}
+
+function updateStatistics(totalExperiments, totalResearchers) {
     const totalEl = document.getElementById('total-experiments');
-    if (totalEl) totalEl.textContent = allExperiments.length;
-
-
-    // מספר חוקרים ייחודיים
-    const uniqueOwners = new Set(allExperiments.map(exp => exp.ownerUid));
+    if (totalEl) totalEl.textContent = totalExperiments;
     const researchersEl = document.getElementById('total-researchers');
-    if (researchersEl) researchersEl.textContent = uniqueOwners.size;
+    if (researchersEl) researchersEl.textContent = totalResearchers;
 }
 
 // סינון ניסויים לפי חיפוש
