@@ -65,6 +65,9 @@ let hasUserEditedSinceSave = false;
 let isBrowserNavGuardInitialized = false;
 let skipNextPopstateGuard = false;
 let hasShownPrivacyFallbackToast = false;
+let hasLoadedPublicUsers = false;
+
+const PERMISSIONS_SCHEMA_VERSION = 2;
 
 // =========================================
 // Auto-Save State
@@ -123,6 +126,9 @@ function stripAccessManagedFields(formData) {
         'privateUntil',
         'publicAccess',
         'permissions',
+        'permissionsSchemaVersion',
+        'partners',
+        'experimentPartners',
         'ownerUid',
         'privacyExtensionApproved',
         'privacyUpdatedAt',
@@ -181,6 +187,16 @@ function prepareAccessManagedFieldsForSave(formData, options = {}) {
 
     if (includePermissions) {
         formData.permissions = collectPermissionsFromUI() || formData.permissions;
+        synchronizePartnerFieldsForSave(formData);
+
+        if (canSafelyUsePermissionsV2(experimentData, formData.permissions)) {
+            formData.permissionsSchemaVersion = PERMISSIONS_SCHEMA_VERSION;
+        } else {
+            delete formData.permissionsSchemaVersion;
+        }
+
+        formData.permissionsUpdatedAt = serverTimestamp();
+        formData.permissionsUpdatedBy = currentUser?.uid || null;
     }
 
     return { privacyFallbackApplied };
@@ -606,20 +622,11 @@ async function performAutoSave() {
             await persistDynamicFieldOptions(formData);
             await persistGlobalKeywordOptions(formData.keywords);
 
-            // Sync shared experiments with partners
-            const newPermissionsPartners = Object.keys(permissionsUIData)
-                .map(uid => {
-                    const user = allUsers.find(u => u.uid === uid);
-                    return user ? { email: user.email, name: user.fullName || user.email } : null;
-                })
-                .filter(Boolean);
-            const allPartners = [...newPermissionsPartners];
-            (formData.partners || []).forEach(p => {
-                if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
-                    allPartners.push(p);
-                }
-            });
-            await syncSharedExperiments(allPartners, formData);
+            // Sync dashboard pointers from the authoritative permissions map.
+            await syncSharedExperiments(
+                getPermissionShareEntries(formData, formData.permissions),
+                formData
+            );
 
             experimentData = { ...experimentData, ...formData };
             if (privacyFallbackApplied) {
@@ -1634,6 +1641,7 @@ async function loadAllUsers() {
                 fullName: `${data.firstName || ''} ${data.lastName || ''}`.trim()
             });
         });
+        hasLoadedPublicUsers = true;
     } catch (error) {
         console.error("Error loading users:", error);
 
@@ -1645,6 +1653,7 @@ async function loadAllUsers() {
         }
 
         allUsers = []; // Empty array so the UI doesn't break
+        hasLoadedPublicUsers = false;
     }
 }
 
@@ -3048,22 +3057,11 @@ async function saveExperiment() {
         await persistDynamicFieldOptions(formData);
         await persistGlobalKeywordOptions(formData.keywords);
 
-        // עדכן שותפים - הוסף/הסר את הניסוי מהאוסף sharedExperiments שלהם
-        // Build combined partners list from new permissions + legacy partners
-        const newPermissionsPartners = Object.keys(permissionsUIData)
-            .map(uid => {
-                const user = allUsers.find(u => u.uid === uid);
-                return user ? { email: user.email, name: user.fullName || user.email } : null;
-            })
-            .filter(Boolean);
-        const allPartners = [...newPermissionsPartners];
-        // Add legacy partners that might not be in permissions
-        (formData.partners || []).forEach(p => {
-            if (p.email && !allPartners.find(ap => ap.email?.toLowerCase() === p.email?.toLowerCase())) {
-                allPartners.push(p);
-            }
-        });
-        const syncResult = await syncSharedExperiments(allPartners, formData);
+        // עדכן מצביעי dashboard לפי מפת ההרשאות שהיא מקור האמת.
+        const syncResult = await syncSharedExperiments(
+            getPermissionShareEntries(formData, formData.permissions),
+            formData
+        );
 
         experimentData = { ...experimentData, ...formData };
         if (privacyFallbackApplied) {
@@ -3263,6 +3261,171 @@ function updateVisibilityFields() {
 let permissionsUIData = {}; // uid → { role, addedAt, addedBy }
 let selectedPermissionUser = null; // user object chosen from autocomplete
 
+function normalizePartnerRecord(partner) {
+    if (typeof partner === 'string') {
+        return { uid: '', name: partner.trim(), email: '' };
+    }
+
+    if (!partner || typeof partner !== 'object') {
+        return { uid: '', name: '', email: '' };
+    }
+
+    return {
+        uid: String(partner.uid || '').trim(),
+        name: String(partner.name || partner.fullName || '').trim(),
+        email: String(partner.email || '').trim()
+    };
+}
+
+function getPartnerIdentity(partner) {
+    const normalized = normalizePartnerRecord(partner);
+    if (normalized.uid) return `uid:${normalized.uid}`;
+    if (normalized.email) return `email:${normalized.email.toLowerCase()}`;
+    return normalized.name ? `name:${normalized.name.toLowerCase()}` : '';
+}
+
+function getLegacyPartnerRecords(data = experimentData) {
+    const records = [];
+    const seen = new Set();
+
+    [
+        ...(Array.isArray(data?.experimentPartners) ? data.experimentPartners : []),
+        ...(Array.isArray(data?.partners) ? data.partners : [])
+    ].forEach((partner) => {
+        const normalized = normalizePartnerRecord(partner);
+        const identity = getPartnerIdentity(normalized);
+        if (!identity || seen.has(identity)) return;
+        seen.add(identity);
+        records.push(normalized);
+    });
+
+    return records;
+}
+
+function getPermissionUidForPartner(partner, permissions = permissionsUIData) {
+    const normalized = normalizePartnerRecord(partner);
+    if (normalized.uid && permissions?.[normalized.uid]) return normalized.uid;
+
+    const user = findUserForPartner(normalized);
+    return user?.uid && permissions?.[user.uid] ? user.uid : '';
+}
+
+function getPartnerForPermissionUid(uid, sourceData = experimentData) {
+    const user = allUsers.find(candidate => candidate.uid === uid);
+    if (user) {
+        return {
+            uid: user.uid,
+            name: user.fullName || user.email || user.uid,
+            email: user.email || ''
+        };
+    }
+
+    const legacyPartner = getLegacyPartnerRecords(sourceData).find((partner) => {
+        if (partner.uid === uid) return true;
+        return findUserForPartner(partner)?.uid === uid;
+    });
+
+    if (legacyPartner) {
+        return { ...legacyPartner, uid };
+    }
+
+    return { uid, name: uid, email: '' };
+}
+
+function getSynchronizedExperimentPartners(sourceData = experimentData, permissions = permissionsUIData) {
+    const synchronized = [];
+    const seen = new Set();
+
+    const addUnique = (partner) => {
+        const normalized = normalizePartnerRecord(partner);
+        const identity = getPartnerIdentity(normalized);
+        if (!identity || seen.has(identity)) return;
+        seen.add(identity);
+        synchronized.push(normalized);
+    };
+
+    Object.keys(permissions || {}).forEach((uid) => {
+        addUnique(getPartnerForPermissionUid(uid, sourceData));
+    });
+
+    // Preserve historic free-text/deleted-user entries that cannot be mapped to
+    // a publicUsers UID. Mapped users are controlled exclusively by permissions.
+    getLegacyPartnerRecords(sourceData).forEach((partner) => {
+        if (getPermissionUidForPartner(partner, permissions)) return;
+        if (findUserForPartner(partner)) return;
+        addUnique(partner);
+    });
+
+    return synchronized;
+}
+
+function synchronizePartnerMembershipUI(sourceData = experimentData) {
+    const synchronized = getSynchronizedExperimentPartners(sourceData);
+    populateExperimentPartners(synchronized);
+
+    const legacyContainer = document.getElementById('partners-container');
+    if (legacyContainer) {
+        legacyContainer.innerHTML = '';
+        synchronized.forEach((partner) => addPartnerRow({
+            name: partner.name,
+            email: partner.email
+        }));
+    }
+}
+
+function synchronizePartnerFieldsForSave(formData) {
+    const synchronized = getSynchronizedExperimentPartners(experimentData);
+    formData.experimentPartners = synchronized;
+    formData.partners = synchronized.map((partner) => ({
+        name: partner.name,
+        email: partner.email
+    }));
+}
+
+function canSafelyUsePermissionsV2(sourceData = experimentData, permissions = permissionsUIData) {
+    if (Number(sourceData?.permissionsSchemaVersion || 0) >= PERMISSIONS_SCHEMA_VERSION) {
+        return true;
+    }
+
+    if (!hasLoadedPublicUsers) return false;
+
+    return getLegacyPartnerRecords(sourceData).every((partner) => {
+        const normalized = normalizePartnerRecord(partner);
+        if (normalized.uid && permissions?.[normalized.uid]) return true;
+        const user = findUserForPartner(normalized);
+        // A resolvable user that is no longer in `permissions` was explicitly
+        // removed in the current UI, so migrating without that user is safe.
+        return Boolean(user?.uid);
+    });
+}
+
+function getPermissionShareEntries(sourceData = experimentData, permissions = permissionsUIData) {
+    return Object.entries(permissions || {}).map(([uid, permission]) => ({
+        ...getPartnerForPermissionUid(uid, sourceData),
+        role: permission?.role === 'viewer' ? 'viewer' : 'editor'
+    }));
+}
+
+function getPartnerUidsFromData(data) {
+    const uids = new Set(Object.keys(
+        data?.permissions && typeof data.permissions === 'object'
+            ? data.permissions
+            : {}
+    ));
+
+    getLegacyPartnerRecords(data).forEach((partner) => {
+        const normalized = normalizePartnerRecord(partner);
+        if (normalized.uid) {
+            uids.add(normalized.uid);
+            return;
+        }
+        const user = findUserForPartner(normalized);
+        if (user?.uid) uids.add(user.uid);
+    });
+
+    return uids;
+}
+
 // =========================================
 // populatePermissionsUI – runs after loadExperiment
 // =========================================
@@ -3333,6 +3496,7 @@ function populatePermissionsUI(data) {
     }
 
     renderPermissionsTable();
+    synchronizePartnerMembershipUI(data);
 }
 
 // =========================================
@@ -3418,6 +3582,7 @@ function renderPermissionsTable() {
                 if (!confirmed) return;
                 delete permissionsUIData[uid];
                 renderPermissionsTable();
+                synchronizePartnerMembershipUI();
                 markUserEdited();
             });
             tdActions.appendChild(removeBtn);
@@ -3792,6 +3957,7 @@ function initPermissionsUI() {
             const addedName = selectedPermissionUser.fullName || selectedPermissionUser.email || 'שותף';
 
             renderPermissionsTable();
+            synchronizePartnerMembershipUI();
             markUserEdited();
 
             // Reset search
@@ -3819,72 +3985,72 @@ async function syncSharedExperiments(currentPartners, latestExperimentData = nul
     let removedCount = 0;
 
     try {
-        // בדיקה שיש לנו את רשימת המשתמשים
-        if (allUsers.length === 0) {
-            showToast('שגיאה: לא ניתן לסנכרן שותפים. נסה לרענן את הדף.', 'warning');
-            return { added: 0, removed: 0 };
-        }
+        const currentPartnerUids = new Set();
 
-        // מצא את כל המשתמשים שהם שותפים כרגע
-        const partnerEmails = currentPartners.map(p => p.email).filter(e => e);
-
-        // מצא את ה-UID של כל שותף
         for (const partner of currentPartners) {
-            if (!partner.email) continue;
+            const normalized = normalizePartnerRecord(partner);
+            const partnerUser = normalized.uid
+                ? allUsers.find(user => user.uid === normalized.uid)
+                : findUserForPartner(normalized);
+            const partnerUid = normalized.uid || partnerUser?.uid || '';
+            if (!partnerUid || partnerUid === currentUser.uid) continue;
 
-            // מצא את המשתמש לפי האימייל (case-insensitive)
-            const partnerUser = allUsers.find(u => u.email.toLowerCase() === partner.email.toLowerCase());
+            const role = partner.role === 'viewer' ? 'viewer' : 'editor';
+            currentPartnerUids.add(partnerUid);
 
-            if (partnerUser && partnerUser.uid) {
-                const cachedExperiment = {
-                    experimentName: latestExperimentData?.experimentName ?? experimentData?.experimentName ?? '',
-                    experimentYear: latestExperimentData?.experimentYear ?? experimentData?.experimentYear ?? '',
-                    experimentSite: latestExperimentData?.experimentSite ?? experimentData?.experimentSite ?? '',
-                    siteCoordinates: latestExperimentData?.siteCoordinates ?? experimentData?.siteCoordinates ?? '',
-                    workPackage: latestExperimentData?.workPackage ?? experimentData?.workPackage ?? '',
-                    keywords: Array.isArray(latestExperimentData?.keywords)
-                        ? latestExperimentData.keywords
-                        : (Array.isArray(experimentData?.keywords) ? experimentData.keywords : []),
-                    cropDetails: latestExperimentData?.cropDetails ?? experimentData?.cropDetails ?? null,
-                    createdAt: experimentData?.createdAt || null,
-                    updatedAt: serverTimestamp()
-                };
+            const cachedExperiment = {
+                experimentName: latestExperimentData?.experimentName ?? experimentData?.experimentName ?? '',
+                experimentYear: latestExperimentData?.experimentYear ?? experimentData?.experimentYear ?? '',
+                experimentSite: latestExperimentData?.experimentSite ?? experimentData?.experimentSite ?? '',
+                siteCoordinates: latestExperimentData?.siteCoordinates ?? experimentData?.siteCoordinates ?? '',
+                workPackage: latestExperimentData?.workPackage ?? experimentData?.workPackage ?? '',
+                keywords: Array.isArray(latestExperimentData?.keywords)
+                    ? latestExperimentData.keywords
+                    : (Array.isArray(experimentData?.keywords) ? experimentData.keywords : []),
+                cropDetails: latestExperimentData?.cropDetails ?? experimentData?.cropDetails ?? null,
+                permissionsSchemaVersion: Number(
+                    latestExperimentData?.permissionsSchemaVersion
+                    || experimentData?.permissionsSchemaVersion
+                    || 1
+                ),
+                permissions: {
+                    [partnerUid]: { role }
+                },
+                createdAt: experimentData?.createdAt || null,
+                updatedAt: serverTimestamp()
+            };
 
-                // הוסף אסמכתא לניסוי באוסף sharedExperiments של השותף
-                const sharedRef = doc(db, "users", partnerUser.uid, "sharedExperiments", currentExperimentId);
-                await setDoc(sharedRef, {
-                    experimentId: currentExperimentId,
-                    ownerUid: currentUser.uid,
-                    ownerEmail: currentUser.email,
-                    addedAt: serverTimestamp(),
-                    cachedExperiment
-                }, { merge: true });
+            const sharedRef = doc(db, "users", partnerUid, "sharedExperiments", currentExperimentId);
+            await setDoc(sharedRef, {
+                experimentId: currentExperimentId,
+                ownerUid: currentUser.uid,
+                ownerEmail: currentUser.email,
+                role,
+                addedAt: serverTimestamp(),
+                cachedExperiment
+            }, { merge: true });
 
-                addedCount++;
-            } else {
-                showToast(`לא נמצא משתמש עם האימייל: ${partner.email}`, 'warning');
-            }
+            addedCount++;
         }
 
-        // הסר שותפים שכבר לא ברשימה (אם יש רשימה קודמת)
-        if (experimentData?.partners) {
-            const previousPartners = experimentData.partners;
-            for (const oldPartner of previousPartners) {
-                if (!oldPartner.email) continue;
-                // אם השותף הישן לא נמצא ברשימה החדשה
-                if (!partnerEmails.includes(oldPartner.email)) {
-                    const oldUser = allUsers.find(u => u.email.toLowerCase() === oldPartner.email.toLowerCase());
-                    if (oldUser && oldUser.uid) {
-                        // הסר את האסמכתא
-                        const sharedRef = doc(db, "users", oldUser.uid, "sharedExperiments", currentExperimentId);
-                        try {
-                            await deleteDoc(sharedRef);
-                            removedCount++;
-                        } catch (e) {
-                            // התעלם משגיאות מחיקה
-                        }
-                    }
-                }
+        // While an experiment is still in compatibility mode, unresolved
+        // historic members remain current so their legacy pointer is not
+        // deleted accidentally.
+        if (Number(latestExperimentData?.permissionsSchemaVersion || 0) < PERMISSIONS_SCHEMA_VERSION) {
+            getPartnerUidsFromData(latestExperimentData).forEach(uid => currentPartnerUids.add(uid));
+        }
+
+        // Compare against every historic representation, not only `partners`.
+        const previousPartnerUids = getPartnerUidsFromData(experimentData);
+        for (const oldPartnerUid of previousPartnerUids) {
+            if (!oldPartnerUid || currentPartnerUids.has(oldPartnerUid)) continue;
+
+            const sharedRef = doc(db, "users", oldPartnerUid, "sharedExperiments", currentExperimentId);
+            try {
+                await deleteDoc(sharedRef);
+                removedCount++;
+            } catch (error) {
+                console.warn(`Could not remove stale shared experiment for ${oldPartnerUid}`, error);
             }
         }
 
@@ -4770,11 +4936,11 @@ function removeExperimentPartnerFromPermissions(partner, shouldRender = true) {
     const user = findUserForPartner(partner);
     if (!user?.uid) return;
 
-    const permission = permissionsUIData[user.uid];
-    if (permission?.addedBy !== 'experimentPartners') return;
-
     delete permissionsUIData[user.uid];
-    if (shouldRender) renderPermissionsTable();
+    if (shouldRender) {
+        renderPermissionsTable();
+        synchronizePartnerMembershipUI();
+    }
 }
 
 function populateExperimentPartners(experimentPartners = []) {
@@ -4829,7 +4995,7 @@ function addExperimentPartnerChip(partnerData) {
             e.stopPropagation();
             if (!(await confirmDeferredDeletion('\u05d4\u05e9\u05d5\u05ea\u05e3'))) return;
             removeExperimentPartnerFromPermissions({ name, email, uid });
-            chip.remove();
+            if (chip.isConnected) chip.remove();
             markUserEdited();
         });
     }

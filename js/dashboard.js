@@ -672,6 +672,7 @@ async function createNewExperiment() {
                 canWrite: false
             },
             permissions: {},
+            permissionsSchemaVersion: 2,
             privacyUpdatedAt: serverTimestamp(),
             privacyUpdatedBy: currentUser.uid,
             permissionsUpdatedAt: serverTimestamp(),
