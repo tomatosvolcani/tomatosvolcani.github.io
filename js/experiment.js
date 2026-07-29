@@ -1609,7 +1609,7 @@ function displayAdminMenuInExperiment() {
             </a>
             <a href="bi.html" class="nav-item">
                 <i class="fas fa-chart-bar"></i>
-                <span>לוח BI</span>
+                <span>לוח BI מערכת</span>
             </a>
         </div>
     `;

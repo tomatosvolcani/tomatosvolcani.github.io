@@ -1,6 +1,6 @@
 // js/bi.js  –  לוח Business Intelligence
 // ===========================================================
-// טעינת כל הניסויים בקריאה אחת (collectionGroup),
+// טעינת כל הניסויים וספריית המשתמשים הציבורית במקביל,
 // ניתוח הנתונים בצד הלקוח ולא קריאות חוזרות ל-Firestore.
 // ===========================================================
 import { auth, db } from "./firebase-config.js";
@@ -20,6 +20,8 @@ import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 let currentUser = null;
 /** @type {Array<Object>} - כל הניסויים שנטענו */
 let allExperiments = [];
+/** @type {Map<string, { fullName: string, email: string }>} */
+let publicResearchersByUid = new Map();
 
 
 // ======================================================
@@ -92,14 +94,27 @@ async function loadAndRender() {
     const contentEl = document.getElementById('bi-content');
 
     try {
-        // ---- One Firestore read ----
-        const q          = query(collectionGroup(db, 'experiments'));
-        const snapshot   = await getDocs(q);
+        // ---- Load experiments and public researcher names in parallel ----
+        const experimentsQuery = query(collectionGroup(db, 'experiments'));
+        const [snapshot, publicUsersSnapshot] = await Promise.all([
+            getDocs(experimentsQuery),
+            getDocs(collection(db, 'publicUsers'))
+        ]);
+
+        publicResearchersByUid = new Map();
+        publicUsersSnapshot.forEach(userDoc => {
+            const user = userDoc.data();
+            publicResearchersByUid.set(userDoc.id, {
+                fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                email: user.email || ''
+            });
+        });
 
         allExperiments = [];
         snapshot.forEach(docSnap => {
             const d = docSnap.data();
-            allExperiments.push({ id: docSnap.id, ...d });
+            const ownerUid = docSnap.ref.parent.parent?.id || '';
+            allExperiments.push({ id: docSnap.id, ...d, ownerUid });
         });
 
         // Hide loading, show content
@@ -316,7 +331,9 @@ function addMapResetViewControl(map, bounds) {
 // ======================================================
 function renderKPIs(exps) {
     setText('kpi-total',       exps.length);
-    setText('kpi-researchers', countUnique(exps, e => e.leadResearcher));
+    setText('kpi-researchers', countUnique(exps, e => (
+        publicResearchersByUid.has(e.ownerUid) ? e.ownerUid : null
+    )));
     setText('kpi-sites',       countUnique(exps, e => siteLabel(e.experimentSite)));
     setText('kpi-varieties',   countUniqueFlat(exps, e => cropVarieties(e)));
     setText('kpi-keywords',    countUniqueFlat(exps, e => Array.isArray(e.keywords) ? e.keywords : []));
@@ -369,8 +386,22 @@ function renderChartByCrop(exps) {
 // Ranking: Researchers
 // ======================================================
 function renderResearchersRanking(exps) {
-    const freq = freqMap(exps, e => norm(e.leadResearcher) || 'לא צוין');
-    renderRankingList('researchers-ranking', freq);
+    const countsByOwnerUid = new Map();
+
+    exps.forEach(exp => {
+        if (!exp.ownerUid || !publicResearchersByUid.has(exp.ownerUid)) return;
+        countsByOwnerUid.set(exp.ownerUid, (countsByOwnerUid.get(exp.ownerUid) || 0) + 1);
+    });
+
+    const entries = Array.from(countsByOwnerUid, ([uid, count]) => {
+        const researcher = publicResearchersByUid.get(uid);
+        const name = researcher?.fullName || researcher?.email || 'משתמש ללא שם';
+        return [name, count];
+    })
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+    renderRankingEntries('researchers-ranking', entries);
 }
 
 // ======================================================
@@ -437,10 +468,14 @@ function getSizeClass(count, max) {
 
 /** גנרי: מצייר רשימת דירוג עם bars */
 function renderRankingList(elId, freq) {
+    renderRankingEntries(elId, sortedEntries(freq, 10));
+}
+
+/** מצייר רשימת דירוג מתוך זוגות [שם, כמות] שכבר מוינו */
+function renderRankingEntries(elId, entries) {
     const ul = document.getElementById(elId);
     if (!ul) return;
 
-    const entries = sortedEntries(freq, 10);
     if (!entries.length) {
         ul.innerHTML = '<li class="no-data">אין נתונים</li>';
         return;
