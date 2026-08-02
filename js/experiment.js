@@ -4070,6 +4070,15 @@ function initPermissionsUI() {
     document.querySelectorAll('input[name="experiment-visibility"]').forEach(radio => {
         radio.addEventListener('change', (event) => {
             if (ignoreUnauthorizedAccessManagementChange(radio, event)) return;
+
+            if (radio.value === 'private') {
+                const privateUntilInput = document.getElementById('private-until-date');
+                if (privateUntilInput && !privateUntilInput.value) {
+                    privateUntilInput.value = formatDateInputValue(getTrustedNow());
+                }
+                hasShownPrivacyFallbackToast = false;
+            }
+
             syncVisibilityPanels(radio.value);
             markUserEdited();
         });
