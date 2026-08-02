@@ -225,7 +225,7 @@ function syncPrivacyFallbackUIToPublic() {
 function notifyPrivacyFallbackToPublic() {
     if (hasShownPrivacyFallbackToast) return;
     hasShownPrivacyFallbackToast = true;
-    showToast('לא ניתן לשמור מצב חסוי בתנאים הנוכחיים, לכן הניסוי נשמר כחשוף.', 'info', 5000);
+    showToast('לא ניתן לשמור את הניסוי כחסוי ללא תאריך סיום תקין ובטווח המותר. הניסוי הועבר לציבורי ושאר השינויים נשמרו.', 'warning', 7000);
 }
 
 function isAccessManagementField(target) {
@@ -635,12 +635,6 @@ async function performAutoSave() {
     activeAutoSavePromise = (async () => {
         try {
             const formData = collectFormData();
-
-            if (formData.visibility === 'private' && !formData.privateUntil) {
-                clearAllFieldDots();
-                updateAutoSaveIndicator('idle');
-                return false;
-            }
             // Skip validation for auto-save – just save the data as-is
             // Full validation only happens on explicit user actions
 
@@ -3956,8 +3950,10 @@ function blockInvalidPrivacyDateChange(event, message) {
     event?.preventDefault?.();
     event?.stopImmediatePropagation?.();
     clearAllFieldDots();
-    updateAutoSaveIndicator('idle');
     showToast(message, 'warning', 5000);
+    // The invalid date has already been cleared from the input. Trigger the
+    // normal auto-save so privacy falls back to public and all other edits save.
+    markUserEdited();
 }
 
 // =========================================
@@ -5466,13 +5462,13 @@ function enforcePrivateUntilDateMax() {
             }
             if (!val) {
                 privateUntilInput.value = '';
-                blockInvalidPrivacyDateChange(event, 'יש לבחור תאריך סיום פרטיות תקין כדי לשמור שינוי פרטיות.');
+                blockInvalidPrivacyDateChange(event, 'יש לבחור תאריך סיום פרטיות תקין. הניסוי יועבר לציבורי והשינויים יישמרו.');
             } else if (val < recalcMin) {
                 privateUntilInput.value = '';
-                blockInvalidPrivacyDateChange(event, 'תאריך סיום פרטיות חייב להיות עתידי. השדה אופס ולא נשמר.');
+                blockInvalidPrivacyDateChange(event, 'תאריך סיום פרטיות חייב להיות עתידי. הניסוי יועבר לציבורי והשינויים יישמרו.');
             } else if (!hasPrivacyExtensionApproval() && val && val > recalcMax) {
                 privateUntilInput.value = '';
-                blockInvalidPrivacyDateChange(event, `תאריך סיום פרטיות מוגבל עד ${formatHebrewDate(recalcMaxDate)}. השדה אופס ולא נשמר.`);
+                blockInvalidPrivacyDateChange(event, `תאריך סיום פרטיות מוגבל עד ${formatHebrewDate(recalcMaxDate)}. הניסוי יועבר לציבורי והשינויים יישמרו.`);
             } else {
                 showToast('תאריך הפרטיות תקין ויישמר אוטומטית.', 'info', 2500);
             }
