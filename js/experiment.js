@@ -13,7 +13,8 @@ import {
     query,
     limit,
     Timestamp,
-    runTransaction
+    runTransaction,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref,
@@ -66,6 +67,10 @@ let isBrowserNavGuardInitialized = false;
 let skipNextPopstateGuard = false;
 let hasShownPrivacyFallbackToast = false;
 let hasLoadedPublicUsers = false;
+let unsubscribeExperimentSnapshot = null;
+let lastRealtimeDataSignature = '';
+let queuedRealtimeExperimentData = null;
+let isRealtimeApplyQueuedAfterSave = false;
 
 const PERMISSIONS_SCHEMA_VERSION = 2;
 
@@ -302,6 +307,46 @@ function syncStudyTypeToggle() {
 function deepClone(value) {
     if (value === undefined) return undefined;
     return JSON.parse(JSON.stringify(value));
+}
+
+const REALTIME_SIGNATURE_IGNORED_FIELDS = new Set([
+    'updatedAt',
+    'permissionsUpdatedAt',
+    'privacyUpdatedAt'
+]);
+
+function normalizeRealtimeSignatureValue(value, key = '') {
+    if (REALTIME_SIGNATURE_IGNORED_FIELDS.has(key)) return undefined;
+    if (value === null || value === undefined) return value;
+
+    if (typeof value?.toMillis === 'function') {
+        return { __timestampMillis: value.toMillis() };
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => normalizeRealtimeSignatureValue(item));
+    }
+
+    if (typeof value === 'object') {
+        return Object.keys(value)
+            .sort()
+            .reduce((normalized, childKey) => {
+                const childValue = normalizeRealtimeSignatureValue(value[childKey], childKey);
+                if (childValue !== undefined) normalized[childKey] = childValue;
+                return normalized;
+            }, {});
+    }
+
+    return value;
+}
+
+function getRealtimeDataSignature(data) {
+    try {
+        return JSON.stringify(normalizeRealtimeSignatureValue(data || {}));
+    } catch (error) {
+        console.warn('Could not serialize realtime experiment signature:', error);
+        return '';
+    }
 }
 
 function getTreatmentRepeatNumber(treatment, index = 0) {
@@ -629,6 +674,7 @@ async function performAutoSave() {
             );
 
             experimentData = { ...experimentData, ...formData };
+            lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
             if (privacyFallbackApplied) {
                 syncPrivacyFallbackUIToPublic();
                 notifyPrivacyFallbackToPublic();
@@ -1462,8 +1508,11 @@ window.addEventListener('pageshow', (event) => {
     }
 });
 
+window.addEventListener('pagehide', stopExperimentRealtimeListener);
+
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
+        stopExperimentRealtimeListener();
         window.location.href = "login.html";
         return;
     }
@@ -1523,6 +1572,7 @@ onAuthStateChanged(auth, async (user) => {
         restoreNavigationState(section);
         isNavigationStateReady = true;
         persistNavigationState(true);
+        if (experimentData) startExperimentRealtimeListener();
     } else {
         window.location.href = "dashboard.html";
     }
@@ -1677,6 +1727,169 @@ function initYearsDropdown() {
 // =========================================
 // Load Experiment
 // =========================================
+function refreshPermissionsState() {
+    try {
+        const trustedNow = getTrustedNow();
+        permissionsState = {
+            canRead: canRead(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+            canEdit: canEdit(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
+            canManage: canManage(experimentData, currentUser, userData, experimentOwnerUid),
+            role: getRole(experimentData, currentUser, userData, experimentOwnerUid)
+        };
+    } catch (error) {
+        console.warn('Could not evaluate permissions state', error);
+        permissionsState = { canRead: false, canEdit: false, canManage: false, role: 'none' };
+    }
+}
+
+function stopExperimentRealtimeListener() {
+    if (unsubscribeExperimentSnapshot) {
+        unsubscribeExperimentSnapshot();
+        unsubscribeExperimentSnapshot = null;
+    }
+    queuedRealtimeExperimentData = null;
+}
+
+function cancelPendingAutoSaveForRealtimeUpdate() {
+    if (autoSaveTimeoutId) {
+        clearTimeout(autoSaveTimeoutId);
+        autoSaveTimeoutId = null;
+    }
+    if (autoSaveRetryTimer) {
+        clearTimeout(autoSaveRetryTimer);
+        autoSaveRetryTimer = null;
+    }
+    autoSaveQueued = false;
+    hasUserEditedSinceSave = false;
+}
+
+function applyRealtimeExperimentData(nextExperimentData) {
+    const nextSignature = getRealtimeDataSignature(nextExperimentData);
+
+    // A server acknowledgement of this browser's own save contains the same
+    // experiment data. Keep the authoritative timestamps without rebuilding UI.
+    if (nextSignature && nextSignature === lastRealtimeDataSignature) {
+        experimentData = nextExperimentData;
+        return;
+    }
+
+    const focusedElement = document.activeElement;
+    const focusedElementId = focusedElement?.id || '';
+    const selectionStart = Number.isInteger(focusedElement?.selectionStart)
+        ? focusedElement.selectionStart
+        : null;
+    const selectionEnd = Number.isInteger(focusedElement?.selectionEnd)
+        ? focusedElement.selectionEnd
+        : null;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    // Realtime updates are authoritative. Discard a local debounce/retry that
+    // has not started yet so it cannot write the just-replaced values back.
+    cancelPendingAutoSaveForRealtimeUpdate();
+
+    experimentData = nextExperimentData;
+    lastRealtimeDataSignature = nextSignature;
+    refreshPermissionsState();
+
+    const treatmentsCount = Math.max(1, parseInt(experimentData?.treatmentsCount) || 0);
+    currentTreatmentIndex = Math.min(currentTreatmentIndex, treatmentsCount - 1);
+
+    populateForm();
+    updateUI();
+    generateTreatmentTabs();
+    loadEvents();
+    loadFinancialData();
+    enforcePrivateUntilDateMax();
+    applyPermissions();
+    setLastSavedFormSignatureFromCurrent();
+    clearAllFieldDots();
+    updateAutoSaveIndicator('saved');
+    persistNavigationState(true);
+
+    setTimeout(() => {
+        const nextFocusedElement = focusedElementId
+            ? document.getElementById(focusedElementId)
+            : null;
+        if (nextFocusedElement && !nextFocusedElement.disabled) {
+            nextFocusedElement.focus({ preventScroll: true });
+            if (
+                selectionStart !== null &&
+                selectionEnd !== null &&
+                typeof nextFocusedElement.setSelectionRange === 'function'
+            ) {
+                try {
+                    nextFocusedElement.setSelectionRange(selectionStart, selectionEnd);
+                } catch (error) {
+                    // Selects and number inputs do not support a text selection.
+                }
+            }
+        }
+        window.scrollTo(0, scrollY);
+    }, 0);
+
+    showToast('הניסוי עודכן ע״י משתמש אחר ברגע זה', 'info', 2500);
+}
+
+function handleRealtimeExperimentData(nextExperimentData) {
+    if (!autoSaveInProgress) {
+        applyRealtimeExperimentData(nextExperimentData);
+        return;
+    }
+
+    // Let an already-started write settle first, then apply the newest server
+    // snapshot. This prevents the save completion code from restoring stale state.
+    queuedRealtimeExperimentData = nextExperimentData;
+    if (isRealtimeApplyQueuedAfterSave) return;
+
+    isRealtimeApplyQueuedAfterSave = true;
+    Promise.resolve(activeAutoSavePromise).finally(() => {
+        isRealtimeApplyQueuedAfterSave = false;
+        const queuedData = queuedRealtimeExperimentData;
+        queuedRealtimeExperimentData = null;
+        if (queuedData) applyRealtimeExperimentData(queuedData);
+    });
+}
+
+function startExperimentRealtimeListener() {
+    stopExperimentRealtimeListener();
+    if (!currentExperimentId || !experimentOwnerUid) return;
+
+    const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
+    lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
+
+    unsubscribeExperimentSnapshot = onSnapshot(
+        experimentRef,
+        { includeMetadataChanges: true },
+        (snapshot) => {
+            // Local writes already update the in-memory state in the save flow.
+            // Wait for the server-confirmed snapshot before considering UI sync.
+            if (snapshot.metadata.hasPendingWrites) return;
+
+            if (!snapshot.exists()) {
+                stopExperimentRealtimeListener();
+                cancelPendingAutoSaveForRealtimeUpdate();
+                showToast('הניסוי נמחק או שאינו זמין עוד', 'warning', 4000);
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+                return;
+            }
+
+            handleRealtimeExperimentData(snapshot.data());
+        },
+        (error) => {
+            console.error('Realtime experiment listener error:', error);
+            stopExperimentRealtimeListener();
+            if (error?.code === 'permission-denied') {
+                cancelPendingAutoSaveForRealtimeUpdate();
+                showAccessDeniedMessage();
+                return;
+            }
+            showToast('הסנכרון בזמן אמת הופסק. ניתן לרענן את הדף.', 'error', 5000);
+        }
+    );
+}
+
 async function loadExperiment() {
     const loadingContainer = document.getElementById('loading-container');
     const experimentContent = document.getElementById('experiment-content');
@@ -1707,18 +1920,7 @@ async function loadExperiment() {
             // אתחל את ניתוחים פיננסים
             initFinancialLog();
             // Calculate permissions state for the loaded experiment
-            try {
-                const trustedNow = getTrustedNow();
-                permissionsState = {
-                    canRead: canRead(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
-                    canEdit: canEdit(experimentData, currentUser, userData, trustedNow, experimentOwnerUid),
-                    canManage: canManage(experimentData, currentUser, userData, experimentOwnerUid),
-                    role: getRole(experimentData, currentUser, userData, experimentOwnerUid)
-                };
-            } catch (err) {
-                console.warn('Could not evaluate permissions state', err);
-                permissionsState = { canRead: false, canEdit: false, canManage: false, role: 'none' };
-            }
+            refreshPermissionsState();
 
             // Apply permissions to UI, then calculate the clean saved signature.
             try { applyPermissions(); } catch (e) { console.warn('applyPermissions failed', e); }
@@ -1808,13 +2010,11 @@ function populateForm() {
         }
     }
 
-    // Partners
-    if (data.partners && data.partners.length > 0) {
-        const container = document.getElementById('partners-container');
-        if (container) {
-            container.innerHTML = '';
-            data.partners.forEach(partner => addPartnerRow(partner));
-        }
+    // Partners (clear first so repeated realtime population is idempotent)
+    const partnersContainer = document.getElementById('partners-container');
+    if (partnersContainer) {
+        partnersContainer.innerHTML = '';
+        (data.partners || []).forEach(partner => addPartnerRow(partner));
     }
 
     // Experiment Partners (multi-select chips)
@@ -1859,18 +2059,18 @@ function populateForm() {
     // Treatments
     generateTreatmentInputs(data.treatmentsCount || 3, data.treatments || [], data.repetitionsCount);
 
-    // Variables
-    if (data.independentVariables) {
-        data.independentVariables.forEach(v => addVariableRow('independent', v));
-    }
-    if (data.dependentVariables) {
-        data.dependentVariables.forEach(v => addVariableRow('dependent', v));
-    }
+    // Variables (clear first so snapshots never duplicate rows)
+    const independentVariablesContainer = document.getElementById('independent-vars-container');
+    const dependentVariablesContainer = document.getElementById('dependent-vars-container');
+    if (independentVariablesContainer) independentVariablesContainer.innerHTML = '';
+    if (dependentVariablesContainer) dependentVariablesContainer.innerHTML = '';
+    (data.independentVariables || []).forEach(v => addVariableRow('independent', v));
+    (data.dependentVariables || []).forEach(v => addVariableRow('dependent', v));
 
     // Keywords
-    if (data.keywords) {
-        data.keywords.forEach(k => addKeywordTag(k));
-    }
+    const keywordsContainer = document.getElementById('keywords-list');
+    if (keywordsContainer) keywordsContainer.innerHTML = '';
+    (data.keywords || []).forEach(k => addKeywordTag(k));
 
     // Crop details
     if (data.cropDetails && data.cropDetails.data) {
@@ -2024,9 +2224,7 @@ function getResolvedAdiganAmount() {
 
 function setFieldValue(id, value) {
     const el = document.getElementById(id);
-    if (el && value !== undefined && value !== null) {
-        el.value = value;
-    }
+    if (el) el.value = value ?? '';
 }
 
 function collectSectionDataFromDOM(sectionId) {
@@ -3002,6 +3200,9 @@ async function saveExperiment() {
 
     const formData = collectFormData();
     let { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData);
+    let previousRealtimeSignature = '';
+    let expectedRealtimeSignature = '';
+    let coreExperimentWriteCommitted = false;
 
     // ולידציית שדות פרטיות
     if (formData.visibility === 'private') {
@@ -3053,7 +3254,11 @@ async function saveExperiment() {
 
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
+        previousRealtimeSignature = lastRealtimeDataSignature;
+        expectedRealtimeSignature = getRealtimeDataSignature({ ...experimentData, ...formData });
+        lastRealtimeDataSignature = expectedRealtimeSignature;
         await updateDoc(experimentRef, formData);
+        coreExperimentWriteCommitted = true;
         await persistDynamicFieldOptions(formData);
         await persistGlobalKeywordOptions(formData.keywords);
 
@@ -3064,6 +3269,7 @@ async function saveExperiment() {
         );
 
         experimentData = { ...experimentData, ...formData };
+        lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
         if (privacyFallbackApplied) {
             syncPrivacyFallbackUIToPublic();
             notifyPrivacyFallbackToPublic();
@@ -3078,6 +3284,12 @@ async function saveExperiment() {
         updateAutoSaveIndicator('saved');
         return true;
     } catch (error) {
+        if (
+            !coreExperimentWriteCommitted &&
+            lastRealtimeDataSignature === expectedRealtimeSignature
+        ) {
+            lastRealtimeDataSignature = previousRealtimeSignature;
+        }
         console.error("Error saving experiment:", error);
         showToast('שגיאה בשמירת הניסוי: ' + error.message, 'error');
         return false;
@@ -5636,6 +5848,9 @@ async function handleFileUpload(e, eventIndex) {
     const file = e.target.files[0];
     if (!file) return;
 
+    const targetEvent = eventsData[eventIndex];
+    if (!targetEvent) return;
+
     if (!permissionsState?.canEdit) {
         showToast('אין הרשאה לקבצים', 'error');
         e.target.value = '';
@@ -5702,10 +5917,22 @@ async function handleFileUpload(e, eventIndex) {
             try {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
+                // A realtime refresh replaces the row objects. Never attach a
+                // completed upload to a different row that now has this index.
+                if (!eventsData.includes(targetEvent)) {
+                    try {
+                        await deleteObject(uploadTask.snapshot.ref);
+                    } catch (cleanupError) {
+                        console.warn('Could not clean up superseded event upload:', cleanupError);
+                    }
+                    showToast('הניסוי עודכן בזמן ההעלאה, לכן הקובץ לא צורף. ניתן להעלות שוב.', 'warning', 5000);
+                    return;
+                }
+
                 // עדכן את האירוע עם פרטי הקובץ
-                eventsData[eventIndex].fileName = file.name;
-                eventsData[eventIndex].fileUrl = downloadURL;
-                eventsData[eventIndex].filePath = filePath;
+                targetEvent.fileName = file.name;
+                targetEvent.fileUrl = downloadURL;
+                targetEvent.filePath = filePath;
 
                 // רענן את הטבלה
                 renderEventsTable();
@@ -6023,6 +6250,9 @@ async function handleFinancialFileUpload(e, financialIndex) {
     const file = e.target.files[0];
     if (!file) return;
 
+    const targetFinancialEntry = financialData[financialIndex];
+    if (!targetFinancialEntry) return;
+
     if (!permissionsState?.canEdit) {
         showToast('אין הרשאה לקבצים', 'error');
         e.target.value = '';
@@ -6081,9 +6311,19 @@ async function handleFinancialFileUpload(e, financialIndex) {
             try {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
-                financialData[financialIndex].fileName = file.name;
-                financialData[financialIndex].fileUrl = downloadURL;
-                financialData[financialIndex].filePath = filePath;
+                if (!financialData.includes(targetFinancialEntry)) {
+                    try {
+                        await deleteObject(uploadTask.snapshot.ref);
+                    } catch (cleanupError) {
+                        console.warn('Could not clean up superseded financial upload:', cleanupError);
+                    }
+                    showToast('הניסוי עודכן בזמן ההעלאה, לכן הקובץ לא צורף. ניתן להעלות שוב.', 'warning', 5000);
+                    return;
+                }
+
+                targetFinancialEntry.fileName = file.name;
+                targetFinancialEntry.fileUrl = downloadURL;
+                targetFinancialEntry.filePath = filePath;
 
                 renderFinancialTable();
 
@@ -6619,6 +6859,15 @@ function renderProgressFileCell(td, tr, data, labels, field, uploadFolder) {
             uploadBtn.querySelector('span').textContent = 'העלאה...';
             try {
                 const result = await uploadProgressFile(selectedFile, uploadFolder);
+                if (!tr.isConnected) {
+                    try {
+                        await deleteObject(ref(storage, result.path));
+                    } catch (cleanupError) {
+                        console.warn('Could not clean up superseded progress upload:', cleanupError);
+                    }
+                    showToast('הניסוי עודכן בזמן ההעלאה, לכן הקובץ לא צורף. ניתן להעלות שוב.', 'warning', 5000);
+                    return;
+                }
                 tr.dataset.fileUrl = result.url;
                 tr.dataset.filePath = result.path;
                 hiddenInp.value = selectedFile.name;
