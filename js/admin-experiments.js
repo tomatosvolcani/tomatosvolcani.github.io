@@ -252,40 +252,18 @@ function hideLoadMoreButton() {
     if (wrapper) wrapper.classList.add('hidden');
 }
 
-async function countResearchersWithExperiments() {
-    const publicUsersSnapshot = await getDocs(collection(db, "publicUsers"));
-    const userDocs = publicUsersSnapshot.docs;
-    const batchSize = 10;
-    let researchersCount = 0;
-
-    // Count queries return only aggregate numbers; batches avoid a large burst
-    // of simultaneous requests if the user directory grows.
-    for (let index = 0; index < userDocs.length; index += batchSize) {
-        const batch = userDocs.slice(index, index + batchSize);
-        const countSnapshots = await Promise.all(batch.map((userDoc) =>
-            getCountFromServer(collection(db, "users", userDoc.id, "experiments"))
-        ));
-
-        researchersCount += countSnapshots.filter(
-            snapshot => snapshot.data().count > 0
-        ).length;
-    }
-
-    return researchersCount;
-}
-
 async function loadSystemStatistics() {
     updateStatistics('…', '…');
 
     try {
-        const [experimentsSnapshot, researchersCount] = await Promise.all([
+        const [experimentsSnapshot, usersSnapshot] = await Promise.all([
             getCountFromServer(collectionGroup(db, "experiments")),
-            countResearchersWithExperiments()
+            getCountFromServer(collection(db, "users"))
         ]);
 
         updateStatistics(
             experimentsSnapshot.data().count,
-            researchersCount
+            usersSnapshot.data().count
         );
     } catch (error) {
         console.error("Error loading system statistics:", error);
@@ -294,11 +272,11 @@ async function loadSystemStatistics() {
     }
 }
 
-function updateStatistics(totalExperiments, totalResearchers) {
+function updateStatistics(totalExperiments, totalUsers) {
     const totalEl = document.getElementById('total-experiments');
     if (totalEl) totalEl.textContent = totalExperiments;
-    const researchersEl = document.getElementById('total-researchers');
-    if (researchersEl) researchersEl.textContent = totalResearchers;
+    const usersEl = document.getElementById('total-users');
+    if (usersEl) usersEl.textContent = totalUsers;
 }
 
 // סינון ניסויים לפי חיפוש
