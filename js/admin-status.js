@@ -10,6 +10,20 @@ import {
 
 const ADMIN_STATUS_BADGE_ID = 'shared-admin-system-status';
 const ADMIN_STATUS_STYLE_ID = 'shared-admin-system-status-style';
+const SHARED_ADMIN_NAV_CLASS = 'shared-admin-navigation';
+const PRIMARY_NAV_ITEMS = [
+    { href: 'dashboard.html', icon: 'fa-home', label: 'בית' },
+    { href: 'smart-search.html', icon: 'fa-magnifying-glass-chart', label: 'שליפה חכמה' },
+    { href: 'export.html', icon: 'fa-file-export', label: 'שליפת ניסוי' },
+    { href: 'my-bi.html', icon: 'fa-chart-pie', label: 'הסטטיסטיקה שלי' },
+    { href: 'tutorials.html', icon: 'fa-graduation-cap', label: 'מרכז הדרכה' }
+];
+const ADMIN_NAV_ITEMS = [
+    { href: 'admin-users.html', icon: 'fa-users-cog', label: 'ניהול משתמשים' },
+    { href: 'admin-experiments.html', icon: 'fa-flask', label: 'כל הניסויים' },
+    { href: 'researcher-activity.html', icon: 'fa-ranking-star', label: 'פעילות חוקרים' },
+    { href: 'bi.html', icon: 'fa-chart-bar', label: 'לוח BI מערכת' }
+];
 
 let cachedUserUid = '';
 let adminAccessPromise = null;
@@ -118,6 +132,98 @@ export function hideAdminStatusBadge() {
     if (badge) badge.hidden = true;
 }
 
+function getCurrentPageName() {
+    const pageName = window.location.pathname.split('/').pop();
+    return pageName || 'dashboard.html';
+}
+
+function createNavigationLink(item) {
+    const link = document.createElement('a');
+    link.href = item.href;
+    link.className = 'nav-item';
+    if (getCurrentPageName() === item.href) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+    }
+
+    const icon = document.createElement('i');
+    icon.className = `fas ${item.icon}`;
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = item.label;
+    link.append(icon, label);
+    return link;
+}
+
+export function ensurePrimaryNavigation() {
+    const navigation = document.querySelector('.sidebar-nav');
+    if (!navigation) return;
+
+    const adminTitle = Array.from(navigation.querySelectorAll('.nav-section-title'))
+        .find((element) => element.textContent.trim() === 'ניהול מערכת');
+    const precedingSeparator = adminTitle?.previousElementSibling?.classList.contains('nav-separator')
+        ? adminTitle.previousElementSibling
+        : null;
+    const adminBoundary = navigation.querySelector('.admin-menu-section')
+        || precedingSeparator
+        || adminTitle
+        || null;
+
+    PRIMARY_NAV_ITEMS.forEach((item, index) => {
+        if (navigation.querySelector(`a[href="${item.href}"]`)) return;
+        const link = createNavigationLink(item);
+        const nextExistingLink = PRIMARY_NAV_ITEMS
+            .slice(index + 1)
+            .map((nextItem) => navigation.querySelector(`a[href="${nextItem.href}"]`))
+            .find((candidate) => {
+                if (!candidate || !adminBoundary) return Boolean(candidate);
+                return Boolean(candidate.compareDocumentPosition(adminBoundary) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+        navigation.insertBefore(link, nextExistingLink || adminBoundary);
+    });
+}
+
+export function ensureAdminNavigation() {
+    const navigation = document.querySelector('.sidebar-nav');
+    if (!navigation) return;
+
+    const firstExistingLink = ADMIN_NAV_ITEMS
+        .map((item) => navigation.querySelector(`a[href="${item.href}"]`))
+        .find(Boolean);
+
+    let container = firstExistingLink?.closest('.admin-menu-section') || navigation;
+    if (!firstExistingLink) {
+        container = document.createElement('div');
+        container.className = `admin-menu-section ${SHARED_ADMIN_NAV_CLASS}`;
+
+        const separator = document.createElement('div');
+        separator.className = 'nav-separator';
+        const title = document.createElement('div');
+        title.className = 'nav-section-title';
+        title.textContent = 'ניהול מערכת';
+        container.append(separator, title);
+        navigation.appendChild(container);
+    }
+
+    ADMIN_NAV_ITEMS.forEach((item, index) => {
+        if (navigation.querySelector(`a[href="${item.href}"]`)) return;
+        const link = createNavigationLink(item);
+        const nextExistingLink = ADMIN_NAV_ITEMS
+            .slice(index + 1)
+            .map((nextItem) => container.querySelector(`a[href="${nextItem.href}"]`))
+            .find(Boolean);
+        if (nextExistingLink) {
+            container.insertBefore(link, nextExistingLink);
+        } else {
+            container.appendChild(link);
+        }
+    });
+}
+
+function removeSharedAdminNavigation() {
+    document.querySelector(`.${SHARED_ADMIN_NAV_CLASS}`)?.remove();
+}
+
 export function checkAdminAccess(user = auth.currentUser) {
     if (!user) return Promise.resolve(false);
 
@@ -142,12 +248,17 @@ onAuthStateChanged(auth, async (user) => {
         cachedUserUid = '';
         adminAccessPromise = null;
         hideAdminStatusBadge();
+        removeSharedAdminNavigation();
         return;
     }
 
+    ensurePrimaryNavigation();
+
     if (await checkAdminAccess(user)) {
         showAdminStatusBadge();
+        ensureAdminNavigation();
     } else {
         hideAdminStatusBadge();
+        removeSharedAdminNavigation();
     }
 });

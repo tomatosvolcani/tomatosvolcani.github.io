@@ -99,12 +99,14 @@ async function checkAndDisplayAdminMenu() {
         if (snapshot.size > 1) {
             isAdmin = true;
             const sidebar = document.querySelector('.sidebar-nav');
-            if (!sidebar) return;
+            if (!sidebar || sidebar.querySelector('a[href="admin-users.html"]')) return;
             sidebar.insertAdjacentHTML('beforeend', `
                 <div class="nav-separator"></div>
                 <div class="nav-section-title">ניהול מערכת</div>
                 <a href="admin-users.html" class="nav-item"><i class="fas fa-users-cog"></i><span>ניהול משתמשים</span></a>
                 <a href="admin-experiments.html" class="nav-item"><i class="fas fa-flask"></i><span>כל הניסויים</span></a>
+                <a href="researcher-activity.html" class="nav-item"><i class="fas fa-ranking-star"></i><span>פעילות חוקרים</span></a>
+                <a href="bi.html" class="nav-item"><i class="fas fa-chart-bar"></i><span>לוח BI מערכת</span></a>
             `);
         }
     } catch (_) { /* no admin */ }

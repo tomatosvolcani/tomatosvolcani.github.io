@@ -153,6 +153,10 @@ function displayAdminMenu() {
                 <i class="fas fa-flask"></i>
                 <span>כל הניסויים</span>
             </a>
+            <a href="researcher-activity.html" class="nav-item">
+                <i class="fas fa-ranking-star"></i>
+                <span>פעילות חוקרים</span>
+            </a>
             <a href="bi.html" class="nav-item">
                 <i class="fas fa-chart-bar"></i>
                 <span>לוח BI מערכת</span>

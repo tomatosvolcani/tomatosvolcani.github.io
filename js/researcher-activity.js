@@ -9,7 +9,7 @@ import {
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
-import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260729-1";
+import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260818-1";
 import {
     normalizeExternalLeadResearchers,
     normalizeLeadResearchers
@@ -130,7 +130,8 @@ function buildResearcherDirectory(snapshot) {
             key: `uid:${userDoc.id}`,
             uid: userDoc.id,
             name: name || email || "משתמש/ת ללא שם",
-            email
+            email,
+            isExternal: false
         };
 
         byUid.set(userDoc.id, identity);
@@ -192,8 +193,9 @@ function calculateActivity(experimentsSnapshot, directory) {
             addRole(activityByResearcher, {
                 key: `external:${normalize(name)}`,
                 uid: "",
-                name: `${name} (משתמש לא רשום במערכת)`,
-                email: ""
+                name,
+                email: "",
+                isExternal: true
             }, "lead", experimentKey);
         });
     });
@@ -204,7 +206,8 @@ function calculateActivity(experimentsSnapshot, directory) {
             experimentCount: row.experiments.size
         }))
         .sort((a, b) => (
-            b.experimentCount - a.experimentCount
+            Number(a.isExternal) - Number(b.isExternal)
+            || b.experimentCount - a.experimentCount
             || b.created - a.created
             || b.partner - a.partner
             || b.lead - a.lead
@@ -256,7 +259,8 @@ function resolveIdentity(value, directory) {
         key: fallbackKey,
         uid: candidate.uid || "",
         name: fallbackName,
-        email: fallbackEmail
+        email: fallbackEmail,
+        isExternal: false
     };
 }
 
@@ -272,6 +276,7 @@ function ensureActivity(activityMap, identity) {
             key: identity.key,
             name: identity.name,
             email: identity.email,
+            isExternal: Boolean(identity.isExternal),
             created: 0,
             partner: 0,
             lead: 0,
@@ -286,7 +291,9 @@ function filterRows(searchTerm) {
     const term = normalize(searchTerm);
     if (!term) return activityRows;
     return activityRows.filter((row) => (
-        normalize(row.name).includes(term) || normalize(row.email).includes(term)
+        normalize(row.name).includes(term)
+        || normalize(row.email).includes(term)
+        || (row.isExternal && normalize("משתמש לא רשום במערכת").includes(term))
     ));
 }
 
@@ -298,15 +305,31 @@ function renderRows(rows) {
     tableBody.replaceChildren();
     emptyState.toggleAttribute("hidden", rows.length > 0);
 
-    rows.forEach((row, index) => {
+    let registeredRank = 0;
+    let externalSectionRendered = false;
+    const externalCount = rows.filter((row) => row.isExternal).length;
+
+    rows.forEach((row) => {
+        if (row.isExternal && !externalSectionRendered) {
+            tableBody.appendChild(createExternalSectionRow(externalCount));
+            externalSectionRendered = true;
+        }
+
         const tableRow = document.createElement("tr");
-        tableRow.appendChild(createCell(index + 1, "numeric rank-cell"));
+        if (row.isExternal) tableRow.classList.add("external-researcher-row");
+        tableRow.appendChild(createCell(row.isExternal ? "—" : ++registeredRank, "numeric rank-cell"));
 
         const identityCell = document.createElement("td");
         const name = document.createElement("div");
         name.className = "researcher-name";
         name.textContent = row.name;
         identityCell.appendChild(name);
+        if (row.isExternal) {
+            const badge = document.createElement("span");
+            badge.className = "external-researcher-badge";
+            badge.textContent = "(משתמש לא רשום במערכת)";
+            identityCell.appendChild(badge);
+        }
         if (row.email && normalize(row.email) !== normalize(row.name)) {
             const email = document.createElement("div");
             email.className = "researcher-email";
@@ -321,6 +344,29 @@ function renderRows(rows) {
 
         tableBody.appendChild(tableRow);
     });
+}
+
+function createExternalSectionRow(externalCount) {
+    const row = document.createElement("tr");
+    row.className = "external-section-row";
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+
+    const content = document.createElement("div");
+    content.className = "external-section-content";
+    const icon = document.createElement("i");
+    icon.className = "fas fa-user-slash";
+    icon.setAttribute("aria-hidden", "true");
+    const title = document.createElement("strong");
+    title.textContent = "חוקרים מובילים שאינם רשומים במערכת";
+    const count = document.createElement("span");
+    count.textContent = externalCount === 1
+        ? "חוקר חיצוני אחד"
+        : `${externalCount} חוקרים חיצוניים`;
+    content.append(icon, title, count);
+    cell.appendChild(content);
+    row.appendChild(cell);
+    return row;
 }
 
 function createCell(value, className = "") {

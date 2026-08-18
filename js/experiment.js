@@ -14,8 +14,7 @@ import {
     limit,
     Timestamp,
     runTransaction,
-    onSnapshot,
-    deleteField
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref,
@@ -35,7 +34,6 @@ import {
 } from "./permissions-utils.js";
 import {
     MAX_LEAD_RESEARCHERS,
-    getLegacyLeadResearcherText,
     normalizeExternalLeadResearchers,
     normalizeLeadResearchers
 } from "./lead-researchers.js?v=20260818-1";
@@ -58,7 +56,6 @@ let currentTreatmentIndex = 0;
 let allUsers = []; // All users for partner selection
 let selectedPartner = null; // Currently selected partner from autocomplete
 let selectedLeadResearcher = null;
-let legacyLeadResearcherRemovalRequested = false;
 let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
 let permissionsState = {
     canRead: false,
@@ -670,7 +667,7 @@ async function performAutoSave() {
             }
 
             const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
-            await updateDoc(experimentRef, getExperimentWriteData(formData));
+            await updateDoc(experimentRef, formData);
             await persistDynamicFieldOptions(formData);
             await persistGlobalKeywordOptions(formData.keywords);
 
@@ -680,7 +677,7 @@ async function performAutoSave() {
                 formData
             );
 
-            experimentData = getProjectedExperimentData(formData);
+            experimentData = { ...experimentData, ...formData };
             lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
             if (privacyFallbackApplied) {
                 syncPrivacyFallbackUIToPublic();
@@ -1670,6 +1667,10 @@ function displayAdminMenuInExperiment() {
             <a href="admin-experiments.html" class="nav-item">
                 <i class="fas fa-flask"></i>
                 <span>כל הניסויים</span>
+            </a>
+            <a href="researcher-activity.html" class="nav-item">
+                <i class="fas fa-ranking-star"></i>
+                <span>פעילות חוקרים</span>
             </a>
             <a href="bi.html" class="nav-item">
                 <i class="fas fa-chart-bar"></i>
@@ -3203,30 +3204,6 @@ function collectFormData() {
     };
 }
 
-function shouldRemoveLegacyLeadResearcher(formData) {
-    return Boolean(getLegacyLeadResearcherText(experimentData))
-        && (
-            normalizeLeadResearchers(formData).length > 0
-            || normalizeExternalLeadResearchers(formData).length > 0
-        );
-}
-
-function getExperimentWriteData(formData) {
-    const writeData = { ...formData };
-    if (shouldRemoveLegacyLeadResearcher(formData)) {
-        writeData.leadResearcher = deleteField();
-    }
-    return writeData;
-}
-
-function getProjectedExperimentData(formData) {
-    const projected = { ...experimentData, ...formData };
-    if (shouldRemoveLegacyLeadResearcher(formData)) {
-        delete projected.leadResearcher;
-    }
-    return projected;
-}
-
 // =========================================
 // Save Experiment
 // =========================================
@@ -3239,15 +3216,6 @@ async function saveExperiment() {
     }
 
     const formData = collectFormData();
-    if (
-        legacyLeadResearcherRemovalRequested
-        && normalizeLeadResearchers(formData).length === 0
-        && normalizeExternalLeadResearchers(formData).length === 0
-    ) {
-        showToast('יש לבחור משתמש רשום או להוסיף לפחות חוקר מוביל חיצוני אחד לפני השמירה', 'warning');
-        document.getElementById('lead-researcher-search')?.focus();
-        return false;
-    }
     let { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData);
     let previousRealtimeSignature = '';
     let expectedRealtimeSignature = '';
@@ -3304,9 +3272,9 @@ async function saveExperiment() {
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         previousRealtimeSignature = lastRealtimeDataSignature;
-        expectedRealtimeSignature = getRealtimeDataSignature(getProjectedExperimentData(formData));
+        expectedRealtimeSignature = getRealtimeDataSignature({ ...experimentData, ...formData });
         lastRealtimeDataSignature = expectedRealtimeSignature;
-        await updateDoc(experimentRef, getExperimentWriteData(formData));
+        await updateDoc(experimentRef, formData);
         coreExperimentWriteCommitted = true;
         await persistDynamicFieldOptions(formData);
         await persistGlobalKeywordOptions(formData.keywords);
@@ -3317,7 +3285,7 @@ async function saveExperiment() {
             formData
         );
 
-        experimentData = getProjectedExperimentData(formData);
+        experimentData = { ...experimentData, ...formData };
         lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
         if (privacyFallbackApplied) {
             syncPrivacyFallbackUIToPublic();
@@ -5298,7 +5266,6 @@ function populateLeadResearchers(data = {}) {
     const listContainer = document.getElementById('lead-researchers-list');
     if (!listContainer) return;
     listContainer.replaceChildren();
-    legacyLeadResearcherRemovalRequested = false;
 
     normalizeLeadResearchers(data).forEach((researcher) => {
         addLeadResearcherChip(researcher, false);
@@ -5306,14 +5273,6 @@ function populateLeadResearchers(data = {}) {
     normalizeExternalLeadResearchers(data).forEach((researcherName) => {
         addExternalLeadResearcherChip(researcherName, false);
     });
-
-    const legacyText = getLegacyLeadResearcherText(data);
-    const legacyContainer = document.getElementById('lead-researcher-legacy');
-    const legacyTextElement = document.getElementById('lead-researcher-legacy-text');
-    if (legacyContainer && legacyTextElement) {
-        legacyTextElement.textContent = legacyText;
-        legacyContainer.hidden = !legacyText;
-    }
 }
 
 function addLeadResearcherChip(researcherData, markEdited = true) {
@@ -5491,15 +5450,8 @@ function addExternalLeadResearchers(names) {
     }
     if (addedCount > 0) {
         markUserEdited();
-        legacyLeadResearcherRemovalRequested = false;
-        hideLegacyLeadResearcherNotice();
     }
     return addedCount;
-}
-
-function hideLegacyLeadResearcherNotice() {
-    const legacyContainer = document.getElementById('lead-researcher-legacy');
-    if (legacyContainer) legacyContainer.hidden = true;
 }
 
 function clearLeadResearcherSearch() {
@@ -5528,10 +5480,6 @@ function commitSelectedLeadResearcher() {
         email: selectedLeadResearcher.email || ''
     });
     clearLeadResearcherSearch();
-    if (added) {
-        legacyLeadResearcherRemovalRequested = false;
-        hideLegacyLeadResearcherNotice();
-    }
     return added;
 }
 
@@ -5539,7 +5487,6 @@ function initLeadResearcherAutocomplete() {
     const searchInput = document.getElementById('lead-researcher-search');
     const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
     const addButton = document.getElementById('add-lead-researcher');
-    const removeLegacyButton = document.getElementById('remove-legacy-lead-researcher');
     if (!searchInput || !suggestionsDiv) return;
 
     searchInput.addEventListener('input', () => {
@@ -5650,13 +5597,6 @@ function initLeadResearcherAutocomplete() {
             return;
         }
         commitSelectedLeadResearcher();
-    });
-
-    removeLegacyButton?.addEventListener('click', () => {
-        legacyLeadResearcherRemovalRequested = true;
-        hideLegacyLeadResearcherNotice();
-        showToast('הערך הישן הוסר מהטופס. כעת יש לבחור משתמש רשום או להוסיף חוקר חיצוני ולשמור.', 'info');
-        searchInput.focus();
     });
 
     document.addEventListener('click', (event) => {

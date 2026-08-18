@@ -82,11 +82,3 @@ export function getLeadResearchersSearchText(value) {
         .filter(Boolean)
         .join(' ');
 }
-
-export function getLegacyLeadResearcherText(value) {
-    return clean(value?.leadResearcher);
-}
-
-export function needsLeadResearcherMigration(value) {
-    return Boolean(getLegacyLeadResearcherText(value));
-}

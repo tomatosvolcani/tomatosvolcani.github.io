@@ -15,11 +15,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { siteLabel } from "./labels.js";
-import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260729-1";
+import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260818-1";
 import {
     getLeadResearchersSearchText,
-    getLeadResearchersText,
-    needsLeadResearcherMigration
+    getLeadResearchersText
 } from "./lead-researchers.js?v=20260818-1";
 
 let currentUser = null;
@@ -30,7 +29,6 @@ let lastExperimentDoc = null;
 let hasMoreExperiments = true;
 let isLoadingExperiments = false;
 let currentSearchTerm = '';
-let migrationOnly = false;
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -75,11 +73,6 @@ function initEventListeners() {
             filterExperiments(e.target.value);
         });
     }
-
-    document.getElementById('migration-only-filter')?.addEventListener('change', (event) => {
-        migrationOnly = event.target.checked;
-        filterExperiments(currentSearchTerm);
-    });
 
     const loadMoreBtn = document.getElementById('btn-load-more-admin-experiments');
     if (loadMoreBtn) {
@@ -296,7 +289,6 @@ function filterExperiments(searchTerm) {
     const term = currentSearchTerm.toLowerCase().trim();
 
     filteredExperiments = allExperiments.filter(exp => {
-        if (migrationOnly && !needsLeadResearcherMigration(exp)) return false;
         if (term) {
             const name = (exp.experimentName || '').toLowerCase();
             const researcher = getLeadResearchersSearchText(exp).toLowerCase();
@@ -340,9 +332,7 @@ function displayExperiments() {
         const row = document.createElement('tr');
 
         const name = experiment.experimentName || 'ניסוי ללא שם';
-        const researcher = needsLeadResearcherMigration(experiment)
-            ? '<span class="migration-badge">נדרש עדכון</span>'
-            : escapeHtml(getLeadResearchersText(experiment, { separator: ' • ', fallback: 'לא צוין' }));
+        const researcher = escapeHtml(getLeadResearchersText(experiment, { separator: ' • ', fallback: 'לא צוין' }));
         const site = siteLabel(experiment.experimentSite) || 'לא צוין';
         const year = experiment.experimentYear || '-';
         const createdDate = formatDateIL(experiment.createdAt, 'לא ידוע');

@@ -247,7 +247,7 @@ function addExportMenuItem() {
 // הצגת תפריט ניהול לאדמין בסיידבר
 function displayAdminMenu() {
     const sidebar = document.querySelector('.sidebar-nav');
-    if (!sidebar) return;
+    if (!sidebar || sidebar.querySelector('a[href="admin-users.html"]')) return;
 
     const adminMenuHTML = `
         <div class="nav-separator"></div>

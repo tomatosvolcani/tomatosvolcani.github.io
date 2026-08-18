@@ -18,7 +18,6 @@ import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 import {
     getLeadResearchersSearchText,
     getLeadResearchersText,
-    needsLeadResearcherMigration,
     normalizeExternalLeadResearchers,
     normalizeLeadResearchers
 } from "./lead-researchers.js?v=20260818-1";
@@ -367,6 +366,10 @@ function displayAdminMenu() {
             <i class="fas fa-flask"></i>
             <span>כל הניסויים</span>
         </a>
+        <a href="researcher-activity.html" class="nav-item">
+            <i class="fas fa-ranking-star"></i>
+            <span>פעילות חוקרים</span>
+        </a>
         <a href="bi.html" class="nav-item">
             <i class="fas fa-chart-bar"></i>
             <span>לוח BI מערכת</span>
@@ -541,7 +544,6 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
         externalLeadResearchers,
         leadResearcherUids: leadResearchers.map((researcher) => researcher.uid),
         leadResearcher: leadResearcherText,
-        needsLeadResearcherMigration: needsLeadResearcherMigration(safeData),
         experimentSite: siteLabel(safeData.experimentSite) || stringValue(safeData.labCellNumber),
         experimentYear: stringValue(safeData.experimentYear),
         workPackageCode: stringValue(safeData.workPackage),
@@ -733,9 +735,7 @@ function renderResults() {
                     <strong>${highlightText(experiment.experimentName || "ניסוי ללא שם", searchWords)}</strong>
                     ${matchToggle}
                 </td>
-                <td data-label="חוקרים מובילים">${experiment.needsLeadResearcherMigration
-                    ? '<span class="source-badge">נדרש עדכון</span>'
-                    : highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
+                <td data-label="חוקרים מובילים">${highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
                 <td data-label="אתר">${highlightText(experiment.experimentSite || "לא צוין", searchWords)}</td>
                 <td data-label="שנה">${highlightText(experiment.experimentYear || "-", searchWords)}</td>
                 <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
