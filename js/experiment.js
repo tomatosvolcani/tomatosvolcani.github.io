@@ -14,7 +14,8 @@ import {
     limit,
     Timestamp,
     runTransaction,
-    onSnapshot
+    onSnapshot,
+    deleteField
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref,
@@ -23,14 +24,20 @@ import {
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
-import { initExperimentTour } from "./experiment-tour.js";
+import { initExperimentTour } from "./experiment-tour.js?v=20260818-1";
 import { initServerTime, getTrustedNow } from "./server-time.js";
+import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20260818-1";
 import {
     canRead,
     canEdit,
     canManage,
     getRole
 } from "./permissions-utils.js";
+import {
+    MAX_LEAD_RESEARCHERS,
+    getLegacyLeadResearcherText,
+    normalizeLeadResearchers
+} from "./lead-researchers.js?v=20260818-1";
 
 document.addEventListener('DOMContentLoaded', () => {
     initExperimentTour();
@@ -49,6 +56,8 @@ let currentView = 'basic';
 let currentTreatmentIndex = 0;
 let allUsers = []; // All users for partner selection
 let selectedPartner = null; // Currently selected partner from autocomplete
+let selectedLeadResearcher = null;
+let legacyLeadResearcherRemovalRequested = false;
 let experimentOwnerUid = null; // מזהה הבעלים של הניסוי (יכול להיות שונה מהמשתמש הנוכחי אם זה ניסוי משותף)
 let permissionsState = {
     canRead: false,
@@ -67,6 +76,7 @@ let isBrowserNavGuardInitialized = false;
 let skipNextPopstateGuard = false;
 let hasShownPrivacyFallbackToast = false;
 let hasLoadedPublicUsers = false;
+let experimentAI = null;
 let unsubscribeExperimentSnapshot = null;
 let lastRealtimeDataSignature = '';
 let queuedRealtimeExperimentData = null;
@@ -523,6 +533,7 @@ function setLastSavedFormSignatureFromCurrent() {
 
 function markUserEdited() {
     hasUserEditedSinceSave = true;
+    experimentAI?.markViewDirty(currentView);
     scheduleAutoSave();
 }
 
@@ -610,6 +621,7 @@ function scheduleAutoSave() {
 }
 
 async function performAutoSave() {
+    if (experimentAI?.isActive() || !isAutoSaveEnabled) return false;
     if (!currentUser || !currentExperimentId || !experimentOwnerUid) return false;
     if (!permissionsState?.canEdit) return false;
 
@@ -657,7 +669,7 @@ async function performAutoSave() {
             }
 
             const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
-            await updateDoc(experimentRef, formData);
+            await updateDoc(experimentRef, getExperimentWriteData(formData));
             await persistDynamicFieldOptions(formData);
             await persistGlobalKeywordOptions(formData.keywords);
 
@@ -667,7 +679,7 @@ async function performAutoSave() {
                 formData
             );
 
-            experimentData = { ...experimentData, ...formData };
+            experimentData = getProjectedExperimentData(formData);
             lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
             if (privacyFallbackApplied) {
                 syncPrivacyFallbackUIToPublic();
@@ -823,7 +835,7 @@ function updateAutoSaveIndicator(state) {
     }
 
     // Reset
-    indicator.classList.remove('idle', 'detecting', 'saving', 'saved', 'error', 'offline');
+    indicator.classList.remove('idle', 'detecting', 'saving', 'saved', 'error', 'offline', 'ai-review');
     indicator.style.opacity = '';
     if (retryBtn) retryBtn.style.display = 'none';
 
@@ -832,6 +844,12 @@ function updateAutoSaveIndicator(state) {
             indicator.classList.add('idle');
             iconEl.innerHTML = '';
             textEl.textContent = '';
+            break;
+
+        case 'ai-review':
+            indicator.classList.add('ai-review');
+            iconEl.innerHTML = '<i class="fas fa-shield-halved"></i>';
+            textEl.textContent = 'מצב AI — שמירה אוטומטית כבויה';
             break;
 
         case 'detecting':
@@ -902,6 +920,7 @@ function performAutoSaveRetry() {
 
 // Flush any pending auto-save immediately (used before navigation/exit)
 async function flushAutoSave() {
+    if (experimentAI?.isActive()) return true;
     if (autoSaveTimeoutId) {
         clearTimeout(autoSaveTimeoutId);
         autoSaveTimeoutId = null;
@@ -1767,6 +1786,10 @@ function applyRealtimeExperimentData(nextExperimentData) {
         return;
     }
 
+    // Realtime data is authoritative. If an external update arrives during an
+    // unsaved AI review, discard that draft before rebuilding the form.
+    experimentAI?.discardForRealtimeUpdate();
+
     const focusedElement = document.activeElement;
     const focusedElementId = focusedElement?.id || '';
     const selectionStart = Number.isInteger(focusedElement?.selectionStart)
@@ -1919,6 +1942,7 @@ async function loadExperiment() {
             // Apply permissions to UI, then calculate the clean saved signature.
             try { applyPermissions(); } catch (e) { console.warn('applyPermissions failed', e); }
             setLastSavedFormSignatureFromCurrent();
+            initExperimentAI();
         } else {
             showToast('הניסוי לא נמצא', 'error');
             window.location.href = "dashboard.html";
@@ -1994,15 +2018,7 @@ function updateUI() {
 function populateForm() {
     const data = experimentData;
 
-    // Lead researcher
-    const leadResearcher = document.getElementById('lead-researcher');
-    if (leadResearcher) {
-        if (data.leadResearcher) {
-            leadResearcher.value = data.leadResearcher;
-        } else if (userData) {
-            leadResearcher.value = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-        }
-    }
+    populateLeadResearchers(data);
 
     // Partners (clear first so repeated realtime population is idempotent)
     const partnersContainer = document.getElementById('partners-container');
@@ -2692,6 +2708,8 @@ function switchTreatmentTab(index) {
     });
 
     loadCurrentSectionDataFromState();
+    // מעבר בין טיפולים בונה מחדש את הטבלאות/השדות — מסמנים שוב את מה שמולא ע"י AI.
+    experimentAI?.refreshView(currentView);
     persistNavigationState();
 }
 
@@ -2742,6 +2760,7 @@ function switchView(viewName) {
 
     syncSharedToggleForCurrentView();
     loadCurrentSectionDataFromState();
+    experimentAI?.refreshView(viewName);
 
     // Update breadcrumb with full path and clickable links
     const viewNames = {
@@ -2784,6 +2803,7 @@ function switchView(viewName) {
     }
 
     persistNavigationState();
+    experimentAI?.refreshReview();
 }
 
 // =========================================
@@ -3107,7 +3127,7 @@ function collectFormData() {
         privateUntil: privateUntilTimestamp,
         publicAccess: publicAccess,
         experimentName: document.getElementById('experiment-name')?.value.trim() || experimentData?.experimentName || '',
-        leadResearcher: document.getElementById('lead-researcher')?.value || '',
+        leadResearchers: collectLeadResearchers(),
         partners,
         experimentPartners: collectExperimentPartners(),
         creatorName: document.getElementById('experiment-creator')?.value || '',
@@ -3181,6 +3201,27 @@ function collectFormData() {
     };
 }
 
+function shouldRemoveLegacyLeadResearcher(formData) {
+    return Boolean(getLegacyLeadResearcherText(experimentData))
+        && normalizeLeadResearchers(formData).length > 0;
+}
+
+function getExperimentWriteData(formData) {
+    const writeData = { ...formData };
+    if (shouldRemoveLegacyLeadResearcher(formData)) {
+        writeData.leadResearcher = deleteField();
+    }
+    return writeData;
+}
+
+function getProjectedExperimentData(formData) {
+    const projected = { ...experimentData, ...formData };
+    if (shouldRemoveLegacyLeadResearcher(formData)) {
+        delete projected.leadResearcher;
+    }
+    return projected;
+}
+
 // =========================================
 // Save Experiment
 // =========================================
@@ -3193,6 +3234,11 @@ async function saveExperiment() {
     }
 
     const formData = collectFormData();
+    if (legacyLeadResearcherRemovalRequested && normalizeLeadResearchers(formData).length === 0) {
+        showToast('יש לבחור לפחות חוקר מוביל אחד מהרשימה לפני השמירה', 'warning');
+        document.getElementById('lead-researcher-search')?.focus();
+        return false;
+    }
     let { privacyFallbackApplied } = prepareAccessManagedFieldsForSave(formData);
     let previousRealtimeSignature = '';
     let expectedRealtimeSignature = '';
@@ -3249,9 +3295,9 @@ async function saveExperiment() {
         // שמור לבעלים של הניסוי
         const experimentRef = doc(db, "users", experimentOwnerUid, "experiments", currentExperimentId);
         previousRealtimeSignature = lastRealtimeDataSignature;
-        expectedRealtimeSignature = getRealtimeDataSignature({ ...experimentData, ...formData });
+        expectedRealtimeSignature = getRealtimeDataSignature(getProjectedExperimentData(formData));
         lastRealtimeDataSignature = expectedRealtimeSignature;
-        await updateDoc(experimentRef, formData);
+        await updateDoc(experimentRef, getExperimentWriteData(formData));
         coreExperimentWriteCommitted = true;
         await persistDynamicFieldOptions(formData);
         await persistGlobalKeywordOptions(formData.keywords);
@@ -3262,7 +3308,7 @@ async function saveExperiment() {
             formData
         );
 
-        experimentData = { ...experimentData, ...formData };
+        experimentData = getProjectedExperimentData(formData);
         lastRealtimeDataSignature = getRealtimeDataSignature(experimentData);
         if (privacyFallbackApplied) {
             syncPrivacyFallbackUIToPublic();
@@ -4217,6 +4263,7 @@ async function syncSharedExperiments(currentPartners, latestExperimentData = nul
 
             const cachedExperiment = {
                 experimentName: latestExperimentData?.experimentName ?? experimentData?.experimentName ?? '',
+                leadResearchers: normalizeLeadResearchers(latestExperimentData || experimentData),
                 experimentYear: latestExperimentData?.experimentYear ?? experimentData?.experimentYear ?? '',
                 experimentSite: latestExperimentData?.experimentSite ?? experimentData?.experimentSite ?? '',
                 siteCoordinates: latestExperimentData?.siteCoordinates ?? experimentData?.siteCoordinates ?? '',
@@ -4331,7 +4378,8 @@ function initEventListeners() {
         });
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await performAutoSave();
+            if (experimentAI?.isActive()) await experimentAI.saveCurrentPage();
+            else await performAutoSave();
         });
     }
 
@@ -5236,57 +5284,189 @@ function collectExperimentPartners() {
     return partners;
 }
 
-function initLeadResearcherAutocomplete() {
-    const searchInput = document.getElementById('lead-researcher');
-    const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
+function populateLeadResearchers(data = {}) {
+    const listContainer = document.getElementById('lead-researchers-list');
+    if (!listContainer) return;
+    listContainer.replaceChildren();
+    legacyLeadResearcherRemovalRequested = false;
 
+    normalizeLeadResearchers(data).forEach((researcher) => {
+        addLeadResearcherChip(researcher, false);
+    });
+
+    const legacyText = getLegacyLeadResearcherText(data);
+    const legacyContainer = document.getElementById('lead-researcher-legacy');
+    const legacyTextElement = document.getElementById('lead-researcher-legacy-text');
+    if (legacyContainer && legacyTextElement) {
+        legacyTextElement.textContent = legacyText;
+        legacyContainer.hidden = !legacyText;
+    }
+}
+
+function addLeadResearcherChip(researcherData, markEdited = true) {
+    const listContainer = document.getElementById('lead-researchers-list');
+    const researcher = normalizeLeadResearchers([researcherData])[0];
+    if (!listContainer || !researcher) return false;
+
+    const existing = listContainer.querySelector(`[data-uid="${CSS.escape(researcher.uid)}"]`);
+    if (existing) return false;
+    if (listContainer.querySelectorAll('.lead-researcher-chip').length >= MAX_LEAD_RESEARCHERS) {
+        showToast(`ניתן לבחור עד ${MAX_LEAD_RESEARCHERS} חוקרים מובילים`, 'warning');
+        return false;
+    }
+
+    const chip = document.createElement('span');
+    chip.className = 'experiment-partner-chip lead-researcher-chip';
+    chip.dataset.uid = researcher.uid;
+    chip.dataset.name = researcher.name;
+    chip.dataset.email = researcher.email;
+
+    const name = document.createElement('span');
+    name.className = 'chip-name';
+    name.textContent = researcher.name || researcher.email || researcher.uid;
+    chip.appendChild(name);
+
+    if (researcher.email) {
+        const email = document.createElement('span');
+        email.className = 'chip-email';
+        email.style.fontSize = '11px';
+        email.style.color = '#7889a4';
+        email.textContent = `(${researcher.email})`;
+        chip.appendChild(email);
+    }
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'chip-remove';
+    removeButton.title = 'הסרת חוקר מוביל';
+    removeButton.setAttribute('aria-label', `הסרת ${researcher.name || researcher.email}`);
+    removeButton.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+    removeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (!permissionsState?.canEdit) {
+            showToast('אין הרשאת עריכה', 'error');
+            return;
+        }
+        chip.remove();
+        markUserEdited();
+    });
+    chip.appendChild(removeButton);
+    listContainer.appendChild(chip);
+
+    if (markEdited) markUserEdited();
+    return true;
+}
+
+function collectLeadResearchers() {
+    const listContainer = document.getElementById('lead-researchers-list');
+    if (!listContainer) return [];
+    const researchers = Array.from(listContainer.querySelectorAll('.lead-researcher-chip')).map((chip) => ({
+        uid: chip.dataset.uid || '',
+        name: chip.dataset.name || '',
+        email: chip.dataset.email || ''
+    }));
+    return normalizeLeadResearchers(researchers);
+}
+
+function hideLegacyLeadResearcherNotice() {
+    const legacyContainer = document.getElementById('lead-researcher-legacy');
+    if (legacyContainer) legacyContainer.hidden = true;
+}
+
+function commitSelectedLeadResearcher() {
+    const searchInput = document.getElementById('lead-researcher-search');
+    const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
+    if (!selectedLeadResearcher) {
+        if (searchInput?.value.trim()) showToast('נא לבחור חוקר מתוך הרשימה', 'warning');
+        return false;
+    }
+
+    const added = addLeadResearcherChip({
+        uid: selectedLeadResearcher.uid,
+        name: selectedLeadResearcher.fullName || '',
+        email: selectedLeadResearcher.email || ''
+    });
+    selectedLeadResearcher = null;
+    if (searchInput) searchInput.value = '';
+    if (suggestionsDiv) {
+        suggestionsDiv.replaceChildren();
+        suggestionsDiv.classList.remove('active');
+    }
+    if (added) {
+        legacyLeadResearcherRemovalRequested = false;
+        hideLegacyLeadResearcherNotice();
+    }
+    return added;
+}
+
+function initLeadResearcherAutocomplete() {
+    const searchInput = document.getElementById('lead-researcher-search');
+    const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
+    const addButton = document.getElementById('add-lead-researcher');
+    const removeLegacyButton = document.getElementById('remove-legacy-lead-researcher');
     if (!searchInput || !suggestionsDiv) return;
 
     searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim().toLowerCase();
-        suggestionsDiv.innerHTML = '';
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        selectedLeadResearcher = null;
+        suggestionsDiv.replaceChildren();
 
-        if (!query || query.length < 2) {
+        if (searchTerm.length < 2) {
             suggestionsDiv.classList.remove('active');
             return;
         }
 
-        const filtered = allUsers.filter(u => {
-            return (u.fullName?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query));
+        const selectedUids = new Set(collectLeadResearchers().map((researcher) => researcher.uid));
+        const matches = allUsers.filter((user) => {
+            if (!user.uid || selectedUids.has(user.uid)) return false;
+            return user.fullName?.toLowerCase().includes(searchTerm)
+                || user.email?.toLowerCase().includes(searchTerm);
         }).slice(0, 8);
 
-        if (!filtered.length) {
-            suggestionsDiv.classList.remove('active');
-            return;
-        }
-
-        filtered.forEach(u => {
+        matches.forEach((user) => {
             const item = document.createElement('div');
             item.className = 'suggestion-item';
-            item.innerHTML = '<div class="suggestion-name">' + (u.fullName || '\u2014') + '</div><div class="suggestion-email">' + (u.email || '') + '</div>';
+            const name = document.createElement('div');
+            name.className = 'suggestion-name';
+            name.textContent = user.fullName || '—';
+            const email = document.createElement('div');
+            email.className = 'suggestion-email';
+            email.textContent = user.email || '';
+            item.append(name, email);
             item.addEventListener('click', () => {
-                searchInput.value = u.fullName || u.email || '';
-                suggestionsDiv.innerHTML = '';
+                selectedLeadResearcher = user;
+                searchInput.value = user.fullName || user.email || '';
+                suggestionsDiv.replaceChildren();
                 suggestionsDiv.classList.remove('active');
-                markUserEdited();
             });
             suggestionsDiv.appendChild(item);
         });
-
-        suggestionsDiv.classList.add('active');
+        suggestionsDiv.classList.toggle('active', matches.length > 0);
     });
 
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const firstSuggestion = suggestionsDiv.querySelector('.suggestion-item');
+        if (!selectedLeadResearcher && firstSuggestion) firstSuggestion.click();
+        commitSelectedLeadResearcher();
+    });
+
+    addButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        commitSelectedLeadResearcher();
+    });
+
+    removeLegacyButton?.addEventListener('click', () => {
+        legacyLeadResearcherRemovalRequested = true;
+        hideLegacyLeadResearcherNotice();
+        showToast('הערך הישן הוסר מהטופס. כעת יש לבחור חוקר או חוקרים מהרשימה ולשמור.', 'info');
+        searchInput.focus();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!searchInput.contains(event.target) && !suggestionsDiv.contains(event.target)) {
             suggestionsDiv.classList.remove('active');
-        }
-    });
-
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const firstSuggestion = suggestionsDiv.querySelector('.suggestion-item');
-            if (firstSuggestion) firstSuggestion.click();
         }
     });
 }
@@ -7850,4 +8030,78 @@ async function uploadProgressFile(file, folder, progressId, fillId, textId) {
     });
 }
 
+// =========================================
+// AI-assisted experiment import adapter
+// =========================================
+function initExperimentAI() {
+    // Intentionally disabled until the planned AI/LLM launch. The single
+    // release switch lives in experiment-ai-config.js.
+    if (window.EXPERIMENT_AI_ENABLED !== true) return;
 
+    if (!experimentAI) {
+        experimentAI = createExperimentAIIntegration({
+            state: {
+                get currentUser() { return currentUser; },
+                get currentExperimentId() { return currentExperimentId; },
+                get currentView() { return currentView; },
+                get currentTreatmentIndex() { return currentTreatmentIndex; },
+                get permissionsState() { return permissionsState; },
+                get experimentOwnerUid() { return experimentOwnerUid; },
+                get experimentData() { return experimentData; },
+                set experimentData(value) { experimentData = value; },
+                get eventsData() { return eventsData; },
+                set eventsData(value) { eventsData = value; },
+                get financialData() { return financialData; },
+                set financialData(value) { financialData = value; },
+                get lastRealtimeDataSignature() { return lastRealtimeDataSignature; },
+                set lastRealtimeDataSignature(value) { lastRealtimeDataSignature = value; },
+                set hasUserEditedSinceSave(value) { hasUserEditedSinceSave = value; },
+                get isAutoSaveEnabled() { return isAutoSaveEnabled; },
+                set isAutoSaveEnabled(value) { isAutoSaveEnabled = value; },
+                get autoSaveQueued() { return autoSaveQueued; },
+                set autoSaveQueued(value) { autoSaveQueued = value; },
+                get autoSaveTimeoutId() { return autoSaveTimeoutId; },
+                set autoSaveTimeoutId(value) { autoSaveTimeoutId = value; }
+            },
+            SHARED_SECTION_IDS,
+            STUDY_TYPES,
+            addKeywordTag,
+            addVariableRow,
+            collectEventsData,
+            collectFinancialData,
+            collectFormData,
+            collectTreatmentInputsFromDOM,
+            deepClone,
+            ensureModelTreatmentLength,
+            generateTreatmentInputs,
+            generateTreatmentTabs,
+            getCurrentRepetitionsCount,
+            getCurrentStudyType,
+            getCurrentTreatmentsCount,
+            getPermissionShareEntries,
+            getRealtimeDataSignature,
+            getResolvedAdiganAmount,
+            getSectionIdByView,
+            getSectionModel,
+            loadCurrentSectionDataFromState,
+            persistCurrentSectionDataToState,
+            persistDynamicFieldOptions,
+            persistGlobalKeywordOptions,
+            renderEventsTable,
+            renderFinancialTable,
+            saveExperiment,
+            setFieldValue,
+            setLastSavedFormSignatureFromCurrent,
+            setStudyTypeValue,
+            switchTreatmentTab,
+            switchView,
+            syncAllSectionTreatmentCounts,
+            syncSharedExperiments,
+            updateAutoSaveIndicator,
+            updateConditionalFieldVisibility,
+            updateExperimentDisplayName,
+            updateExperimentSiteOtherVisibility
+        });
+    }
+    experimentAI.init();
+}

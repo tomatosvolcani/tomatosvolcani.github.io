@@ -1,0 +1,443 @@
+/* css/experiment-ai.css */
+[data-ai-feature-entry][hidden] {
+    display: none !important;
+}
+
+.ai-nav-item {
+    border: none;
+    background: transparent;
+}
+.ai-nav-item:hover {
+    background: #eaf0fb;
+    color: #15346f;
+}
+.ai-nav-item i { color: inherit; }
+.ai-badge {
+    margin-inline-start: auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+}
+.ai-experiment-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1190;
+    background: rgba(15, 23, 42, .45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+}
+.ai-experiment-backdrop.open { opacity: 1; pointer-events: auto; }
+.ai-experiment-drawer {
+    position: fixed;
+    z-index: 1200;
+    top: 0;
+    left: 0;
+    width: min(520px, 96vw);
+    height: 100vh;
+    background: #fff;
+    box-shadow: 18px 0 48px rgba(15, 23, 42, .24);
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+    display: flex;
+    flex-direction: column;
+    direction: rtl;
+}
+.ai-experiment-drawer.open { transform: translateX(0); }
+.ai-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 22px 24px;
+    color: #fff;
+    background: linear-gradient(135deg, #1d4ed8, #0284c7);
+}
+.ai-drawer-header h2 { margin: 0 0 5px; font-size: 22px; color: #fff; }
+.ai-drawer-header p { margin: 0; opacity: .9; font-size: 13px; line-height: 1.5; }
+.ai-drawer-close {
+    border: 0;
+    background: rgba(255,255,255,.16);
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.ai-drawer-body { padding: 22px 24px 110px; overflow-y: auto; }
+.ai-info-box {
+    display: flex;
+    gap: 12px;
+    padding: 13px 14px;
+    margin-bottom: 18px;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 13px;
+    line-height: 1.55;
+}
+.ai-field-label { display: block; margin: 16px 0 7px; font-weight: 700; color: #1f2937; }
+.ai-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 142px;
+    padding: 20px;
+    border: 2px dashed #93c5fd;
+    border-radius: 14px;
+    background: #f8fbff;
+    color: #2563eb;
+    cursor: pointer;
+    text-align: center;
+    transition: .15s ease;
+}
+.ai-dropzone.dragging, .ai-dropzone:hover { border-color: #2563eb; background: #eff6ff; }
+.ai-dropzone i { font-size: 29px; margin-bottom: 10px; }
+.ai-dropzone strong { font-size: 15px; }
+.ai-dropzone small { color: #6b7280; margin-top: 5px; }
+.ai-selected-files { display: grid; gap: 7px; margin-top: 10px; }
+.ai-empty-files { color: #9ca3af; font-size: 12px; }
+.ai-file-chip {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    background: #fff;
+    font-size: 12px;
+}
+.ai-file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-file-chip small { color: #9ca3af; }
+.ai-file-chip button { border: 0; background: transparent; color: #ef4444; cursor: pointer; }
+#ai-source-text {
+    width: 100%;
+    min-height: 125px;
+    resize: vertical;
+    border: 1px solid #d1d5db;
+    border-radius: 11px;
+    padding: 12px;
+    font: inherit;
+    line-height: 1.55;
+}
+.ai-checkbox-row { display: flex; gap: 9px; align-items: flex-start; margin: 15px 0; font-size: 13px; color: #4b5563; }
+.ai-primary-button {
+    width: 100%;
+    border: 0;
+    border-radius: 11px;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #2563eb, #0284c7);
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+}
+.ai-primary-button:disabled { opacity: .55; cursor: wait; }
+.ai-analysis-status { min-height: 22px; margin-top: 12px; font-size: 13px; }
+.ai-analysis-status.busy { color: #2563eb; }
+.ai-analysis-status.error { color: #b91c1c; }
+.ai-analysis-results { margin-top: 16px; display: grid; gap: 10px; }
+.ai-analysis-results.hidden { display: none; }
+.ai-result-card, .ai-result-details {
+    border: 1px solid #e5e7eb;
+    border-radius: 11px;
+    background: #fff;
+    padding: 12px 14px;
+}
+.ai-result-card h4 { margin: 0 0 7px; color: #1e40af; }
+.ai-result-card p { margin: 0; font-size: 13px; line-height: 1.5; }
+.ai-result-metrics { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ai-result-metrics span { background: #f3f4f6; border-radius: 999px; padding: 5px 9px; font-size: 11px; }
+.ai-result-details summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.ai-result-details ul { margin: 10px 0 0; padding-right: 20px; font-size: 12px; line-height: 1.55; }
+.ai-review-bar {
+    position: fixed;
+    z-index: 1150;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 22px;
+    border: 0;
+    border-bottom: 1px solid #93c5fd;
+    border-radius: 0;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 8px 24px rgba(15,23,42,.14);
+    backdrop-filter: blur(8px);
+}
+/* Reserve space at the very top so the bar never covers the page.
+   Uses :has() to react automatically when the bar is shown/hidden. */
+body:has(#ai-review-bar:not(.hidden)) .main-content { padding-top: 66px; }
+body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 66px; }
+@media (max-width: 900px) {
+    body:has(#ai-review-bar:not(.hidden)) .main-content { padding-top: 128px; }
+    body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 0; }
+}
+.ai-review-bar.hidden { display: none; }
+.ai-review-text { display: flex; align-items: center; gap: 10px; color: #1e40af; font-weight: 700; font-size: 13px; }
+.ai-review-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-review-actions button { border-radius: 9px; padding: 9px 12px; font-weight: 700; cursor: pointer; }
+.ai-save-page { border: 1px solid #2563eb; background: #eff6ff; color: #1e40af; }
+.ai-save-all { border: 1px solid #047857; background: #ecfdf5; color: #047857; }
+.ai-cancel { border: 1px solid #dc2626; background: #fff1f2; color: #b91c1c; }
+.ai-proposed-field { outline: 2px solid rgba(79,70,229,.45) !important; outline-offset: 2px; background-color: #eff6ff !important; }
+.ai-proposed-row { box-shadow: inset 4px 0 0 #3b82f6; }
+.auto-save-indicator.ai-review { color: #2563eb; }
+@media (max-width: 900px) {
+    .ai-review-bar { top: 0; left: 0; right: 0; flex-direction: column; align-items: stretch; }
+    .ai-review-actions { justify-content: stretch; }
+    .ai-review-actions button { flex: 1; }
+}
+
+/* Markup aliases used by experiment.html */
+.ai-nav-badge {
+    margin-inline-start: auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+}
+.ai-eyebrow { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 11px; font-weight: 800; letter-spacing: .04em; opacity: .9; }
+.ai-icon-button {
+    border: 0;
+    background: rgba(255,255,255,.16);
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.ai-panel { margin-bottom: 18px; }
+.ai-panel h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #1f2937; font-size: 15px; }
+.ai-panel h3 > span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
+.ai-image-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 142px;
+    padding: 20px;
+    border: 2px dashed #93c5fd;
+    border-radius: 14px;
+    background: #f8fbff;
+    color: #2563eb;
+    cursor: pointer;
+    text-align: center;
+    transition: .15s ease;
+}
+.ai-image-dropzone.dragging, .ai-image-dropzone:hover { border-color: #2563eb; background: #eff6ff; }
+.ai-image-dropzone i { font-size: 29px; margin-bottom: 10px; }
+.ai-image-dropzone strong { font-size: 15px; }
+.ai-image-dropzone small { color: #6b7280; margin-top: 5px; }
+.ai-check-row { display: flex; gap: 9px; align-items: flex-start; margin: 15px 0; font-size: 13px; color: #4b5563; cursor: pointer; }
+.ai-check-row input { margin-top: 4px; }
+.ai-check-row span { display: grid; gap: 3px; }
+.ai-check-row small { color: #6b7280; line-height: 1.45; }
+.ai-review-copy { display: flex; align-items: center; gap: 10px; color: #1e40af; min-width: 0; }
+.ai-review-copy > i { font-size: 20px; }
+.ai-review-copy > div { display: grid; gap: 2px; }
+.ai-review-copy strong { font-size: 13px; }
+.ai-review-copy span { color: #4b5563; font-size: 12px; line-height: 1.4; }
+.ai-review-button { border: 1px solid #2563eb; background: #eff6ff; color: #1e40af; }
+.ai-review-button.primary { border-color: #047857; background: #ecfdf5; color: #047857; }
+.ai-review-button.danger { border-color: #dc2626; background: #fff1f2; color: #b91c1c; }
+.ai-review-button:disabled { opacity: .55; cursor: wait; }
+.ai-drawer-open { overflow: hidden; }
+
+
+/* Model picker */
+.ai-model-field { display: grid; gap: 7px; margin: 15px 0; }
+.ai-model-field > span { display: flex; align-items: center; gap: 7px; color: #1f2937; font-size: 13px; font-weight: 750; }
+.ai-model-field select { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; background: #fff; color: #111827; font: inherit; }
+.ai-model-field select:focus { outline: 2px solid rgba(37, 99, 235, .25); border-color: #3b82f6; }
+.ai-model-field small { color: #64748b; font-size: 11px; line-height: 1.45; }
+.ai-result-model { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px !important; color: #475569; font-size: 11px !important; }
+
+/* =========================================================
+   Floating AI launcher — professional, accessible, draggable.
+   Single source of truth (previous duplicate blocks removed).
+   Geometry matches the research-map tile so both align nicely.
+   ========================================================= */
+.ai-floating-button {
+    position: fixed;
+    z-index: 2101;
+    left: 24px;
+    bottom: 208px;
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    min-height: 92px;
+    padding: 12px 10px;
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    box-sizing: border-box;
+    text-decoration: none;
+    text-align: center;
+    border: 1px solid rgba(148, 197, 253, 0.55);
+    border-radius: 18px;
+    color: #ffffff;
+    background:
+        radial-gradient(120% 120% at 20% 0%, rgba(56, 189, 248, 0.55) 0%, rgba(56, 189, 248, 0) 55%),
+        linear-gradient(150deg, #12275f 0%, #1d4ed8 55%, #0ea5e9 130%);
+    box-shadow: 0 14px 30px -10px rgba(12, 32, 78, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: box-shadow .2s ease, transform .2s ease, filter .2s ease;
+}
+.ai-floating-button:hover {
+    color: #ffffff;
+    filter: brightness(1.05);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px -12px rgba(12, 32, 78, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.ai-floating-button:focus-visible {
+    outline: 3px solid #facc15;
+    outline-offset: 3px;
+}
+/* No CSS transition while dragging so the pointer tracks 1:1 (smooth like the map). */
+.ai-floating-button.dragging {
+    cursor: grabbing;
+    transition: none;
+    filter: brightness(1.03);
+    box-shadow: 0 22px 46px -12px rgba(12, 32, 78, 0.8);
+}
+.ai-floating-button.active {
+    border-color: rgba(110, 231, 183, 0.7);
+    background:
+        radial-gradient(120% 120% at 20% 0%, rgba(52, 211, 153, 0.5) 0%, rgba(52, 211, 153, 0) 55%),
+        linear-gradient(150deg, #064e3b 0%, #047857 55%, #10b981 130%);
+    box-shadow: 0 16px 32px -10px rgba(4, 78, 56, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.ai-floating-button .ai-fab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+    pointer-events: none;
+}
+.ai-floating-button .ai-fab-icon i {
+    font-size: 17px;
+    color: #ffffff !important;
+    pointer-events: none;
+}
+.ai-floating-button .ai-fab-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: .01em;
+    color: #ffffff !important;
+    pointer-events: none;
+}
+/* Legacy inner markup (plain <i>/<span>) kept working if present. */
+.ai-floating-button > i { font-size: 22px; color: #fff !important; pointer-events: none; }
+.ai-floating-button > span:not(.ai-nav-badge):not(.ai-fab-label):not(.ai-fab-icon) {
+    font-size: 12.5px; font-weight: 700; line-height: 1.05; color: #fff !important; pointer-events: none;
+}
+.ai-floating-button .ai-nav-badge { display: none; }
+
+/* Fixed AI tab directly below the accessibility tab. */
+.ai-fixed-tab {
+    position: fixed;
+    z-index: 1999;
+    top: 156px;
+    left: 0;
+    width: 104px;
+    height: 48px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 0 8px 8px 0;
+    color: #fff;
+    background: linear-gradient(135deg, #1d4ed8, #0284c7);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, .2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: width .2s ease, filter .2s ease, box-shadow .2s ease;
+}
+.ai-fixed-tab:hover {
+    width: 112px;
+    color: #fff;
+    filter: brightness(1.08);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, .26);
+}
+.ai-fixed-tab:focus-visible {
+    outline: 3px solid #facc15;
+    outline-offset: 2px;
+}
+.ai-fixed-tab.active {
+    background: linear-gradient(135deg, #047857, #10b981);
+}
+.ai-fixed-tab .ai-fab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.ai-fixed-tab .ai-fab-icon i { color: #fff !important; }
+.ai-fixed-tab .ai-fab-label { color: #fff !important; white-space: nowrap; }
+.ai-fixed-tab .ai-nav-badge { display: none; }
+
+@media (max-width: 700px) {
+    .ai-floating-button {
+        width: 72px;
+        min-width: 72px;
+        height: 72px;
+        min-height: 72px;
+        padding: 9px 7px;
+        left: 14px;
+    }
+    .ai-floating-button .ai-fab-icon { width: 28px; height: 28px; }
+    .ai-floating-button .ai-fab-icon i { font-size: 15px; }
+    .ai-floating-button .ai-fab-label { font-size: 11px; }
+}
+
+/* =========================================================
+   Third-party AI data-sharing disclosure (inside the drawer)
+   ========================================================= */
+.ai-privacy-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin: 0 0 18px;
+    padding: 13px 14px;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff7e6 100%);
+    color: #92400e;
+    direction: rtl;
+    text-align: right;
+}
+.ai-privacy-note > i {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    font-size: 16px;
+    color: #d97706;
+}
+.ai-privacy-note > div { display: grid; gap: 3px; }
+.ai-privacy-note strong { font-size: 13px; font-weight: 800; color: #7c2d12; }
+.ai-privacy-note span { font-size: 12px; line-height: 1.5; color: #92400e; }

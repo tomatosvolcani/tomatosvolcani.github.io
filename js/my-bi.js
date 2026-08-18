@@ -20,6 +20,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
+import { getLeadResearchersText, normalizeLeadResearchers } from "./lead-researchers.js?v=20260818-1";
 
 let currentUser = null;
 let userData    = null;
@@ -303,15 +304,17 @@ function computeStats(exps) {
         if (m >= 1 && m <= 12) stats.monthCounts[m - 1] += 1;
 
         // lead researcher
-        const researcher = norm(e.leadResearcher);
-        bump(stats.freqResearcher, researcher || 'לא צוין');
-        if (researcher) {
+        const leadResearchers = normalizeLeadResearchers(e);
+        if (!leadResearchers.length) bump(stats.freqResearcher, 'לא צוין');
+        leadResearchers.forEach((leadResearcher) => {
+            const researcher = getLeadResearchersText([leadResearcher], { includeEmail: true });
+            bump(stats.freqResearcher, researcher);
             if (!stats.researcherStats[researcher]) stats.researcherStats[researcher] = { total: 0, field: 0, lab: 0 };
             const rs = stats.researcherStats[researcher];
             rs.total += 1;
             if (study === 'field') rs.field += 1;
             if (study === 'lab')   rs.lab   += 1;
-        }
+        });
 
         // partners
         partnerNames(e).forEach(name => {
@@ -808,7 +811,7 @@ function appendExpTablePage(tbody) {
                 ? '<span class="tag-field">שדה</span>'
                 : '<span class="tag-muted">—</span>';
         const treatments = num(e.treatmentsCount);
-        const researcher = escHtml(norm(e.leadResearcher) || '-');
+        const researcher = escHtml(getLeadResearchersText(e) || '-');
         return `
           <tr>
             <td><a class="exp-link" href="${href}">${escHtml(e.experimentName || 'ללא שם')}</a></td>

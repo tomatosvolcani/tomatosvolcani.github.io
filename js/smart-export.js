@@ -14,6 +14,7 @@ import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead, timestampToDate } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
+import { getLeadResearchersText } from "./lead-researchers.js?v=20260818-1";
 
 // ═══════════════════════════════════════
 // Constants
@@ -70,7 +71,7 @@ const SHEET_DISPLAY = {
 
 const HEADERS = {
     metadata: [
-        'מזהה ניסוי', 'שם הניסוי', 'מזהה בעלים', 'חוקר מוביל', 'שותפים לניסוי',
+        'מזהה ניסוי', 'שם הניסוי', 'מזהה בעלים', 'חוקרים מובילים', 'שותפים לניסוי',
         'מקים הניסוי', 'חשיפת הניסוי', 'תאריך חסיון עד', 'שנת הניסוי', 'חודש הניסוי',
         'תקופת המחקר', 'סוג המחקר', 'חבילת עבודה', 'אתר הניסוי', 'קורדינטות אתר הניסוי',
         'מטרת הניסוי', 'תקציר הניסוי', 'מספר הטיפולים', 'מספר החזרות לטיפול',
@@ -506,9 +507,9 @@ function flattenMetadata(exp, exportDateStr) {
         exp.id,
         s(d.experimentName),
         exp.ownerUid,
-        s(d.leadResearcher),
+        getLeadResearchersText(d, { includeEmail: true, separator: '; ' }),
         partners,
-        s(d.experimentCreator || d.leadResearcher),
+        s(d.experimentCreator || d.creatorName || getLeadResearchersText(d)),
         visLabel,
         fmtDate(d.privateUntil),
         s(d.experimentYear),

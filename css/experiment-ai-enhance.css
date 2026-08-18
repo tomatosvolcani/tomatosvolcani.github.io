@@ -1,0 +1,527 @@
+/* css/experiment-ai-enhance.css
+   שיפורי UX למצב ה-AI — ערכת כחול-לבן נקייה ומקצועית:
+   1. מסך חשיבה (shimmer) עם טקסט מתחלף.
+   2. הדגשת שדות שמולאו ע"י AI עם כיתוב "מולא על ידי AI".
+   3. מסך יישור/סיבוב תמונות לפני ניתוח.
+   4. ליטושים כלליים ל-drawer, לכפתור ולסטטוס.
+   ─────────────────────────────────────────────────────────── */
+
+:root {
+  --ai-blue: #2563eb;        /* blue-600  */
+  --ai-blue-strong: #1d4ed8; /* blue-700  */
+  --ai-blue-deep: #1e40af;   /* blue-800  */
+  --ai-cyan: #0ea5e9;        /* sky-500   */
+  --ai-blue-50: #eff6ff;
+  --ai-blue-100: #dbeafe;
+  --ai-blue-200: #bfdbfe;
+  --ai-blue-300: #93c5fd;
+  --ai-blue-soft: rgba(37, 99, 235, 0.10);
+  --ai-ink: #0f2f66;
+  --ai-radius: 14px;
+}
+
+/* ============================================================
+   1) THINKING OVERLAY — מסך "חושב..." מקצועי וקלאסי
+   ============================================================ */
+.ai-thinking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(7px) saturate(118%);
+  -webkit-backdrop-filter: blur(7px) saturate(118%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  direction: rtl;
+}
+.ai-thinking-overlay.show { opacity: 1; pointer-events: all; }
+
+.ai-thinking-card {
+  position: relative;
+  width: min(460px, 90vw);
+  padding: 30px 30px 26px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e6edf7;
+  box-shadow: 0 30px 70px -20px rgba(12, 32, 78, 0.45), 0 2px 6px rgba(15, 23, 42, 0.06);
+  text-align: right;
+  overflow: hidden;
+  transform: translateY(10px) scale(0.985);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ai-thinking-overlay.show .ai-thinking-card { transform: translateY(0) scale(1); }
+
+/* Top accent shimmer bar — subtle and classic */
+.ai-thinking-shimmer {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #1d4ed8, #0ea5e9, #1d4ed8, transparent);
+  background-size: 200% 100%;
+  animation: ai-shimmer-slide 2.1s linear infinite;
+}
+@keyframes ai-shimmer-slide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ai-thinking-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.ai-thinking-orb {
+  flex: 0 0 auto;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  background:
+    radial-gradient(120% 120% at 25% 10%, rgba(56,189,248,0.65) 0%, rgba(56,189,248,0) 55%),
+    linear-gradient(150deg, #12275f 0%, #1d4ed8 60%, #0ea5e9 130%);
+  box-shadow: 0 8px 20px -8px rgba(12, 32, 78, 0.7), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.ai-thinking-orb i { animation: ai-orb-float 2.6s ease-in-out infinite; }
+@keyframes ai-orb-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-2px) rotate(-6deg); }
+}
+.ai-thinking-heading { display: grid; gap: 4px; }
+.ai-thinking-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f2f66;
+  line-height: 1.2;
+}
+.ai-thinking-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+.ai-thinking-dots { display: inline-flex; align-items: flex-end; gap: 3px; height: 10px; }
+.ai-thinking-dots b {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  display: inline-block;
+  animation: ai-dot-bounce 1.2s ease-in-out infinite;
+}
+.ai-thinking-dots b:nth-child(2) { animation-delay: 0.15s; }
+.ai-thinking-dots b:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ai-dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40%           { transform: translateY(-5px); opacity: 1; }
+}
+
+.ai-thinking-message {
+  font-size: 14px;
+  color: #334155;
+  min-height: 20px;
+  font-weight: 600;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.ai-thinking-message.swap { opacity: 0; transform: translateY(5px); }
+
+.ai-thinking-track {
+  position: relative;
+  height: 6px;
+  width: 100%;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: #eef3fb;
+  overflow: hidden;
+}
+.ai-thinking-track-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%; width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1d4ed8, #0ea5e9);
+  animation: ai-track-move 1.4s ease-in-out infinite;
+}
+@keyframes ai-track-move {
+  0%   { left: -42%; }
+  100% { left: 100%; }
+}
+
+.ai-thinking-model {
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-shimmer,
+  .ai-thinking-orb i,
+  .ai-thinking-dots b,
+  .ai-thinking-track-fill { animation: none; }
+}
+
+/* ============================================================
+   2) הדגשת שדות שמולאו ע"י AI  (כחול, עם כיתוב "מולא על ידי AI")
+   ============================================================ */
+.ai-filled-field {
+  position: relative;
+  border-radius: 10px !important;
+  outline: 2px solid var(--ai-blue) !important;
+  outline-offset: 1px;
+  background-color: var(--ai-blue-50) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+  animation: ai-field-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes ai-field-pop {
+  0%   { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); outline-color: transparent; }
+  60%  { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.22); }
+  100% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14); }
+}
+
+.ai-field-wrap { position: relative; display: block; }
+
+/* תווית "מולא על ידי AI" */
+.ai-verify-badge {
+  position: absolute;
+  top: -10px;
+  inset-inline-end: 8px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ai-blue), var(--ai-cyan));
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+  white-space: nowrap;
+  cursor: default;
+  animation: ai-badge-in 0.4s ease;
+}
+.ai-verify-badge i { font-size: 10px; }
+@keyframes ai-badge-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ai-verify-badge .ai-verify-ok {
+  margin-inline-start: 4px;
+  border: none;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-radius: 999px;
+  width: 16px; height: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.ai-verify-badge .ai-verify-ok:hover { background: rgba(255, 255, 255, 0.55); }
+
+/* מצב מאומת — ירוק ודהוי */
+.ai-filled-field.ai-verified {
+  outline-color: #16a34a !important;
+  background-color: #f0fdf4 !important;
+  box-shadow: none;
+  animation: none;
+}
+.ai-verify-badge.ai-verified {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.3);
+}
+
+/* מקרא צף */
+.ai-verify-legend {
+  position: fixed;
+  bottom: 18px;
+  inset-inline-start: 18px;
+  z-index: 9997;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--ai-blue-200);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  color: var(--ai-blue-deep);
+  direction: rtl;
+}
+.ai-verify-legend.show { display: flex; }
+.ai-verify-legend .dot {
+  width: 12px; height: 12px; border-radius: 4px;
+  background: var(--ai-blue-50);
+  border: 2px solid var(--ai-blue);
+  display: inline-block;
+}
+.ai-verify-legend .count { font-weight: 800; }
+.ai-verify-legend button {
+  margin-inline-start: 6px;
+  border: none;
+  background: var(--ai-blue);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ai-verify-legend button:hover { background: var(--ai-blue-strong); }
+
+/* ============================================================
+   3) מסך יישור/סיבוב תמונות
+   ============================================================ */
+.ai-rotate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  direction: rtl;
+}
+.ai-rotate-overlay.show { opacity: 1; pointer-events: all; }
+
+.ai-rotate-card {
+  width: min(560px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(29, 78, 216, 0.28);
+  padding: 0 0 22px;
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ai-rotate-overlay.show .ai-rotate-card { transform: translateY(0) scale(1); }
+
+.ai-rotate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ai-blue-strong), var(--ai-cyan));
+  border-radius: 20px 20px 0 0;
+}
+.ai-rotate-head h3 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 9px; color: #fff; }
+.ai-rotate-x {
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.ai-rotate-x:hover { background: rgba(255, 255, 255, 0.3); }
+
+.ai-rotate-hint {
+  margin: 16px 22px 8px;
+  padding: 12px 14px;
+  background: var(--ai-blue-50);
+  border: 1px solid var(--ai-blue-200);
+  border-radius: 12px;
+  color: var(--ai-blue-deep);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ai-rotate-stage {
+  margin: 8px 22px;
+  min-height: 300px;
+  max-height: 46vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-conic-gradient(#f1f5f9 0% 25%, #ffffff 0% 50%) 50% / 22px 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ai-rotate-img {
+  max-width: 100%;
+  max-height: 44vh;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ai-rotate-counter {
+  text-align: center;
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ai-blue-strong);
+}
+
+.ai-rotate-tools {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 8px 22px 4px;
+}
+.ai-rotate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--ai-blue-200);
+  background: var(--ai-blue-50);
+  color: var(--ai-blue-deep);
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.ai-rotate-btn:hover { background: var(--ai-blue-100); border-color: var(--ai-blue-300); }
+
+.ai-rotate-nav {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 16px 22px 0;
+}
+.ai-nav-btn {
+  flex: 1;
+  border: 0;
+  border-radius: 11px;
+  padding: 12px 16px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.15s ease;
+}
+.ai-nav-btn.ghost {
+  background: #f1f5f9;
+  color: #475569;
+}
+.ai-nav-btn.ghost:hover:not(:disabled) { background: #e2e8f0; }
+.ai-nav-btn.ghost:disabled { opacity: 0.45; cursor: default; }
+.ai-nav-btn.primary {
+  background: linear-gradient(135deg, var(--ai-blue), var(--ai-cyan));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.32);
+}
+.ai-nav-btn.primary:hover { filter: brightness(1.05); }
+.ai-nav-btn.primary.send {
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.32);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-rotate-img, .ai-rotate-card { transition: none; }
+}
+
+/* ============================================================
+   4) ליטושים כלליים — כפתור, סטטוס, כרטיס תוצאה
+   ============================================================ */
+#btn-ai-mode {
+  /* מתאים למראה שאר כפתורי הסיידבר - ראה layout.css .nav-item */
+}
+#btn-ai-mode:hover {
+  /* יורש מ-.nav-item:hover ב-layout.css */
+}
+ 
+ 
+
+
+/* דוח צדדי לכל השדות שמולאו על ידי AI */
+.ai-review-report{position:fixed;z-index:2050;top:216px;left:16px;width:min(300px,calc(100vw - 32px));max-height:calc(100vh - 430px);display:flex;flex-direction:column;direction:rtl;overflow:hidden;border:1px solid #bfdbfe;border-radius:16px;background:rgba(255,255,255,.98);box-shadow:0 18px 46px rgba(15,23,42,.22);backdrop-filter:blur(10px)}
+.ai-review-report.hidden{display:none}.ai-report-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;color:#fff;background:linear-gradient(135deg,#1d4ed8,#0284c7)}.ai-report-heading{display:grid;gap:2px;min-width:0}.ai-report-header .ai-report-header-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}.ai-report-verify-all{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.16);color:#fff;font-size:11px;font-weight:700;border-radius:8px;padding:6px 9px;cursor:pointer;white-space:nowrap;transition:background .15s ease}.ai-report-verify-all:hover{background:rgba(255,255,255,.28)}.ai-review-report.collapsed .ai-report-verify-all{display:none!important}
+.ai-report-header>div{display:grid;gap:2px}.ai-report-header strong{display:flex;align-items:center;gap:7px;font-size:14px}.ai-report-header small{font-size:11px;opacity:.86}.ai-report-toggle{width:32px;height:32px;border:0;border-radius:9px;color:#fff;background:rgba(255,255,255,.16);cursor:pointer}.ai-report-pages{padding:10px;overflow:auto}.ai-report-page{margin:0 0 9px}.ai-report-page h4{display:flex;align-items:center;justify-content:space-between;margin:0 2px 6px;color:#334155;font-size:12px}.ai-report-page h4 span{min-width:22px;padding:2px 7px;border-radius:999px;color:#1d4ed8;background:#dbeafe;text-align:center}.ai-report-item{width:100%;display:grid;grid-template-columns:22px 1fr 14px;align-items:center;gap:8px;margin:5px 0;padding:9px 10px;border:1px solid #dbeafe;border-radius:10px;color:#1e3a8a;background:#f8fbff;text-align:right;cursor:pointer}.ai-report-item:hover{border-color:#60a5fa;background:#eff6ff;transform:translateX(2px)}.ai-report-item>span:nth-child(2){display:grid;gap:2px;min-width:0}.ai-report-item strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.ai-report-item small{color:#64748b;font-size:10px}.ai-report-item>.fa-arrow-left{color:#60a5fa;font-size:10px}.ai-report-item.verified{border-color:#a7f3d0;color:#047857;background:#ecfdf5}.ai-review-report.collapsed{width:auto;max-height:56px}.ai-review-report.collapsed .ai-report-heading,.ai-review-report.collapsed .ai-report-pages{display:none}.ai-review-report.collapsed .ai-report-header{padding:9px 11px;justify-content:center}.ai-review-report.collapsed .ai-report-header .ai-report-header-actions{gap:0}.ai-review-report.collapsed .ai-report-toggle i{transform:rotate(180deg)}
+/* זן מוזן כ-chip, ולכן המסגרת והתווית מוצמדות ל-chip עצמו */
+.variety-tag.ai-filled-field{position:relative;outline:2px solid #7c3aed!important;outline-offset:2px;background:#f5f3ff!important}.ai-focus-pulse{animation:aiFocusPulse .55s ease-in-out 3}@keyframes aiFocusPulse{50%{box-shadow:0 0 0 7px rgba(37,99,235,.22)}}
+@media(max-width:900px){.ai-review-report{top:auto;bottom:154px;left:12px;right:12px;width:auto;max-height:45vh}}
+ 
+ 
+
+@media(max-height:720px){.ai-review-report{max-height:38vh}}
+
+/* Clear the top review bar when it is active. */
+body:has(#ai-review-bar:not(.hidden)) .ai-review-report{top:216px;max-height:calc(100vh - 430px)}
+
+/* ============================================================
+   שורות טבלה שמולאו על ידי AI (כמו "פיזור קומפוסט")
+   ============================================================ */
+tr.ai-filled-row > td {
+  background-color: var(--ai-blue-50) !important;
+  box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.18);
+}
+tr.ai-filled-row > td:first-child {
+  box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.18);
+  position: relative;
+}
+/* מסגרת כחולה סביב כל השורה, מיושמת דרך התאים הקיצוניים כדי לעבוד גם בטבלה */
+tr.ai-filled-row > td:first-child { border-inline-start: 3px solid var(--ai-blue); }
+tr.ai-filled-row > td:last-child { border-inline-end: 3px solid var(--ai-blue); }
+tr.ai-filled-row > td:first-child,
+tr.ai-filled-row > td:last-child { border-top: 1px solid rgba(37,99,235,.35); border-bottom: 1px solid rgba(37,99,235,.35); }
+
+.ai-row-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ai-blue);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px -3px rgba(37, 99, 235, 0.5);
+}
+.ai-row-badge i { font-size: 10px; }
+.ai-row-badge .ai-verify-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+}
+.ai-row-badge .ai-verify-ok:hover { background: rgba(255, 255, 255, 0.5); }
+
+/* מצב מאומת (ירוק) */
+tr.ai-filled-row.ai-verified > td { background-color: #ecfdf5 !important; }
+tr.ai-filled-row.ai-verified > td:first-child { border-inline-start-color: #10b981; }
+tr.ai-filled-row.ai-verified > td:last-child { border-inline-end-color: #10b981; }
+tr.ai-filled-row.ai-verified > td:first-child,
+tr.ai-filled-row.ai-verified > td:last-child { border-top-color: rgba(16,185,129,.4); border-bottom-color: rgba(16,185,129,.4); }
+.ai-row-badge.ai-verified { background: #10b981; box-shadow: 0 4px 10px -3px rgba(16, 185, 129, 0.5); }

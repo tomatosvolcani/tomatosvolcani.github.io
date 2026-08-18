@@ -13,6 +13,7 @@ import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
+import { getLeadResearchersText } from "./lead-researchers.js?v=20260818-1";
 
 let currentUser = null;
 let userData = null;
@@ -401,7 +402,7 @@ function createExportCard(exp) {
             <div class="export-card-meta">
                 ${dateStr ? `<span><i class="fas fa-calendar-alt"></i>${dateStr}</span>` : ''}
                 ${site ? `<span><i class="fas fa-map-marker-alt"></i>${site}</span>` : ''}
-                ${exp.data.leadResearcher ? `<span><i class="fas fa-user"></i>${exp.data.leadResearcher}</span>` : ''}
+                ${getLeadResearchersText(exp.data) ? `<span><i class="fas fa-user"></i>${getLeadResearchersText(exp.data)}</span>` : ''}
             </div>
         </div>
         <div class="export-card-actions">
@@ -594,7 +595,7 @@ function buildExcelWorkbook(data) {
     // ── 1. תוכנית הניסוי ──
     addSection('תוכנית הניסוי');
     addField('שם הניסוי', data.experimentName);
-    addField('חוקר מוביל', data.leadResearcher);
+    addField('חוקרים מובילים', getLeadResearchersText(data, { includeEmail: true, separator: '; ' }));
     addField('שותפים', (data.partners || []).map(p => `${p.name} (${p.email})`).join(', '));
     addField('שנת ניסוי', data.experimentYear);
     addField('חודש ניסוי', data.experimentMonth);
@@ -988,5 +989,3 @@ async function addStorageFilesToZip(zip, exp, setProgress) {
 function sanitizeFileName(name) {
     return name.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
 }
-
-

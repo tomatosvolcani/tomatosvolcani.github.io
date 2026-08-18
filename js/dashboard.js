@@ -19,6 +19,7 @@ import { initSystemTour } from "./system-tour.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { getRole } from "./permissions-utils.js";
 import { siteLabel } from "./labels.js";
+import { getLeadResearchersText } from "./lead-researchers.js?v=20260818-1";
 
 let currentUser = null;
 let userData = null;
@@ -258,6 +259,10 @@ function displayAdminMenu() {
         <a href="admin-experiments.html" class="nav-item">
             <i class="fas fa-flask"></i>
             <span>כל הניסויים</span>
+        </a>
+        <a href="researcher-activity.html" class="nav-item">
+            <i class="fas fa-ranking-star"></i>
+            <span>פעילות חוקרים</span>
         </a>
         <a href="bi.html" class="nav-item">
             <i class="fas fa-chart-bar"></i>
@@ -555,6 +560,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
     if (role === 'admin') permissionLabel = 'מנהל';
     else if (role === 'editor') permissionLabel = 'עורך';
     else if (role === 'viewer') permissionLabel = 'צפייה בלבד';
+    const leadResearchersText = getLeadResearchersText(data);
 
     card.innerHTML = `
         ${ownershipIcon}
@@ -565,7 +571,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         <p class="date">${formatDateIL(data.createdAt)}</p>
         ${permissionLabel ? `<span class="permission-badge">${permissionLabel}</span>` : ''}
         ${siteLabel(data.experimentSite) ? `<p class="site">${siteLabel(data.experimentSite)}</p>` : ''}
-        ${isShared && data.leadResearcher ? `<p class="owner-name">חוקר מוביל: ${data.leadResearcher}</p>` : ''}
+        ${isShared && leadResearchersText ? `<p class="owner-name">חוקרים מובילים: ${leadResearchersText}</p>` : ''}
         
         <div class="visibility-badge-card ${visClass}">
             <i class="fas ${visIcon}"></i> ${visText}
@@ -639,7 +645,11 @@ async function createNewExperiment() {
             experimentName: experimentName,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            leadResearcher: leadResearcherName,
+            leadResearchers: [{
+                uid: currentUser.uid,
+                name: leadResearcherName,
+                email: userData?.email || currentUser.email || ''
+            }],
             partners: [],
             experimentPartners: [],
             creatorName: leadResearcherName,

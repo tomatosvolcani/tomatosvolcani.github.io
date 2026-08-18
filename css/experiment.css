@@ -629,6 +629,57 @@
     cursor: default;
 }
 
+.lead-researcher-legacy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid #f5c66a;
+    border-radius: 10px;
+    background: #fff8e8;
+    color: #784f08;
+    font-size: 13px;
+}
+
+.lead-researcher-legacy[hidden] {
+    display: none;
+}
+
+.lead-researcher-legacy strong,
+.lead-researcher-legacy span {
+    display: block;
+}
+
+.lead-researcher-legacy span {
+    margin-top: 4px;
+    color: #5f4a24;
+}
+
+.lead-researcher-legacy-remove {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 1px solid #e4ad47;
+    border-radius: 8px;
+    background: #fff;
+    color: #8a5700;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lead-researchers-help {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+    .lead-researcher-legacy {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 /* Experiment Creator readonly field */
 .readonly-field {
     background: #f8f9fb !important;

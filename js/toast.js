@@ -339,4 +339,3 @@ function runCountdown(button, endTime, originalText, storageKey) {
 
     return interval;
 }
-

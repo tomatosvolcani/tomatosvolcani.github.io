@@ -332,4 +332,3 @@ async function handleLogout() {
         console.error("Error signing out:", error);
     }
 }
-

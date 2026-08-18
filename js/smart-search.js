@@ -15,6 +15,11 @@ import { showToast } from "./toast.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { timestampToDate } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
+import {
+    getLeadResearchersText,
+    needsLeadResearcherMigration,
+    normalizeLeadResearchers
+} from "./lead-researchers.js?v=20260818-1";
 
 const ACTIVE_EXPERIMENT_CONTEXT_KEY = "research-map-active-experiment-context";
 const BOOT_LOADER_MIN_MS = 5000;
@@ -40,7 +45,7 @@ const SOURCE_PRIORITY = {
 const SEARCH_FIELDS = [
     { key: "searchBlocks.value", label: "כל תוכן הניסוי", checked: true },
     { key: "experimentName", label: "שם הניסוי", checked: true },
-    { key: "leadResearcher", label: "חוקר מוביל", checked: true },
+    { key: "leadResearcher", label: "חוקרים מובילים", checked: true },
     { key: "experimentSite", label: "אתר", checked: true },
     { key: "experimentYear", label: "שנה", checked: true },
     { key: "workPackage", label: "חבילת עבודה", checked: true },
@@ -51,7 +56,7 @@ const SEARCH_FIELDS = [
 
 const DIRECT_SEARCH_LABELS = {
     experimentName: "שם הניסוי",
-    leadResearcher: "חוקר מוביל",
+    leadResearcher: "חוקרים מובילים",
     experimentSite: "אתר",
     experimentYear: "שנה",
     workPackage: "חבילת עבודה",
@@ -63,7 +68,7 @@ const DIRECT_SEARCH_LABELS = {
 
 const PATH_LABELS = {
     experimentName: "שם הניסוי",
-    leadResearcher: "חוקר מוביל",
+    leadResearcher: "חוקרים מובילים",
     partners: "שותפים",
     name: "שם",
     email: "אימייל",
@@ -520,6 +525,8 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
     const safeData = data || {};
     const partners = Array.isArray(safeData.partners) ? safeData.partners : [];
     const keywords = Array.isArray(safeData.keywords) ? safeData.keywords : [];
+    const leadResearchers = normalizeLeadResearchers(safeData);
+    const leadResearcherText = getLeadResearchersText(leadResearchers);
 
     const normalized = {
         id,
@@ -527,7 +534,10 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
         source,
         data: safeData,
         experimentName: stringValue(safeData.experimentName),
-        leadResearcher: stringValue(safeData.leadResearcher),
+        leadResearchers,
+        leadResearcherUids: leadResearchers.map((researcher) => researcher.uid),
+        leadResearcher: leadResearcherText,
+        needsLeadResearcherMigration: needsLeadResearcherMigration(safeData),
         experimentSite: siteLabel(safeData.experimentSite) || stringValue(safeData.labCellNumber),
         experimentYear: stringValue(safeData.experimentYear),
         workPackageCode: stringValue(safeData.workPackage),
@@ -538,7 +548,10 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
         createdAtMs: timestampToDate(safeData.createdAt)?.getTime() || 0
     };
 
-    normalized.searchBlocks = buildSearchBlocks(safeData);
+    normalized.searchBlocks = buildSearchBlocks({
+        ...safeData,
+        leadResearcher: leadResearchers.flatMap((researcher) => [researcher.name, researcher.email]).filter(Boolean).join(' ')
+    });
     normalized.fullText = normalized.searchBlocks.map((block) => block.value).join(" ");
     normalized.searchKey = getExperimentKey(ownerUid, id);
 
@@ -569,7 +582,30 @@ function populateFilterOptions() {
 
     populateSelect("filter-year", uniqueSortedValues(base, "experimentYear", true));
     populateSelect("filter-work-package", uniqueSortedValues(base, "workPackageCode"), packageLabel);
-    populateSelect("filter-researcher", uniqueSortedValues(base, "leadResearcher"));
+    populateResearcherSelect(base);
+}
+
+function populateResearcherSelect(experiments) {
+    const select = document.getElementById('filter-researcher');
+    if (!select) return;
+    const previousValue = select.value;
+    const researchers = new Map();
+    experiments.forEach((experiment) => {
+        experiment.leadResearchers.forEach((researcher) => {
+            if (!researchers.has(researcher.uid)) researchers.set(researcher.uid, researcher);
+        });
+    });
+
+    select.replaceChildren(new Option('הכל', ''));
+    Array.from(researchers.values())
+        .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'he'))
+        .forEach((researcher) => {
+            const label = researcher.name && researcher.email
+                ? `${researcher.name} (${researcher.email})`
+                : (researcher.name || researcher.email || researcher.uid);
+            select.appendChild(new Option(label, researcher.uid));
+        });
+    select.value = researchers.has(previousValue) ? previousValue : '';
 }
 
 function populateSelect(id, values, labelFn) {
@@ -598,7 +634,7 @@ function applyFiltersAndSearch() {
     const filtered = base.filter((experiment) => {
         return (!year || experiment.experimentYear === year)
             && (!workPackage || experiment.workPackageCode === workPackage)
-            && (!researcher || experiment.leadResearcher === researcher);
+            && (!researcher || experiment.leadResearcherUids.includes(researcher));
     });
 
     filteredExperiments = runFuseSearch(filtered);
@@ -693,7 +729,9 @@ function renderResults() {
                     <strong>${highlightText(experiment.experimentName || "ניסוי ללא שם", searchWords)}</strong>
                     ${matchToggle}
                 </td>
-                <td data-label="חוקר מוביל">${highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
+                <td data-label="חוקרים מובילים">${experiment.needsLeadResearcherMigration
+                    ? '<span class="source-badge">נדרש עדכון</span>'
+                    : highlightText(experiment.leadResearcher || "לא צוין", searchWords)}</td>
                 <td data-label="אתר">${highlightText(experiment.experimentSite || "לא צוין", searchWords)}</td>
                 <td data-label="שנה">${highlightText(experiment.experimentYear || "-", searchWords)}</td>
                 <td data-label="חבילת עבודה">${highlightText(experiment.workPackage || "-", searchWords)}</td>
@@ -1436,7 +1474,7 @@ function proceedToSmartExport() {
         id: exp.id,
         ownerUid: exp.ownerUid,
         name: exp.experimentName || exp.data?.experimentName || '',
-        researcher: exp.leadResearcher || exp.data?.leadResearcher || ''
+        researcher: getLeadResearchersText(exp.data || exp)
     }));
 
     const extractFromFiles = document.getElementById('chk-extract-from-files')?.checked || false;
