@@ -228,17 +228,16 @@
             font-weight: 500;
         }
 
-        .experiments-table td:nth-child(2),
-        .experiments-table td:nth-child(3) {
+        .experiments-table .muted-cell {
             color: #6b7280;
         }
 
-        .experiments-table td:nth-child(4) {
+        .experiments-table .year-cell {
             font-weight: 500;
             color: #374151;
         }
 
-        .experiments-table td:nth-child(5) {
+        .experiments-table .created-date-cell {
             color: #9ca3af;
             font-size: 13px;
         }
@@ -466,7 +465,7 @@
             }
 
             /* הסתרת תאריך יצירה במובייל */
-            .experiments-table td:nth-child(5) {
+            .experiments-table .created-date-cell {
                 display: none;
             }
 
@@ -647,6 +646,7 @@
                     <thead>
                         <tr>
                             <th>שם הניסוי</th>
+                            <th>מקים הניסוי</th>
                             <th>חוקרים מובילים</th>
                             <th>אתר</th>
                             <th>שנה</th>
@@ -722,6 +722,6 @@
     <script src="js/chatbot.js?v=20260621-2"></script>
     <script type="module" src="js/research-map.js?v=20260621-2"></script>
     <script type="module" src="js/admin-status.js?v=20260818-1"></script>
-    <script type="module" src="js/admin-experiments.js?v=20260818-1"></script>
+    <script type="module" src="js/admin-experiments.js?v=20260818-2"></script>
 </body>
 </html>

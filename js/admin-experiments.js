@@ -291,9 +291,10 @@ function filterExperiments(searchTerm) {
     filteredExperiments = allExperiments.filter(exp => {
         if (term) {
             const name = (exp.experimentName || '').toLowerCase();
+            const creator = (exp.creatorName || '').toLowerCase();
             const researcher = getLeadResearchersSearchText(exp).toLowerCase();
             const site = (siteLabel(exp.experimentSite) || '').toLowerCase() + ' ' + (exp.experimentSite || '').toLowerCase();
-            return name.includes(term) || researcher.includes(term) || site.includes(term);
+            return name.includes(term) || creator.includes(term) || researcher.includes(term) || site.includes(term);
         }
         return true;
     });
@@ -332,6 +333,7 @@ function displayExperiments() {
         const row = document.createElement('tr');
 
         const name = experiment.experimentName || 'ניסוי ללא שם';
+        const creator = escapeHtml(experiment.creatorName || 'לא צוין');
         const researcher = escapeHtml(getLeadResearchersText(experiment, { separator: ' • ', fallback: 'לא צוין' }));
         const site = siteLabel(experiment.experimentSite) || 'לא צוין';
         const year = experiment.experimentYear || '-';
@@ -339,10 +341,11 @@ function displayExperiments() {
 
         row.innerHTML = `
             <td data-label="שם הניסוי"><strong>${name}</strong></td>
-            <td data-label="חוקרים מובילים">${researcher}</td>
-            <td data-label="אתר">${site}</td>
-            <td data-label="שנה">${year}</td>
-            <td data-label="תאריך יצירה">${createdDate}</td>
+            <td class="muted-cell" data-label="מקים הניסוי">${creator}</td>
+            <td class="muted-cell" data-label="חוקרים מובילים">${researcher}</td>
+            <td class="muted-cell" data-label="אתר">${site}</td>
+            <td class="year-cell" data-label="שנה">${year}</td>
+            <td class="created-date-cell" data-label="תאריך יצירה">${createdDate}</td>
             <td data-label="פעולות">
                 <button class="view-btn" data-experiment-id="${experiment.id}" data-owner-uid="${experiment.ownerUid}">
                     <i class="fas fa-eye"></i> צפייה
