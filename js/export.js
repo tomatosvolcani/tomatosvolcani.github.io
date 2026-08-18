@@ -390,6 +390,7 @@ function createExportCard(exp) {
     const name = exp.data.experimentName || 'ניסוי ללא שם';
     const site = siteLabel(exp.data.experimentSite) || '';
     const dateStr = formatDateIL(exp.data.createdAt);
+    const leadResearchersText = getLeadResearchersText(exp.data);
     const badge = exp.shared
         ? (isAdmin && exp.ownerUid !== currentUser.uid
             ? '<span class="export-badge shared"><i class="fas fa-user"></i> של משתמש אחר</span>'
@@ -402,7 +403,7 @@ function createExportCard(exp) {
             <div class="export-card-meta">
                 ${dateStr ? `<span><i class="fas fa-calendar-alt"></i>${dateStr}</span>` : ''}
                 ${site ? `<span><i class="fas fa-map-marker-alt"></i>${site}</span>` : ''}
-                ${getLeadResearchersText(exp.data) ? `<span><i class="fas fa-user"></i>${getLeadResearchersText(exp.data)}</span>` : ''}
+                ${leadResearchersText ? `<span><i class="fas fa-user"></i>${escapeHtml(leadResearchersText)}</span>` : ''}
             </div>
         </div>
         <div class="export-card-actions">
@@ -988,4 +989,13 @@ async function addStorageFilesToZip(zip, exp, setProgress) {
 // ── Helpers ──
 function sanitizeFileName(name) {
     return name.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').substring(0, 100);
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }

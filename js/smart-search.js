@@ -16,8 +16,10 @@ import { initServerTime, getTrustedNow } from "./server-time.js";
 import { timestampToDate } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 import {
+    getLeadResearchersSearchText,
     getLeadResearchersText,
     needsLeadResearcherMigration,
+    normalizeExternalLeadResearchers,
     normalizeLeadResearchers
 } from "./lead-researchers.js?v=20260818-1";
 
@@ -526,7 +528,8 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
     const partners = Array.isArray(safeData.partners) ? safeData.partners : [];
     const keywords = Array.isArray(safeData.keywords) ? safeData.keywords : [];
     const leadResearchers = normalizeLeadResearchers(safeData);
-    const leadResearcherText = getLeadResearchersText(leadResearchers);
+    const externalLeadResearchers = normalizeExternalLeadResearchers(safeData);
+    const leadResearcherText = getLeadResearchersText(safeData);
 
     const normalized = {
         id,
@@ -535,6 +538,7 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
         data: safeData,
         experimentName: stringValue(safeData.experimentName),
         leadResearchers,
+        externalLeadResearchers,
         leadResearcherUids: leadResearchers.map((researcher) => researcher.uid),
         leadResearcher: leadResearcherText,
         needsLeadResearcherMigration: needsLeadResearcherMigration(safeData),
@@ -550,7 +554,7 @@ function normalizeExperiment({ id, ownerUid, data, source }) {
 
     normalized.searchBlocks = buildSearchBlocks({
         ...safeData,
-        leadResearcher: leadResearchers.flatMap((researcher) => [researcher.name, researcher.email]).filter(Boolean).join(' ')
+        leadResearcher: getLeadResearchersSearchText(safeData)
     });
     normalized.fullText = normalized.searchBlocks.map((block) => block.value).join(" ");
     normalized.searchKey = getExperimentKey(ownerUid, id);

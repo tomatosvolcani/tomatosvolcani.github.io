@@ -36,6 +36,7 @@ import {
 import {
     MAX_LEAD_RESEARCHERS,
     getLegacyLeadResearcherText,
+    normalizeExternalLeadResearchers,
     normalizeLeadResearchers
 } from "./lead-researchers.js?v=20260818-1";
 
@@ -3128,6 +3129,7 @@ function collectFormData() {
         publicAccess: publicAccess,
         experimentName: document.getElementById('experiment-name')?.value.trim() || experimentData?.experimentName || '',
         leadResearchers: collectLeadResearchers(),
+        externalLeadResearchers: collectExternalLeadResearchers(),
         partners,
         experimentPartners: collectExperimentPartners(),
         creatorName: document.getElementById('experiment-creator')?.value || '',
@@ -3203,7 +3205,10 @@ function collectFormData() {
 
 function shouldRemoveLegacyLeadResearcher(formData) {
     return Boolean(getLegacyLeadResearcherText(experimentData))
-        && normalizeLeadResearchers(formData).length > 0;
+        && (
+            normalizeLeadResearchers(formData).length > 0
+            || normalizeExternalLeadResearchers(formData).length > 0
+        );
 }
 
 function getExperimentWriteData(formData) {
@@ -3234,8 +3239,12 @@ async function saveExperiment() {
     }
 
     const formData = collectFormData();
-    if (legacyLeadResearcherRemovalRequested && normalizeLeadResearchers(formData).length === 0) {
-        showToast('יש לבחור לפחות חוקר מוביל אחד מהרשימה לפני השמירה', 'warning');
+    if (
+        legacyLeadResearcherRemovalRequested
+        && normalizeLeadResearchers(formData).length === 0
+        && normalizeExternalLeadResearchers(formData).length === 0
+    ) {
+        showToast('יש לבחור משתמש רשום או להוסיף לפחות חוקר מוביל חיצוני אחד לפני השמירה', 'warning');
         document.getElementById('lead-researcher-search')?.focus();
         return false;
     }
@@ -4264,6 +4273,7 @@ async function syncSharedExperiments(currentPartners, latestExperimentData = nul
             const cachedExperiment = {
                 experimentName: latestExperimentData?.experimentName ?? experimentData?.experimentName ?? '',
                 leadResearchers: normalizeLeadResearchers(latestExperimentData || experimentData),
+                externalLeadResearchers: normalizeExternalLeadResearchers(latestExperimentData || experimentData),
                 experimentYear: latestExperimentData?.experimentYear ?? experimentData?.experimentYear ?? '',
                 experimentSite: latestExperimentData?.experimentSite ?? experimentData?.experimentSite ?? '',
                 siteCoordinates: latestExperimentData?.siteCoordinates ?? experimentData?.siteCoordinates ?? '',
@@ -5293,6 +5303,9 @@ function populateLeadResearchers(data = {}) {
     normalizeLeadResearchers(data).forEach((researcher) => {
         addLeadResearcherChip(researcher, false);
     });
+    normalizeExternalLeadResearchers(data).forEach((researcherName) => {
+        addExternalLeadResearcherChip(researcherName, false);
+    });
 
     const legacyText = getLegacyLeadResearcherText(data);
     const legacyContainer = document.getElementById('lead-researcher-legacy');
@@ -5360,7 +5373,7 @@ function addLeadResearcherChip(researcherData, markEdited = true) {
 function collectLeadResearchers() {
     const listContainer = document.getElementById('lead-researchers-list');
     if (!listContainer) return [];
-    const researchers = Array.from(listContainer.querySelectorAll('.lead-researcher-chip')).map((chip) => ({
+    const researchers = Array.from(listContainer.querySelectorAll('.lead-researcher-chip:not(.external-lead-researcher-chip)')).map((chip) => ({
         uid: chip.dataset.uid || '',
         name: chip.dataset.name || '',
         email: chip.dataset.email || ''
@@ -5368,16 +5381,144 @@ function collectLeadResearchers() {
     return normalizeLeadResearchers(researchers);
 }
 
+function addExternalLeadResearcherChip(researcherName, markEdited = true) {
+    const listContainer = document.getElementById('lead-researchers-list');
+    const name = normalizeExternalLeadResearchers(researcherName)[0];
+    if (!listContainer || !name) return false;
+
+    const normalizedName = normalizeLeadResearcherValue(name);
+    const exists = collectExternalLeadResearchers()
+        .some((existingName) => normalizeLeadResearcherValue(existingName) === normalizedName);
+    if (exists) return false;
+    if (listContainer.querySelectorAll('.lead-researcher-chip').length >= MAX_LEAD_RESEARCHERS) {
+        showToast(`ניתן לבחור עד ${MAX_LEAD_RESEARCHERS} חוקרים מובילים`, 'warning');
+        return false;
+    }
+
+    const chip = document.createElement('span');
+    chip.className = 'experiment-partner-chip lead-researcher-chip external-lead-researcher-chip';
+    chip.dataset.externalName = name;
+
+    const nameElement = document.createElement('span');
+    nameElement.className = 'chip-name';
+    nameElement.textContent = name;
+    chip.appendChild(nameElement);
+
+    const badge = document.createElement('span');
+    badge.className = 'external-researcher-badge';
+    badge.textContent = '(משתמש לא רשום במערכת)';
+    chip.appendChild(badge);
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'chip-remove';
+    removeButton.title = 'הסרת חוקר מוביל חיצוני';
+    removeButton.setAttribute('aria-label', `הסרת ${name}`);
+    removeButton.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+    removeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (!permissionsState?.canEdit) {
+            showToast('אין הרשאת עריכה', 'error');
+            return;
+        }
+        chip.remove();
+        markUserEdited();
+    });
+    chip.appendChild(removeButton);
+    listContainer.appendChild(chip);
+
+    if (markEdited) markUserEdited();
+    return true;
+}
+
+function collectExternalLeadResearchers() {
+    const listContainer = document.getElementById('lead-researchers-list');
+    if (!listContainer) return [];
+    return normalizeExternalLeadResearchers(
+        Array.from(listContainer.querySelectorAll('.external-lead-researcher-chip'))
+            .map((chip) => chip.dataset.externalName || '')
+    );
+}
+
+function normalizeLeadResearcherValue(value) {
+    return String(value || '')
+        .normalize('NFKC')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLocaleLowerCase('he');
+}
+
+function getExternalLeadResearcherCandidates(rawValue) {
+    if (!hasLoadedPublicUsers) return [];
+    const registeredValues = new Set();
+    allUsers.forEach((user) => {
+        [user.fullName, user.email].forEach((value) => {
+            const normalized = normalizeLeadResearcherValue(value);
+            if (normalized) registeredValues.add(normalized);
+        });
+    });
+    const selectedExternal = new Set(
+        collectExternalLeadResearchers().map(normalizeLeadResearcherValue)
+    );
+
+    return normalizeExternalLeadResearchers(rawValue).filter((name) => {
+        const normalized = normalizeLeadResearcherValue(name);
+        return normalized.length >= 2
+            && !registeredValues.has(normalized)
+            && !selectedExternal.has(normalized);
+    });
+}
+
+function addExternalLeadResearchers(names) {
+    const listContainer = document.getElementById('lead-researchers-list');
+    if (!listContainer) return 0;
+    const normalizedNames = normalizeExternalLeadResearchers(names);
+    const availableSlots = Math.max(
+        0,
+        MAX_LEAD_RESEARCHERS - listContainer.querySelectorAll('.lead-researcher-chip').length
+    );
+    if (availableSlots === 0) {
+        showToast(`ניתן לבחור עד ${MAX_LEAD_RESEARCHERS} חוקרים מובילים`, 'warning');
+        return 0;
+    }
+
+    let addedCount = 0;
+    normalizedNames.slice(0, availableSlots).forEach((name) => {
+        if (addExternalLeadResearcherChip(name, false)) addedCount += 1;
+    });
+    if (normalizedNames.length > availableSlots) {
+        showToast(`נוספו ${addedCount} חוקרים. ניתן לבחור עד ${MAX_LEAD_RESEARCHERS} חוקרים מובילים בסך הכול`, 'warning');
+    }
+    if (addedCount > 0) {
+        markUserEdited();
+        legacyLeadResearcherRemovalRequested = false;
+        hideLegacyLeadResearcherNotice();
+    }
+    return addedCount;
+}
+
 function hideLegacyLeadResearcherNotice() {
     const legacyContainer = document.getElementById('lead-researcher-legacy');
     if (legacyContainer) legacyContainer.hidden = true;
 }
 
-function commitSelectedLeadResearcher() {
+function clearLeadResearcherSearch() {
     const searchInput = document.getElementById('lead-researcher-search');
     const suggestionsDiv = document.getElementById('lead-researcher-suggestions');
+    selectedLeadResearcher = null;
+    if (searchInput) searchInput.value = '';
+    if (suggestionsDiv) {
+        suggestionsDiv.replaceChildren();
+        suggestionsDiv.classList.remove('active');
+    }
+}
+
+function commitSelectedLeadResearcher() {
+    const searchInput = document.getElementById('lead-researcher-search');
     if (!selectedLeadResearcher) {
-        if (searchInput?.value.trim()) showToast('נא לבחור חוקר מתוך הרשימה', 'warning');
+        if (searchInput?.value.trim()) {
+            showToast('נא לבחור משתמש רשום מהרשימה או באפשרות להוספת חוקר שאינו רשום', 'warning');
+        }
         return false;
     }
 
@@ -5386,12 +5527,7 @@ function commitSelectedLeadResearcher() {
         name: selectedLeadResearcher.fullName || '',
         email: selectedLeadResearcher.email || ''
     });
-    selectedLeadResearcher = null;
-    if (searchInput) searchInput.value = '';
-    if (suggestionsDiv) {
-        suggestionsDiv.replaceChildren();
-        suggestionsDiv.classList.remove('active');
-    }
+    clearLeadResearcherSearch();
     if (added) {
         legacyLeadResearcherRemovalRequested = false;
         hideLegacyLeadResearcherNotice();
@@ -5426,6 +5562,7 @@ function initLeadResearcherAutocomplete() {
         matches.forEach((user) => {
             const item = document.createElement('div');
             item.className = 'suggestion-item';
+            item.dataset.suggestionType = 'registered';
             const name = document.createElement('div');
             name.className = 'suggestion-name';
             name.textContent = user.fullName || '—';
@@ -5441,26 +5578,84 @@ function initLeadResearcherAutocomplete() {
             });
             suggestionsDiv.appendChild(item);
         });
-        suggestionsDiv.classList.toggle('active', matches.length > 0);
+
+        const externalCandidates = getExternalLeadResearcherCandidates(searchInput.value);
+        if (externalCandidates.length > 0) {
+            const externalItem = document.createElement('div');
+            externalItem.className = 'suggestion-item external-lead-researcher-option';
+            externalItem.dataset.suggestionType = 'external';
+
+            const title = document.createElement('div');
+            title.className = 'suggestion-name';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-user-plus';
+            icon.setAttribute('aria-hidden', 'true');
+            const titleText = document.createElement('span');
+            titleText.textContent = externalCandidates.length === 1
+                ? `הוספת "${externalCandidates[0]}" כחוקר מוביל חיצוני`
+                : `הוספת ${externalCandidates.length} חוקרים מובילים חיצוניים`;
+            title.append(icon, titleText);
+
+            const description = document.createElement('div');
+            description.className = 'suggestion-email';
+            description.textContent = externalCandidates.length === 1
+                ? 'השם יישמר כמשתמש לא רשום במערכת'
+                : `${externalCandidates.join(', ')} — השמות יישמרו כמשתמשים שאינם רשומים במערכת`;
+
+            externalItem.append(title, description);
+            externalItem.addEventListener('click', () => {
+                addExternalLeadResearchers(externalCandidates);
+                clearLeadResearcherSearch();
+            });
+            suggestionsDiv.appendChild(externalItem);
+        }
+
+        suggestionsDiv.classList.toggle(
+            'active',
+            matches.length > 0 || externalCandidates.length > 0
+        );
     });
 
     searchInput.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        const firstSuggestion = suggestionsDiv.querySelector('.suggestion-item');
-        if (!selectedLeadResearcher && firstSuggestion) firstSuggestion.click();
+        if (selectedLeadResearcher) {
+            commitSelectedLeadResearcher();
+            return;
+        }
+        const firstRegisteredSuggestion = suggestionsDiv.querySelector('[data-suggestion-type="registered"]');
+        if (firstRegisteredSuggestion) {
+            firstRegisteredSuggestion.click();
+            commitSelectedLeadResearcher();
+            return;
+        }
+        const externalSuggestion = suggestionsDiv.querySelector('[data-suggestion-type="external"]');
+        if (externalSuggestion) {
+            externalSuggestion.click();
+            return;
+        }
         commitSelectedLeadResearcher();
     });
 
     addButton?.addEventListener('click', (event) => {
         event.preventDefault();
+        if (selectedLeadResearcher) {
+            commitSelectedLeadResearcher();
+            return;
+        }
+        const registeredSuggestion = suggestionsDiv.querySelector('[data-suggestion-type="registered"]');
+        const externalSuggestion = suggestionsDiv.querySelector('[data-suggestion-type="external"]');
+        if (!registeredSuggestion && externalSuggestion) {
+            externalSuggestion.click();
+            return;
+        }
         commitSelectedLeadResearcher();
     });
 
     removeLegacyButton?.addEventListener('click', () => {
         legacyLeadResearcherRemovalRequested = true;
         hideLegacyLeadResearcherNotice();
-        showToast('הערך הישן הוסר מהטופס. כעת יש לבחור חוקר או חוקרים מהרשימה ולשמור.', 'info');
+        showToast('הערך הישן הוסר מהטופס. כעת יש לבחור משתמש רשום או להוסיף חוקר חיצוני ולשמור.', 'info');
         searchInput.focus();
     });
 

@@ -918,7 +918,7 @@ export function createExperimentAIIntegration(adapter) {
         const payload = { updatedAt: serverTimestamp() };
         if (viewName === 'basic') {
             const keys = [
-                'experimentName', 'leadResearchers', 'experimentYear', 'experimentMonth', 'researchPeriod', 'studyType',
+                'experimentName', 'leadResearchers', 'externalLeadResearchers', 'experimentYear', 'experimentMonth', 'researchPeriod', 'studyType',
                 'workPackage', 'experimentSite', 'experimentSiteSelection', 'experimentSiteOther', 'siteCoordinates',
                 'labCellNumber', 'experimentGoal', 'experimentSummary', 'treatmentsCount', 'repetitionsCount', 'treatments',
                 'independentVariables', 'levelsCount', 'levelValue', 'dependentVariables', 'keywords'

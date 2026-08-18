@@ -571,7 +571,7 @@ function createExperimentCard(id, data, ownerUid, isShared = false) {
         <p class="date">${formatDateIL(data.createdAt)}</p>
         ${permissionLabel ? `<span class="permission-badge">${permissionLabel}</span>` : ''}
         ${siteLabel(data.experimentSite) ? `<p class="site">${siteLabel(data.experimentSite)}</p>` : ''}
-        ${isShared && leadResearchersText ? `<p class="owner-name">חוקרים מובילים: ${leadResearchersText}</p>` : ''}
+        ${isShared && leadResearchersText ? `<p class="owner-name">חוקרים מובילים: ${escapeHtml(leadResearchersText)}</p>` : ''}
         
         <div class="visibility-badge-card ${visClass}">
             <i class="fas ${visIcon}"></i> ${visText}
@@ -650,6 +650,7 @@ async function createNewExperiment() {
                 name: leadResearcherName,
                 email: userData?.email || currentUser.email || ''
             }],
+            externalLeadResearchers: [],
             partners: [],
             experimentPartners: [],
             creatorName: leadResearcherName,
@@ -721,6 +722,15 @@ async function handleLogout() {
     } catch (error) {
         console.error("Error signing out:", error);
     }
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 document.addEventListener('DOMContentLoaded', () => {
     initSystemTour();

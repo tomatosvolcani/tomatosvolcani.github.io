@@ -10,7 +10,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260729-1";
-import { normalizeLeadResearchers } from "./lead-researchers.js?v=20260818-1";
+import {
+    normalizeExternalLeadResearchers,
+    normalizeLeadResearchers
+} from "./lead-researchers.js?v=20260818-1";
 
 let activityRows = [];
 
@@ -184,6 +187,14 @@ function calculateActivity(experimentsSnapshot, directory) {
         normalizeLeadResearchers(data).forEach((leadResearcher) => {
             const lead = resolveIdentity(leadResearcher, directory);
             if (lead) addRole(activityByResearcher, lead, "lead", experimentKey);
+        });
+        normalizeExternalLeadResearchers(data).forEach((name) => {
+            addRole(activityByResearcher, {
+                key: `external:${normalize(name)}`,
+                uid: "",
+                name: `${name} (משתמש לא רשום במערכת)`,
+                email: ""
+            }, "lead", experimentKey);
         });
     });
 

@@ -601,6 +601,21 @@
     color: #1d2f4a;
 }
 
+.external-lead-researcher-chip {
+    max-width: 100%;
+}
+
+.external-lead-researcher-chip .chip-name {
+    overflow-wrap: anywhere;
+}
+
+.external-lead-researcher-chip .external-researcher-badge {
+    color: #b91c1c;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .experiment-partner-chip .chip-remove {
     display: inline-flex;
     align-items: center;
@@ -669,6 +684,8 @@
 }
 
 .lead-researchers-help {
+    display: block;
+    margin: 4px 0 10px;
     color: #64748b;
     line-height: 1.5;
 }
@@ -765,6 +782,26 @@
     font-size: 11px;
     color: #999;
     margin-top: 2px;
+}
+
+.suggestion-item.external-lead-researcher-option {
+    background: #fff8f8;
+    border-top: 1px solid #fecaca;
+}
+
+.suggestion-item.external-lead-researcher-option:hover {
+    background: #fff1f2;
+}
+
+.suggestion-item.external-lead-researcher-option .suggestion-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #9f1239;
+}
+
+.suggestion-item.external-lead-researcher-option .suggestion-email {
+    color: #7f1d1d;
 }
 
 .btn-add {

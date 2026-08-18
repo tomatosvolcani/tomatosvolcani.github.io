@@ -20,7 +20,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
-import { getLeadResearchersText, normalizeLeadResearchers } from "./lead-researchers.js?v=20260818-1";
+import {
+    getLeadResearchersText,
+    normalizeExternalLeadResearchers,
+    normalizeLeadResearchers
+} from "./lead-researchers.js?v=20260818-1";
 
 let currentUser = null;
 let userData    = null;
@@ -305,11 +309,25 @@ function computeStats(exps) {
 
         // lead researcher
         const leadResearchers = normalizeLeadResearchers(e);
-        if (!leadResearchers.length) bump(stats.freqResearcher, 'לא צוין');
+        const externalLeadResearchers = normalizeExternalLeadResearchers(e);
+        if (!leadResearchers.length && !externalLeadResearchers.length) {
+            bump(stats.freqResearcher, 'לא צוין');
+        }
         leadResearchers.forEach((leadResearcher) => {
             const researcher = getLeadResearchersText([leadResearcher], { includeEmail: true });
             bump(stats.freqResearcher, researcher);
             if (!stats.researcherStats[researcher]) stats.researcherStats[researcher] = { total: 0, field: 0, lab: 0 };
+            const rs = stats.researcherStats[researcher];
+            rs.total += 1;
+            if (study === 'field') rs.field += 1;
+            if (study === 'lab')   rs.lab   += 1;
+        });
+        externalLeadResearchers.forEach((name) => {
+            const researcher = `${name} (משתמש לא רשום במערכת)`;
+            bump(stats.freqResearcher, researcher);
+            if (!stats.researcherStats[researcher]) {
+                stats.researcherStats[researcher] = { total: 0, field: 0, lab: 0 };
+            }
             const rs = stats.researcherStats[researcher];
             rs.total += 1;
             if (study === 'field') rs.field += 1;
