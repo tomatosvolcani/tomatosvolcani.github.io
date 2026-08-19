@@ -12,6 +12,33 @@
     align-items: flex-start;
 }
 
+.research-map-widget.align-right {
+    align-items: flex-end;
+}
+
+.research-map-widget.align-right .research-map-panel {
+    right: 0;
+    left: auto;
+    transform-origin: bottom right;
+}
+
+.research-map-widget.align-right .research-map-hint {
+    right: 0;
+    left: auto;
+}
+
+.research-map-widget.align-right .research-map-hint::after {
+    right: 20px;
+    left: auto;
+}
+
+.research-map-widget.align-right .research-map-hint-arrow {
+    right: 20px;
+    left: auto;
+    transform: translateX(50%);
+    animation-name: researchMapHintArrowRight;
+}
+
 .btn-research-map-toggle {
     min-width: 86px;
     min-height: 86px;
@@ -28,6 +55,9 @@
     cursor: pointer;
     box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.35);
     transition: transform 0.25s ease, background-color 0.25s ease;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .research-map-widget.dragging .btn-research-map-toggle,
@@ -90,6 +120,10 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .research-map-panel-title {
@@ -208,6 +242,18 @@
     }
     50% {
         transform: translate(-50%, 4px);
+        opacity: 1;
+    }
+}
+
+@keyframes researchMapHintArrowRight {
+    0%,
+    100% {
+        transform: translate(50%, -2px);
+        opacity: 0.55;
+    }
+    50% {
+        transform: translate(50%, 4px);
         opacity: 1;
     }
 }
@@ -365,7 +411,10 @@
 @media (max-width: 640px) {
     .research-map-widget {
         left: 12px;
+        right: auto;
         bottom: 86px;
+        width: fit-content;
+        max-width: calc(100vw - 24px);
     }
 
     .btn-research-map-toggle {

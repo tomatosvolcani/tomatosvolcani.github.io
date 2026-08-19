@@ -6,6 +6,7 @@ import { showToast } from "./toast.js";
 
 const ACTIVE_CONTEXT_KEY = "research-map-active-experiment-context";
 const RESEARCH_MAP_HINT_DISMISSED_KEY = "research-map-hint-dismissed";
+const RESEARCH_MAP_MOBILE_SIDE_KEY = "research-map-mobile-side";
 const MAX_MAP_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_MAP_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"];
 
@@ -296,14 +297,60 @@ function initDrag() {
 
     let isDragging = false;
     let hasMoved = false;
+    let activePointerId = null;
+    let dragHandle = null;
     let startX = 0;
     let startY = 0;
     let originalLeft = 0;
     let originalBottom = 0;
     const dragThreshold = 5;
+    const mobileBreakpoint = 768;
+    const edgeMargin = 12;
+
+    const isMobileViewport = () => window.innerWidth <= mobileBreakpoint;
+
+    const getSavedMobileSide = () => {
+        try {
+            return localStorage.getItem(RESEARCH_MAP_MOBILE_SIDE_KEY);
+        } catch {
+            return null;
+        }
+    };
+
+    const saveMobileSide = (side) => {
+        try {
+            localStorage.setItem(RESEARCH_MAP_MOBILE_SIDE_KEY, side);
+        } catch {
+            // Position persistence is optional.
+        }
+    };
+
+    const applySide = (side, persist = true) => {
+        const rect = widgetElements.widget.getBoundingClientRect();
+        const safeLeft = side === "right"
+            ? Math.max(edgeMargin, window.innerWidth - rect.width - edgeMargin)
+            : edgeMargin;
+
+        widgetElements.widget.style.left = `${safeLeft}px`;
+        widgetElements.widget.style.right = "auto";
+        widgetElements.widget.classList.toggle("align-right", side === "right");
+        if (persist) saveMobileSide(side);
+    };
+
+    const snapToNearestSide = (persist = true) => {
+        const rect = widgetElements.widget.getBoundingClientRect();
+        const leftDistance = rect.left;
+        const rightDistance = window.innerWidth - rect.right;
+        applySide(leftDistance <= rightDistance ? "left" : "right", persist);
+    };
+
+    const updatePanelAlignment = () => {
+        const rect = widgetElements.widget.getBoundingClientRect();
+        widgetElements.widget.classList.toggle("align-right", rect.left + rect.width / 2 > window.innerWidth / 2);
+    };
 
     const beginDrag = (event) => {
-        if (event.button !== undefined && event.button !== 0) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
 
         const widgetRect = widgetElements.widget.getBoundingClientRect();
         originalLeft = widgetRect.left;
@@ -312,13 +359,24 @@ function initDrag() {
         startY = event.clientY;
         hasMoved = false;
         isDragging = true;
+        activePointerId = event.pointerId;
+        dragHandle = event.currentTarget;
 
-        document.addEventListener("pointermove", onPointerMove);
+        if (dragHandle?.setPointerCapture) {
+            try {
+                dragHandle.setPointerCapture(activePointerId);
+            } catch {
+                // Document listeners below remain as a fallback.
+            }
+        }
+
+        document.addEventListener("pointermove", onPointerMove, { passive: false });
         document.addEventListener("pointerup", onPointerUp);
+        document.addEventListener("pointercancel", onPointerUp);
     };
 
     const onPointerMove = (event) => {
-        if (!isDragging) return;
+        if (!isDragging || event.pointerId !== activePointerId) return;
 
         const dx = event.clientX - startX;
         const dy = event.clientY - startY;
@@ -327,6 +385,7 @@ function initDrag() {
         if (!hasMoved && distance < dragThreshold) return;
 
         hasMoved = true;
+        event.preventDefault();
         widgetElements.widget.classList.add("dragging");
 
         let nextLeft = originalLeft + dx;
@@ -342,25 +401,76 @@ function initDrag() {
         widgetElements.widget.style.left = `${nextLeft}px`;
         widgetElements.widget.style.bottom = `${nextBottom}px`;
         widgetElements.widget.style.right = "auto";
+        updatePanelAlignment();
     };
 
-    const onPointerUp = () => {
-        if (!isDragging) return;
-        isDragging = false;
+    const onPointerUp = (event) => {
+        if (!isDragging || (event.pointerId !== undefined && event.pointerId !== activePointerId)) return;
 
-        document.removeEventListener("pointermove", onPointerMove);
-        document.removeEventListener("pointerup", onPointerUp);
+        const moved = hasMoved;
+        const startedFromToggle = dragHandle === widgetElements.toggleBtn;
+        const wasCancelled = event.type === "pointercancel";
 
-        if (hasMoved) {
+        if (moved && isMobileViewport()) {
+            snapToNearestSide(true);
+        } else {
+            updatePanelAlignment();
+        }
+
+        if (moved && startedFromToggle && !wasCancelled) {
             skipToggleClickAfterDrag = true;
         }
 
+        if (dragHandle?.releasePointerCapture && activePointerId !== null) {
+            try {
+                dragHandle.releasePointerCapture(activePointerId);
+            } catch {
+                // The browser may have already released it.
+            }
+        }
+
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
+        document.removeEventListener("pointercancel", onPointerUp);
+
+        isDragging = false;
+        hasMoved = false;
+        activePointerId = null;
+        dragHandle = null;
         widgetElements.widget.classList.remove("dragging");
     };
 
     dragHandles.forEach((handle) => {
         handle.style.cursor = "grab";
-        handle.addEventListener("pointerdown", beginDrag);
+        handle.addEventListener("pointerdown", (event) => {
+            if (event.target.closest("button") && handle !== widgetElements.toggleBtn) return;
+            beginDrag(event);
+        });
+    });
+
+    widgetElements.toggleBtn.addEventListener("click", () => {
+        if (isMobileViewport()) snapToNearestSide(true);
+        requestAnimationFrame(updatePanelAlignment);
+    });
+
+    const savedSide = getSavedMobileSide();
+    if (isMobileViewport() && (savedSide === "left" || savedSide === "right")) {
+        requestAnimationFrame(() => applySide(savedSide, false));
+    } else {
+        requestAnimationFrame(updatePanelAlignment);
+    }
+
+    window.addEventListener("resize", () => {
+        if (isMobileViewport()) {
+            const side = getSavedMobileSide();
+            if (side === "left" || side === "right") applySide(side, false);
+            else snapToNearestSide(false);
+        } else {
+            const rect = widgetElements.widget.getBoundingClientRect();
+            const maxLeft = Math.max(0, window.innerWidth - rect.width);
+            widgetElements.widget.style.left = `${Math.max(0, Math.min(rect.left, maxLeft))}px`;
+            updatePanelAlignment();
+        }
     });
 }
 
