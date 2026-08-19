@@ -18,6 +18,16 @@
     user-select: none;
 }
 
+.chat-container.align-right {
+    align-items: flex-end;
+}
+
+.chat-container.align-right .chat-panel {
+    right: 0;
+    left: auto;
+    transform-origin: bottom right;
+}
+
 /* ── Toggle Button ── */
 .btn-chat-toggle {
     width: 60px;
@@ -34,6 +44,9 @@
     justify-content: center;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .btn-chat-toggle:hover {
@@ -101,6 +114,9 @@
     align-items: center;
     flex-shrink: 0;
     cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .chat-header:active {
@@ -299,50 +315,6 @@
     border-radius: 4px;
 }
 
-/* ── High Contrast Overrides ── */
-body.a11y-high-contrast .chat-panel {
-    background: #1e1e1e;
-    border-color: #ffffff;
-}
-
-body.a11y-high-contrast .chat-body {
-    background: #121212;
-}
-
-body.a11y-high-contrast .faq-item {
-    background: #1e1e1e;
-    border-color: #facc15;
-    color: #ffffff;
-}
-
-body.a11y-high-contrast .faq-item:hover {
-    background: #333;
-}
-
-body.a11y-high-contrast .user-bubble {
-    background: #333;
-    color: #facc15;
-}
-
-body.a11y-high-contrast .bot-bubble {
-    background: #1e1e1e;
-    border-color: #555;
-    color: #ffffff;
-}
-
-body.a11y-high-contrast .chat-body .chat-intro {
-    color: #d1d5db;
-}
-
-body.a11y-high-contrast .btn-chat-toggle {
-    background: #facc15;
-    color: #000;
-}
-
-body.a11y-high-contrast .btn-chat-toggle::before {
-    background: #facc15;
-}
-
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .chat-container {
@@ -367,7 +339,9 @@ body.a11y-high-contrast .btn-chat-toggle::before {
     .chat-container {
         bottom: 15px;
         left: 15px;
-        right: 15px;
+        right: auto;
+        width: fit-content;
+        max-width: calc(100vw - 30px);
     }
 
     .btn-chat-toggle {

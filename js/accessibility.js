@@ -5,6 +5,30 @@
 (function () {
     'use strict';
 
+    // Keep the widget self-contained: pages only need to load this script and
+    // accessibility.css. Existing markup is preserved for backwards compatibility.
+    if (!document.querySelector('.a11y-widget')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="a11y-widget" aria-label="תפריט נגישות">
+                <button class="btn-a11y-toggle" id="btn-a11y" aria-haspopup="true" aria-expanded="false" title="אפשרויות נגישות">
+                    <i class="fa-solid fa-universal-access" aria-hidden="true"></i>
+                </button>
+                <div class="a11y-menu" id="a11y-menu" role="menu">
+                    <h4>התאמת נגישות</h4>
+                    <button class="a11y-btn" id="toggle-contrast" role="menuitem">
+                        <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> ניגודיות גבוהה
+                    </button>
+                    <button class="a11y-btn" id="toggle-text-size" role="menuitem">
+                        <i class="fa-solid fa-text-height" aria-hidden="true"></i> הגדלת טקסט
+                    </button>
+                    <button class="a11y-btn" id="reset-a11y" role="menuitem">
+                        <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> איפוס הגדרות
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+
     const a11yToggleBtn = document.getElementById('btn-a11y');
     const a11yMenu = document.getElementById('a11y-menu');
     const btnContrast = document.getElementById('toggle-contrast');

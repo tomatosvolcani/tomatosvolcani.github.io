@@ -218,10 +218,61 @@
 
         let isDragging = false;
         let hasMoved = false;
+        let suppressToggleClick = false;
+        let activePointerId = null;
+        let dragHandle = null;
         let startX, startY, origLeft, origBottom;
-        const DRAG_THRESHOLD = 5; // pixels before treating as drag
+        const DRAG_THRESHOLD = 5;
+        const MOBILE_BREAKPOINT = 768;
+        const EDGE_MARGIN = 15;
+
+        function isMobileViewport() {
+            return window.innerWidth <= MOBILE_BREAKPOINT;
+        }
+
+        function saveMobileSide(side) {
+            try {
+                localStorage.setItem('chatbot-mobile-side', side);
+            } catch (_) {
+                // Position persistence is optional.
+            }
+        }
+
+        function getSavedMobileSide() {
+            try {
+                return localStorage.getItem('chatbot-mobile-side');
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function applySide(side, persist = true) {
+            const rect = container.getBoundingClientRect();
+            const safeLeft = side === 'right'
+                ? Math.max(EDGE_MARGIN, window.innerWidth - rect.width - EDGE_MARGIN)
+                : EDGE_MARGIN;
+
+            container.style.left = safeLeft + 'px';
+            container.style.right = 'auto';
+            container.classList.toggle('align-right', side === 'right');
+            if (persist) saveMobileSide(side);
+        }
+
+        function snapToNearestSide(persist = true) {
+            const rect = container.getBoundingClientRect();
+            const leftDistance = rect.left;
+            const rightDistance = window.innerWidth - rect.right;
+            applySide(leftDistance <= rightDistance ? 'left' : 'right', persist);
+        }
+
+        function updatePanelAlignment() {
+            const rect = container.getBoundingClientRect();
+            container.classList.toggle('align-right', rect.left + rect.width / 2 > window.innerWidth / 2);
+        }
 
         function beginDrag(e) {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+
             const rect = container.getBoundingClientRect();
             origLeft = rect.left;
             origBottom = window.innerHeight - rect.bottom;
@@ -229,19 +280,31 @@
             startY = e.clientY;
             isDragging = true;
             hasMoved = false;
+            activePointerId = e.pointerId;
+            dragHandle = e.currentTarget;
 
-            document.addEventListener('pointermove', onPointerMove);
+            if (dragHandle?.setPointerCapture) {
+                try {
+                    dragHandle.setPointerCapture(activePointerId);
+                } catch (_) {
+                    // Document listeners below remain as a fallback.
+                }
+            }
+
+            document.addEventListener('pointermove', onPointerMove, { passive: false });
             document.addEventListener('pointerup', onPointerUp);
+            document.addEventListener('pointercancel', onPointerUp);
         }
 
         function onPointerMove(e) {
-            if (!isDragging) return;
+            if (!isDragging || e.pointerId !== activePointerId) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
 
             // Start visual drag only after threshold
             if (!hasMoved && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
             hasMoved = true;
+            e.preventDefault();
             container.classList.add('dragging');
 
             let newLeft = origLeft + dx;
@@ -258,13 +321,40 @@
             container.style.bottom = newBottom + 'px';
             container.style.right = 'auto';
             container.style.top = 'auto';
+            updatePanelAlignment();
         }
 
-        function onPointerUp() {
+        function onPointerUp(e) {
+            if (!isDragging || (e.pointerId !== undefined && e.pointerId !== activePointerId)) return;
+
+            const moved = hasMoved;
+            const startedFromToggle = dragHandle === chatToggleBtn;
+            const wasCancelled = e.type === 'pointercancel';
+
+            if (moved && isMobileViewport()) {
+                snapToNearestSide(true);
+            } else {
+                updatePanelAlignment();
+            }
+
+            if (moved && startedFromToggle && !wasCancelled) suppressToggleClick = true;
+
+            if (dragHandle?.releasePointerCapture && activePointerId !== null) {
+                try {
+                    dragHandle.releasePointerCapture(activePointerId);
+                } catch (_) {
+                    // The browser may have already released it.
+                }
+            }
+
             isDragging = false;
+            hasMoved = false;
+            activePointerId = null;
+            dragHandle = null;
             container.classList.remove('dragging');
             document.removeEventListener('pointermove', onPointerMove);
             document.removeEventListener('pointerup', onPointerUp);
+            document.removeEventListener('pointercancel', onPointerUp);
         }
 
         // Drag from header (when panel is open)
@@ -285,12 +375,37 @@
 
             // Suppress click if user dragged
             chatToggleBtn.addEventListener('click', (e) => {
-                if (hasMoved) {
+                if (suppressToggleClick) {
                     e.stopImmediatePropagation();
                     e.preventDefault();
-                    hasMoved = false;
+                    suppressToggleClick = false;
                 }
             }, true);
+
+            chatToggleBtn.addEventListener('click', () => {
+                if (isMobileViewport()) snapToNearestSide(true);
+                requestAnimationFrame(updatePanelAlignment);
+            });
         }
+
+        const savedSide = getSavedMobileSide();
+        if (isMobileViewport() && (savedSide === 'left' || savedSide === 'right')) {
+            requestAnimationFrame(() => applySide(savedSide, false));
+        } else {
+            requestAnimationFrame(updatePanelAlignment);
+        }
+
+        window.addEventListener('resize', () => {
+            if (isMobileViewport()) {
+                const side = getSavedMobileSide();
+                if (side === 'left' || side === 'right') applySide(side, false);
+                else snapToNearestSide(false);
+            } else {
+                const rect = container.getBoundingClientRect();
+                const maxLeft = Math.max(0, window.innerWidth - rect.width);
+                container.style.left = Math.max(0, Math.min(rect.left, maxLeft)) + 'px';
+                updatePanelAlignment();
+            }
+        });
     }
 })();

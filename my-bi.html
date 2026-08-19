@@ -7,8 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260621-2">
     <link rel="stylesheet" href="css/layout.css?v=20260621-2">
-    <link rel="stylesheet" href="css/accessibility.css?v=20260621-2">
-    <link rel="stylesheet" href="css/chatbot.css?v=20260621-2">
+    <link rel="stylesheet" href="css/accessibility.css?v=20260819-3">
+    <link rel="stylesheet" href="css/chatbot.css?v=20260819-2">
     <link rel="stylesheet" href="css/research-map.css?v=20260621-2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
@@ -1018,193 +1018,6 @@
             color: var(--neutral-500);
         }
 
-        /* ---- High Contrast Mode Integration ---- */
-        body.a11y-high-contrast .page-header {
-            border-right-color: #facc15;
-            background: #000;
-            border: 1px solid #fff;
-            border-right-width: 4px;
-        }
-        body.a11y-high-contrast .page-header h1 {
-            color: #facc15 !important;
-        }
-        body.a11y-high-contrast .page-header h1 i {
-            background: #111;
-            color: #facc15;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .test-tag {
-            color: #facc15;
-            background: #000;
-            border: 2px dashed #facc15;
-        }
-        body.a11y-high-contrast .last-updated {
-            color: #fff;
-            background: #111;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .sec-label .sec-text {
-            color: #facc15 !important;
-        }
-        body.a11y-high-contrast .sec-label .sec-text::after {
-            background: #facc15;
-        }
-        body.a11y-high-contrast .sec-label .sec-rule {
-            background: #fff;
-        }
-        body.a11y-high-contrast .metric-cell {
-            background: #000;
-            border: 2px solid #fff;
-            color: #fff;
-        }
-        body.a11y-high-contrast .metric-cell::after {
-            background: #facc15 !important;
-        }
-        body.a11y-high-contrast .metric-icon-wrapper {
-            background: #111 !important;
-            color: #facc15 !important;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .metric-value {
-            color: #fff !important;
-        }
-        body.a11y-high-contrast .metric-label {
-            color: #fff !important;
-        }
-        body.a11y-high-contrast .profile-group {
-            background: #000;
-            border: 2px solid #fff;
-        }
-        body.a11y-high-contrast .profile-group .pg-title {
-            color: #fff;
-            border-bottom-color: #fff;
-        }
-        body.a11y-high-contrast .profile-group .pg-title i {
-            color: #facc15;
-        }
-        body.a11y-high-contrast .pg-stat {
-            background: #111;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .pg-stat .pg-val {
-            color: #facc15;
-        }
-        body.a11y-high-contrast .pg-stat .pg-lbl {
-            color: #fff;
-        }
-        body.a11y-high-contrast .pg-chip {
-            background: #000;
-            border: 1px solid #fff;
-            color: #fff;
-        }
-        body.a11y-high-contrast .pg-chip.field { border-right: 4px solid #00ff00; }
-        body.a11y-high-contrast .pg-chip.lab { border-right: 4px solid #ffaa00; }
-        body.a11y-high-contrast .pg-chip strong { color: #facc15; }
-        body.a11y-high-contrast .chart-card,
-        body.a11y-high-contrast .map-card,
-        body.a11y-high-contrast .panel-card {
-            background: #000;
-            border: 2px solid #fff;
-        }
-        body.a11y-high-contrast .chart-card h3,
-        body.a11y-high-contrast .map-card h3,
-        body.a11y-high-contrast .panel-card h3 {
-            color: #facc15;
-            border-bottom-color: #fff;
-        }
-        body.a11y-high-contrast .chart-card h3 i {
-            color: #facc15;
-        }
-        body.a11y-high-contrast .map-wrapper {
-            border: 2px solid #fff;
-        }
-        body.a11y-high-contrast .exp-table th {
-            background: #111;
-            color: #fff;
-            border-bottom: 2px solid #fff;
-        }
-        body.a11y-high-contrast .exp-table td {
-            color: #fff;
-            border-bottom: 1px solid #fff;
-        }
-        body.a11y-high-contrast .exp-table tr:hover td {
-            background: #222;
-        }
-        body.a11y-high-contrast .exp-link {
-            color: #facc15;
-            text-decoration: underline;
-        }
-        body.a11y-high-contrast .tag-own {
-            background: #000;
-            border: 1px solid #00ff00;
-            color: #00ff00;
-        }
-        body.a11y-high-contrast .tag-shared {
-            background: #000;
-            border: 1px solid #facc15;
-            color: #facc15;
-        }
-        body.a11y-high-contrast .tag-field {
-            background: #000;
-            border: 1px solid #00ff00;
-            color: #00ff00;
-        }
-        body.a11y-high-contrast .tag-lab {
-            background: #000;
-            border: 1px solid #ffaa00;
-            color: #ffaa00;
-        }
-        body.a11y-high-contrast .ranking-item {
-            background: #000;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .rank-num {
-            background: #111;
-            color: #fff;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .rank-num.gold { background: #facc15; color: #000; }
-        body.a11y-high-contrast .rank-num.silver { background: #d1d5db; color: #000; }
-        body.a11y-high-contrast .rank-num.bronze { background: #ea580c; color: #fff; }
-        body.a11y-high-contrast .rank-name { color: #fff; }
-        body.a11y-high-contrast .rank-bar { background: #222; }
-        body.a11y-high-contrast .rank-bar-fill { background: #facc15; }
-        body.a11y-high-contrast .rank-count { background: #111; color: #facc15; border: 1px solid #fff; }
-        body.a11y-high-contrast .kw-tag {
-            background: #000;
-            color: #fff;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .kw-tag:hover {
-            background: #222;
-            border-color: #facc15;
-            color: #facc15;
-        }
-        body.a11y-high-contrast .kw-tag.size-5 {
-            background: #facc15;
-            color: #000;
-            border-color: #facc15;
-        }
-        body.a11y-high-contrast .kw-tag.size-5:hover {
-            background: #fff;
-            color: #000;
-        }
-
-        /* High-contrast: insight cards */
-        body.a11y-high-contrast .insight-card {
-            background: #000;
-            border: 2px solid #fff;
-        }
-        body.a11y-high-contrast .insight-icon {
-            background: #111 !important;
-            color: #facc15 !important;
-            border: 1px solid #fff;
-        }
-        body.a11y-high-contrast .insight-val { color: #fff; }
-        body.a11y-high-contrast .insight-lbl { color: #fff; }
-        body.a11y-high-contrast .insight-sub { color: #facc15; }
-        body.a11y-high-contrast .skeleton-card { background: #111; }
-
         /* ---- Responsive ---- */
         @media (max-width: 1200px) {
             .metric-strip { grid-template-columns: repeat(4, 1fr); }
@@ -1616,8 +1429,8 @@
         </button>
     </div>
 
-    <script src="js/accessibility.js?v=20260621-2"></script>
-    <script src="js/chatbot.js?v=20260621-2"></script>
+    <script src="js/accessibility.js?v=20260819-1"></script>
+    <script src="js/chatbot.js?v=20260819-1"></script>
     <script type="module" src="js/research-map.js?v=20260621-2"></script>
     <script type="module" src="js/admin-status.js?v=20260818-1"></script>
     <script type="module" src="js/my-bi.js?v=20260818-1"></script>
