@@ -2675,6 +2675,108 @@ function updateGoogleMapsButtonVisibility() {
 // =========================================
 // Treatment Tabs
 // =========================================
+function updateTreatmentTabsScrollControls() {
+    const tabsNav = document.getElementById('tabs-nav');
+    if (!tabsNav) return;
+
+    const leftButton = document.querySelector('.treatment-tabs-scroll-left');
+    const rightButton = document.querySelector('.treatment-tabs-scroll-right');
+    const tabs = Array.from(tabsNav.querySelectorAll('.tab-item'));
+    const navRect = tabsNav.getBoundingClientRect();
+    const overflowTolerance = 2;
+
+    const hasLeftOverflow = navRect.width > 0 && tabs.some((tab) => (
+        tab.getBoundingClientRect().left < navRect.left - overflowTolerance
+    ));
+    const hasRightOverflow = navRect.width > 0 && tabs.some((tab) => (
+        tab.getBoundingClientRect().right > navRect.right + overflowTolerance
+    ));
+
+    [
+        [leftButton, hasLeftOverflow],
+        [rightButton, hasRightOverflow]
+    ].forEach(([button, isVisible]) => {
+        if (!button) return;
+        button.classList.toggle('is-visible', isVisible);
+        button.disabled = !isVisible;
+        button.setAttribute('aria-hidden', String(!isVisible));
+    });
+}
+
+function scrollTreatmentTabIntoHorizontalView(tab, behavior = 'smooth', edgePadding = 0) {
+    const tabsNav = document.getElementById('tabs-nav');
+    if (!tabsNav || !tab) return;
+
+    const navRect = tabsNav.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    const leftBoundary = navRect.left + edgePadding;
+    const rightBoundary = navRect.right - edgePadding;
+    let horizontalDelta = 0;
+
+    if (tabRect.left < leftBoundary) {
+        horizontalDelta = tabRect.left - leftBoundary;
+    } else if (tabRect.right > rightBoundary) {
+        horizontalDelta = tabRect.right - rightBoundary;
+    }
+
+    if (Math.abs(horizontalDelta) > 1) {
+        const scrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'auto'
+            : behavior;
+        tabsNav.scrollBy({ left: horizontalDelta, behavior: scrollBehavior });
+    }
+}
+
+function scrollTreatmentTabs(direction) {
+    const tabsNav = document.getElementById('tabs-nav');
+    if (!tabsNav) return;
+
+    const navRect = tabsNav.getBoundingClientRect();
+    const tabPositions = Array.from(tabsNav.querySelectorAll('.tab-item')).map((tab) => ({
+        tab,
+        rect: tab.getBoundingClientRect()
+    }));
+
+    const hiddenTabs = direction === 'left'
+        ? tabPositions
+            .filter(({ rect }) => rect.left < navRect.left - 1)
+            .sort((a, b) => b.rect.left - a.rect.left)
+        : tabPositions
+            .filter(({ rect }) => rect.right > navRect.right + 1)
+            .sort((a, b) => a.rect.right - b.rect.right);
+
+    scrollTreatmentTabIntoHorizontalView(hiddenTabs[0]?.tab, 'smooth', 52);
+}
+
+function scrollActiveTreatmentTabIntoView(behavior = 'smooth') {
+    const activeTab = document.querySelector(`.tab-item[data-index="${currentTreatmentIndex}"]`);
+    scrollTreatmentTabIntoHorizontalView(activeTab, behavior, 8);
+}
+
+function initTreatmentTabsScroller() {
+    const tabsNav = document.getElementById('tabs-nav');
+    if (!tabsNav) return;
+
+    document.querySelectorAll('.treatment-tabs-scroll').forEach((button) => {
+        button.addEventListener('click', () => scrollTreatmentTabs(button.dataset.scrollDirection));
+    });
+
+    tabsNav.addEventListener('scroll', updateTreatmentTabsScrollControls, { passive: true });
+    window.addEventListener('resize', updateTreatmentTabsScrollControls, { passive: true });
+
+    if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(updateTreatmentTabsScrollControls);
+        resizeObserver.observe(tabsNav);
+    }
+
+    const mutationObserver = new MutationObserver(() => {
+        requestAnimationFrame(updateTreatmentTabsScrollControls);
+    });
+    mutationObserver.observe(tabsNav, { childList: true, subtree: true, characterData: true });
+
+    updateTreatmentTabsScrollControls();
+}
+
 function generateTreatmentTabs() {
     const count = parseInt(document.getElementById('treatments-count')?.value) || 0;
     const treatments = experimentData?.treatments || [];
@@ -2694,9 +2796,14 @@ function generateTreatmentTabs() {
         tab.dataset.index = i;
 
         tab.addEventListener('click', () => switchTreatmentTab(i));
-        // Insert at the beginning to reverse the order (1,2,3 from right to left)
-        tabsNav.insertBefore(tab, tabsNav.firstChild);
+        // In RTL flex layout, appending keeps treatment 1 on the right and later treatments to its left.
+        tabsNav.appendChild(tab);
     }
+
+    requestAnimationFrame(() => {
+        scrollActiveTreatmentTabIntoView('auto');
+        updateTreatmentTabsScrollControls();
+    });
 }
 
 function switchTreatmentTab(index) {
@@ -2708,6 +2815,7 @@ function switchTreatmentTab(index) {
         const tabIndex = parseInt(tab.dataset.index);
         tab.classList.toggle('active', tabIndex === index);
     });
+    scrollActiveTreatmentTabIntoView();
 
     loadCurrentSectionDataFromState();
     // מעבר בין טיפולים בונה מחדש את הטבלאות/השדות — מסמנים שוב את מה שמולא ע"י AI.
@@ -2759,6 +2867,8 @@ function switchView(viewName) {
         const messageEl = document.getElementById('shared-readonly-message');
         if (messageEl) messageEl.style.display = 'none';
     }
+
+    requestAnimationFrame(updateTreatmentTabsScrollControls);
 
     syncSharedToggleForCurrentView();
     loadCurrentSectionDataFromState();
@@ -4309,6 +4419,7 @@ async function syncSharedExperiments(currentPartners, latestExperimentData = nul
 // =========================================
 function initEventListeners() {
     initBrowserNavigationGuard();
+    initTreatmentTabsScroller();
 
     // Hamburger menu (Mobile)
     const hamburgerBtn = document.getElementById('hamburger-btn');

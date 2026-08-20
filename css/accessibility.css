@@ -307,6 +307,12 @@ body.a11y-high-contrast :is(button, .tab-item, .study-type-option):hover {
     color: var(--a11y-accent) !important;
 }
 
+body.a11y-high-contrast .treatment-tabs-scroll i {
+    background: var(--a11y-bg) !important;
+    border-color: var(--a11y-accent) !important;
+    box-shadow: none !important;
+}
+
 body.a11y-high-contrast :is(.btn-primary, .btn-save, .btn-add, .btn-add-event, .btn-load-more, .modal-btn-primary):hover {
     background: var(--a11y-text) !important;
     color: var(--a11y-bg) !important;
