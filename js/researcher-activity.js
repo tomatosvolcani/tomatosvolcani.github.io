@@ -9,7 +9,7 @@ import {
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
-import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260818-1";
+import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260826-2";
 import {
     normalizeExternalLeadResearchers,
     normalizeLeadResearchers

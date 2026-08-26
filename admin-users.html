@@ -274,6 +274,94 @@
             font-weight: 500;
         }
 
+        /* Top-level tabs */
+        .admin-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .admin-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .admin-tab:hover {
+            color: #374151;
+            background: #f9fafb;
+        }
+
+        .admin-tab.active {
+            color: #0a2f72;
+            border-bottom-color: #0a2f72;
+        }
+
+        .admin-tab-panel[hidden] {
+            display: none;
+        }
+
+        /* Work Package Leads */
+        .section-note {
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 0 0 16px 0;
+            max-width: 760px;
+        }
+
+        .wp-lead-cell-name {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .wp-lead-cell-email {
+            display: block;
+            margin-top: 2px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .wp-lead-cell-empty {
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .wp-lead-filter {
+            margin-bottom: 12px;
+        }
+
+        .wp-lead-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d5dfed;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: inherit;
+            font-size: 15px;
+            color: #111827;
+            background: #ffffff;
+        }
+
+        .wp-lead-modal-package {
+            margin: -8px 0 18px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0a2f72;
+        }
+
         /* =========================================
            Mobile Responsive Styles
            ========================================= */
@@ -284,6 +372,17 @@
 
             .page-header h1 {
                 font-size: 22px;
+            }
+
+            .admin-tabs {
+                gap: 0;
+            }
+
+            .admin-tab {
+                flex: 1;
+                justify-content: center;
+                padding: 12px 10px;
+                font-size: 13px;
             }
 
             .filter-section {
@@ -403,6 +502,12 @@
             .page-header h1 {
                 font-size: 20px;
             }
+
+            .admin-tab {
+                padding: 11px 6px;
+                font-size: 12px;
+                gap: 6px;
+            }
         }
     </style>
 </head>
@@ -485,58 +590,148 @@
 
             <div class="page-header">
                 <h1>ניהול משתמשים</h1>
-                <p class="page-subtitle">אישור וניהול משתמשי המערכת</p>
+                <p class="page-subtitle">אישור וניהול משתמשי המערכת ושיוך ראשי חבילות עבודה</p>
             </div>
 
-            <!-- Filters -->
-            <div class="filter-section">
-                <button class="filter-btn active" data-filter="all">
-                    <i class="fas fa-users"></i> כולם
+            <!-- Top-level tabs -->
+            <div class="admin-tabs" role="tablist" aria-label="מקטעי ניהול">
+                <button
+                    type="button"
+                    class="admin-tab active"
+                    id="tab-btn-users"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="tab-panel-users"
+                    data-tab="users"
+                >
+                    <i class="fas fa-users-cog" aria-hidden="true"></i>
+                    <span>משתמשי המערכת</span>
                 </button>
-                <button class="filter-btn" data-filter="pending">
-                    <i class="fas fa-clock"></i> ממתינים לאישור
-                </button>
-                <button class="filter-btn" data-filter="approved">
-                    <i class="fas fa-check"></i> מאושרים
-                </button>
-                <button class="filter-btn" data-filter="admin">
-                    <i class="fas fa-user-shield"></i> מנהלים
+                <button
+                    type="button"
+                    class="admin-tab"
+                    id="tab-btn-wp-leads"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="tab-panel-wp-leads"
+                    data-tab="wp-leads"
+                >
+                    <i class="fas fa-user-tie" aria-hidden="true"></i>
+                    <span>שיוך ראשי חבילות</span>
                 </button>
             </div>
 
-            <!-- Loading Spinner -->
-            <div class="loading-container" id="loading-container">
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
+            <!-- Tab: system users -->
+            <section
+                class="admin-tab-panel"
+                id="tab-panel-users"
+                role="tabpanel"
+                aria-labelledby="tab-btn-users"
+            >
+                <!-- Filters -->
+                <div class="filter-section">
+                    <button class="filter-btn active" data-filter="all">
+                        <i class="fas fa-users"></i> כולם
+                    </button>
+                    <button class="filter-btn" data-filter="pending">
+                        <i class="fas fa-clock"></i> ממתינים לאישור
+                    </button>
+                    <button class="filter-btn" data-filter="approved">
+                        <i class="fas fa-check"></i> מאושרים
+                    </button>
+                    <button class="filter-btn" data-filter="admin">
+                        <i class="fas fa-user-shield"></i> מנהלים
+                    </button>
                 </div>
-                <p class="loading-text">טוען משתמשים...</p>
-            </div>
 
-            <!-- Users Table -->
-            <div class="users-table-container" id="users-table-container" style="display: none;">
-                <table class="users-table">
-                    <thead>
-                        <tr>
-                            <th>שם</th>
-                            <th>אימייל</th>
-                            <th>תפקיד</th>
-                            <th>סטטוס</th>
-                            <th>תאריך הרשמה</th>
-                            <th>פעולות</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-table-body">
-                        <!-- Users will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
+                <!-- Loading Spinner -->
+                <div class="loading-container" id="loading-container">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <p class="loading-text">טוען משתמשים...</p>
+                </div>
 
-            <!-- Empty State -->
-            <div class="empty-state" id="empty-state" style="display: none;">
-                <i class="fas fa-users"></i>
-                <p>לא נמצאו משתמשים</p>
-            </div>
+                <!-- Users Table -->
+                <div class="users-table-container" id="users-table-container" style="display: none;">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>שם</th>
+                                <th>אימייל</th>
+                                <th>תפקיד</th>
+                                <th>סטטוס</th>
+                                <th>תאריך הרשמה</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="empty-state" style="display: none;">
+                    <i class="fas fa-users"></i>
+                    <p>לא נמצאו משתמשים</p>
+                </div>
+            </section>
+
+            <!-- Tab: work package leads -->
+            <section
+                class="admin-tab-panel"
+                id="tab-panel-wp-leads"
+                role="tabpanel"
+                aria-labelledby="tab-btn-wp-leads"
+                hidden
+            >
+                <p class="section-note">
+                    שיוך חוקר כ"ראש חבילת עבודה" הוא ייעוד ניהולי: הוא מקבל גישה לדף
+                    "חבילות עבודה" עם החבילה שבניהולו, ושמו מוצג שם ובתוכנית הניסוי.
+                    <strong>השיוך אינו מרחיב הרשאות קריאה</strong> — ראש חבילה רואה בחבילה שלו רק
+                    ניסויים חשופים, ניסויים שלו וניסויים ששותפו איתו, וניסוי חסוי נשאר חסוי בפניו.
+                </p>
+
+                <div class="users-table-container" id="wp-leads-table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>חבילת עבודה</th>
+                                <th>ראש חבילה</th>
+                                <th>תאריך שיוך</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wp-leads-table-body">
+                            <!-- Work package leads will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
+    </div>
+
+    <!-- Work Package Lead assignment modal -->
+    <div id="wp-lead-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>שיוך ראש חבילת עבודה</h2>
+            <p class="wp-lead-modal-package" id="wp-lead-modal-package"></p>
+            <input
+                type="text"
+                id="wp-lead-search"
+                class="modal-input wp-lead-filter"
+                placeholder="סינון לפי שם או אימייל"
+                autocomplete="off"
+            >
+            <select id="wp-lead-user" class="wp-lead-select" size="1">
+                <!-- Approved users are populated by admin-users.js -->
+            </select>
+            <div class="modal-actions">
+                <button type="button" id="wp-lead-cancel" class="modal-btn modal-btn-secondary">ביטול</button>
+                <button type="button" id="wp-lead-confirm" class="modal-btn modal-btn-primary">שמירת שיוך</button>
+            </div>
+        </div>
     </div>
 
     <!-- Accessibility Widget -->
@@ -589,7 +784,7 @@
     <script src="js/accessibility.js?v=20260819-1"></script>
     <script src="js/chatbot.js?v=20260819-1"></script>
     <script type="module" src="js/research-map.js?v=20260819-1"></script>
-    <script type="module" src="js/admin-status.js?v=20260818-1"></script>
-    <script type="module" src="js/admin-users.js?v=20260621-2"></script>
+    <script type="module" src="js/admin-status.js?v=20260826-2"></script>
+    <script type="module" src="js/admin-users.js?v=20260825-1"></script>
 </body>
 </html>

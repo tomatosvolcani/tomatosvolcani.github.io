@@ -15,7 +15,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
 import { siteLabel } from "./labels.js";
-import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260818-1";
+import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260826-2";
 import {
     getLeadResearchersSearchText,
     getLeadResearchersText

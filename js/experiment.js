@@ -37,6 +37,7 @@ import {
     normalizeExternalLeadResearchers,
     normalizeLeadResearchers
 } from "./lead-researchers.js?v=20260818-1";
+import { loadWorkPackageLeads, getWorkPackageLeadText } from "./work-package-leads.js?v=20260825-1";
 
 document.addEventListener('DOMContentLoaded', () => {
     initExperimentTour();
@@ -74,6 +75,7 @@ let isBrowserNavGuardInitialized = false;
 let skipNextPopstateGuard = false;
 let hasShownPrivacyFallbackToast = false;
 let hasLoadedPublicUsers = false;
+let workPackageLeads = {};
 let experimentAI = null;
 let unsubscribeExperimentSnapshot = null;
 let lastRealtimeDataSignature = '';
@@ -1544,6 +1546,9 @@ onAuthStateChanged(auth, async (user) => {
     // טען את כל המשתמשים מוקדם - נדרש לסנכרון שותפים!
     await loadAllUsers();
 
+    // תווית "ראש חבילת העבודה" (תצוגה בלבד — אינה משפיעה על הרשאות)
+    await initWorkPackageLeadHint();
+
     // Ensure year dropdown is initialized before loading experiment data so
     // populateForm can set the select value into existing options.
     initYearsDropdown();
@@ -1909,6 +1914,34 @@ function startExperimentRealtimeListener() {
     );
 }
 
+// =========================================
+// תווית ראש חבילת עבודה (תצוגה בלבד)
+//
+// שיוך ראש חבילת עבודה נשמר ב-appSettings/workPackageLeads ואינו משפיע על
+// הרשאות הקריאה/כתיבה של הניסוי — הוא מוצג כאן כמידע בלבד.
+// =========================================
+async function initWorkPackageLeadHint() {
+    workPackageLeads = await loadWorkPackageLeads(db);
+
+    document.getElementById('work-package')
+        ?.addEventListener('change', updateWorkPackageLeadHint);
+
+    updateWorkPackageLeadHint();
+}
+
+function updateWorkPackageLeadHint() {
+    const hint = document.getElementById('work-package-lead-hint');
+    if (!hint) return;
+
+    const workPackage = document.getElementById('work-package')?.value || '';
+    const leadText = workPackage
+        ? getWorkPackageLeadText(workPackageLeads, workPackage, { includeEmail: false })
+        : '';
+
+    hint.textContent = leadText ? `ראש חבילת העבודה: ${leadText}` : '';
+    hint.style.display = leadText ? 'block' : 'none';
+}
+
 async function loadExperiment() {
     const loadingContainer = document.getElementById('loading-container');
     const experimentContent = document.getElementById('experiment-content');
@@ -2046,6 +2079,7 @@ function populateForm() {
     setFieldValue('research-period', data.researchPeriod || data.startDate || '');
     setFieldValue('study-type', STUDY_TYPES.includes(data.studyType) ? data.studyType : 'field');
     setFieldValue('work-package', data.workPackage);
+    updateWorkPackageLeadHint();
     setExperimentSiteFromData(data.experimentSite, data.experimentSiteSelection, data.experimentSiteOther);
     setFieldValue('site-coordinates', data.siteCoordinates);
     setFieldValue('lab-cell-number', data.labCellNumber);
@@ -4817,6 +4851,9 @@ function initEventListeners() {
 
     // Permissions UI event listeners
     initPermissionsUI();
+
+    // רמז "יש ללחוץ להוספה" — לא תלוי ב-autocomplete, רק בקיום השדות ב-DOM.
+    initPendingAddHints();
 }
 
 // =========================================
@@ -5592,6 +5629,118 @@ function commitSelectedLeadResearcher() {
     });
     clearLeadResearcherSearch();
     return added;
+}
+
+// =========================================
+// רמז "יש ללחוץ להוספה" — בחירה שטרם נוספה
+//
+// שלושת שדות הבחירה (חוקר מוביל, שותף לניסוי, שותף בטבלת ההרשאות) מתנהגים אותו
+// דבר: לחיצה על הצעה רק ממלאת את התיבה ושומרת את הבחירה במשתנה מקומי, וההוספה
+// בפועל קורית רק בלחיצה על כפתור ההוספה. עד אז התיבה נראית כמו שדה שמולא כרגיל,
+// ואם המשתמש ממשיך הלאה הבחירה נעלמת בלי הודעה. הרמז הופך את המצב הזה לגלוי.
+//
+// הרמז נשען על אינווריאנטה אחת: כל מסלולי ההוספה מנקים את התיבה בסיום, ולכן
+// "תיבה לא ריקה" שקול ל"יש בחירה שטרם נוספה". אין צורך לקרוא את המשתנים
+// selectedLeadResearcher / selectedExperimentPartner / selectedPermissionUser.
+// =========================================
+
+const PENDING_ADD_HINT_CLASS = 'pending-add-hint';
+const PENDING_ADD_ACTIVE_CLASS = 'pending-add-active';
+
+const PENDING_ADD_HINTS = [
+    {
+        inputId: 'lead-researcher-search',
+        buttonId: 'add-lead-researcher',
+        suggestionsId: 'lead-researcher-suggestions',
+        message: 'לחיצה על כפתור ה־(+) שמשמאל לתיבת החיפוש נדרשת כדי להוסיף את החוקר המוביל — בלעדיה הבחירה לא תישמר.'
+    },
+    {
+        inputId: 'experiment-partner-search',
+        buttonId: 'add-experiment-partner',
+        suggestionsId: 'experiment-partner-suggestions',
+        message: 'לחיצה על כפתור ה־(+) שמשמאל לתיבת החיפוש נדרשת כדי להוסיף את השותף — בלעדיה הבחירה לא תישמר.'
+    },
+    {
+        inputId: 'permission-partner-search',
+        buttonId: 'add-permission-partner-btn',
+        suggestionsId: 'permission-partner-suggestions',
+        message: 'לחיצה על "הוספה" נדרשת כדי לצרף את השותף — בלעדיה הבחירה לא תישמר.'
+    }
+];
+
+/** השורה שמכילה גם את תיבת החיפוש וגם את כפתור ההוספה — הרמז נשתל מתחתיה. */
+function findPendingAddRow(input, button) {
+    let node = button.parentElement;
+    while (node && !node.contains(input)) node = node.parentElement;
+    return node || input.parentElement;
+}
+
+function createPendingAddHint(config, input, button) {
+    const row = findPendingAddRow(input, button);
+    if (!row?.parentElement) return null;
+
+    const hint = document.createElement('div');
+    hint.className = PENDING_ADD_HINT_CLASS;
+    hint.id = `${config.inputId}-pending-hint`;
+    hint.setAttribute('role', 'status');
+    hint.hidden = true;
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-hand-pointer';
+    icon.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span');
+    text.textContent = config.message;
+    hint.append(icon, text);
+
+    row.insertAdjacentElement('afterend', hint);
+    return hint;
+}
+
+function initPendingAddHints() {
+    PENDING_ADD_HINTS.forEach((config) => {
+        const input = document.getElementById(config.inputId);
+        const button = document.getElementById(config.buttonId);
+        if (!input || !button) return;
+
+        const hint = createPendingAddHint(config, input, button);
+        if (!hint) return;
+
+        const sync = () => {
+            // offsetParent === null מכסה גם readonly-mode (שמסתיר כל [id^="add-"])
+            // וגם את גוש השותפים הישן שכולו display:none — אין לבקש לחיצה על
+            // כפתור שאינו על המסך.
+            const pending = input.value.trim().length > 0
+                && !input.disabled
+                && !input.readOnly
+                && !button.disabled
+                && button.offsetParent !== null;
+
+            hint.hidden = !pending;
+            button.classList.toggle(PENDING_ADD_ACTIVE_CLASS, pending);
+
+            // קורא מסך מקבל את ההסבר רק בזמן שהוא רלוונטי.
+            if (pending) {
+                input.setAttribute('aria-describedby', hint.id);
+            } else {
+                input.removeAttribute('aria-describedby');
+            }
+        };
+
+        // הקלדה מפיקה input. בחירת הצעה, Enter ולחיצה על כפתור ההוספה משנות את
+        // התיבה מתוך קוד ולכן אינן מפיקות אותו — מסתנכרנים אחריהן ב-timeout 0,
+        // כדי לא להיות תלויים בסדר רישום המאזינים של המודול.
+        const syncAfterHandlers = () => setTimeout(sync, 0);
+
+        input.addEventListener('input', sync);
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') syncAfterHandlers();
+        });
+        button.addEventListener('click', syncAfterHandlers);
+        document.getElementById(config.suggestionsId)
+            ?.addEventListener('click', syncAfterHandlers);
+
+        sync();
+    });
 }
 
 function initLeadResearcherAutocomplete() {

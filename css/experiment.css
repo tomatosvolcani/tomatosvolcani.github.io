@@ -562,6 +562,13 @@
     font-weight: 400;
 }
 
+.work-package-lead-hint {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 400;
+}
+
 .keywords-list {
     display: flex;
     flex-wrap: wrap;
@@ -877,6 +884,81 @@
 .btn-add.btn-cancel:hover {
     background: #4b5563;
     box-shadow: 0 3px 10px rgba(107, 114, 128, 0.35);
+}
+
+/* =========================================
+   Pending-add hint — בחירה שטרם נוספה
+   מוצג כל עוד יש טקסט בתיבת החיפוש שלא נוסף בלחיצה על כפתור ההוספה.
+   ========================================= */
+.pending-add-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border: 1px solid #fcd34d;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #fffbeb 0%, #fffef7 100%);
+    color: #92400e;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.1);
+    animation: pendingAddHintIn 0.22s ease-out;
+}
+
+.pending-add-hint[hidden] {
+    display: none;
+}
+
+.pending-add-hint i {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #d97706;
+}
+
+/* שני מכלי השותפים הם flex column עם gap שמטפל ברווח; כאן המכל בלוק רגיל. */
+.perm-partners-header > .pending-add-hint {
+    margin-top: 10px;
+}
+
+@keyframes pendingAddHintIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* טבעת דופק על כפתור ההוספה — מקשרת את הרמז לכפתור שצריך ללחוץ עליו. */
+.btn-add.pending-add-active,
+.btn-perm-add.pending-add-active {
+    animation: pendingAddPulse 1.9s ease-in-out infinite;
+}
+
+@keyframes pendingAddPulse {
+    0%,
+    100% {
+        box-shadow: 0 2px 6px rgba(10, 47, 114, 0.25), 0 0 0 0 rgba(217, 119, 6, 0.45);
+    }
+    50% {
+        box-shadow: 0 2px 6px rgba(10, 47, 114, 0.25), 0 0 0 6px rgba(217, 119, 6, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pending-add-hint {
+        animation: none;
+    }
+
+    .btn-add.pending-add-active,
+    .btn-perm-add.pending-add-active {
+        animation: none;
+        outline: 2px solid #d97706;
+        outline-offset: 2px;
+    }
 }
 
 /* =========================================

@@ -8,14 +8,28 @@ import {
     doc,
     getDoc,
     updateDoc,
+    setDoc,
+    deleteField,
+    serverTimestamp,
+    Timestamp,
     query,
     orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showConfirmModal } from "./toast.js";
+import { packageLabel } from "./labels.js?v=20260726-4";
+import {
+    ASSIGNABLE_WORK_PACKAGE_CODES,
+    WORK_PACKAGE_LEADS_DOC,
+    loadWorkPackageLeads,
+    invalidateWorkPackageLeadsCache,
+    getWorkPackageLeads
+} from "./work-package-leads.js?v=20260825-1";
 
 let currentUser = null;
 let allUsers = [];
 let currentFilter = 'all';
+let workPackageLeads = {};
+let pendingLeadPackage = '';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +83,35 @@ function initEventListeners() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
     }
+
+    initWorkPackageLeadModal();
+    initAdminTabs();
+}
+
+// =========================================
+// כרטיסיות עליונות: "משתמשי המערכת" / "שיוך ראשי חבילות"
+// =========================================
+function initAdminTabs() {
+    const tabs = Array.from(document.querySelectorAll('.admin-tab'));
+    if (tabs.length === 0) return;
+
+    tabs.forEach((tab) => {
+        tab.addEventListener('click', () => activateAdminTab(tab.dataset.tab));
+    });
+}
+
+function activateAdminTab(tabName) {
+    if (!tabName) return;
+
+    document.querySelectorAll('.admin-tab').forEach((tab) => {
+        const isActive = tab.dataset.tab === tabName;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', String(isActive));
+    });
+
+    document.querySelectorAll('.admin-tab-panel').forEach((panel) => {
+        panel.hidden = panel.id !== `tab-panel-${tabName}`;
+    });
 }
 
 // Auth state listener
@@ -126,6 +169,9 @@ async function loadAllUsers() {
         });
 
         displayUsers();
+
+        // ראשי חבילות העבודה נבנים מהרשימה שכבר נטענה — ללא קריאה נוספת ל-Firestore.
+        await renderWorkPackageLeads();
 
     } catch (error) {
         // שגיאת הרשאות = אין גישה לדף זה
@@ -319,6 +365,277 @@ function viewUser(userId) {
     `.trim();
 
     alert(details);
+}
+
+// =========================================
+// ראשי חבילות עבודה (appSettings/workPackageLeads)
+//
+// השיוך הוא ייעוד ניהולי בלבד ואינו מרחיב הרשאות קריאה: ניסוי חסוי נשאר חסוי
+// גם בפני ראש החבילה. הכתיבה למסמך מותרת לאדמין בלבד לפי הכללים.
+// =========================================
+
+function getWorkPackageLeadsRef() {
+    return doc(db, ...WORK_PACKAGE_LEADS_DOC);
+}
+
+function getUserFullName(user) {
+    return `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+}
+
+// רק משתמשים מאושרים יכולים להיות ראשי חבילה. הרשימה מגיעה מ-allUsers שכבר
+// נטענה (אוסף users) — היא היחידה שנושאת את isApproved; ל-publicUsers אין אותו.
+function getAssignableUsers() {
+    return allUsers
+        .filter(user => user.isApproved === true)
+        .sort((a, b) => (getUserFullName(a) || a.email || '')
+            .localeCompare(getUserFullName(b) || b.email || '', 'he'));
+}
+
+async function renderWorkPackageLeads() {
+    // המסמך נקרא כאן ישירות (ולא דרך המטמון) כי דף זה גם כותב אליו.
+    invalidateWorkPackageLeadsCache();
+    workPackageLeads = await loadWorkPackageLeads(db);
+    displayWorkPackageLeads();
+}
+
+function displayWorkPackageLeads() {
+    const tbody = document.getElementById('wp-leads-table-body');
+    if (!tbody) return;
+
+    tbody.replaceChildren();
+
+    ASSIGNABLE_WORK_PACKAGE_CODES.forEach((code) => {
+        const leads = getWorkPackageLeads(workPackageLeads, code);
+        const row = document.createElement('tr');
+        const leadCell = leads.length
+            ? leads.map((lead) => {
+                const name = escapeHtml(lead.name || lead.email || lead.uid);
+                const email = lead.email && lead.email !== lead.name
+                    ? `<span class="wp-lead-cell-email">${escapeHtml(lead.email)}</span>`
+                    : '';
+                return `<span class="wp-lead-cell-name">${name}</span>${email}`;
+            }).join('<br>')
+            : '<span class="wp-lead-cell-empty">לא הוגדר</span>';
+
+        const assignedAtCell = leads.length
+            ? leads.map((lead) => formatDateIL(lead.assignedAt, 'לא ידוע')).join('<br>')
+            : '—';
+
+        const actions = leads.length
+            ? `
+                <button class="action-btn view wp-lead-assign" data-wp="${escapeHtml(code)}">
+                    <i class="fas fa-user-pen"></i> החלפה
+                </button>
+                <button class="action-btn reject wp-lead-remove" data-wp="${escapeHtml(code)}">
+                    <i class="fas fa-user-minus"></i> הסרה
+                </button>
+            `
+            : `
+                <button class="action-btn approve wp-lead-assign" data-wp="${escapeHtml(code)}">
+                    <i class="fas fa-user-plus"></i> שיוך
+                </button>
+            `;
+
+        row.innerHTML = `
+            <td data-label="חבילת עבודה">${escapeHtml(packageLabel(code) || code)}</td>
+            <td data-label="ראש חבילה">${leadCell}</td>
+            <td data-label="תאריך שיוך">${assignedAtCell}</td>
+            <td data-label="פעולות">${actions}</td>
+        `;
+
+        tbody.appendChild(row);
+    });
+
+    tbody.querySelectorAll('.wp-lead-assign').forEach((btn) => {
+        btn.addEventListener('click', () => openWorkPackageLeadModal(btn.dataset.wp));
+    });
+
+    tbody.querySelectorAll('.wp-lead-remove').forEach((btn) => {
+        btn.addEventListener('click', () => confirmRemoveWorkPackageLead(btn.dataset.wp));
+    });
+}
+
+function initWorkPackageLeadModal() {
+    const modal = document.getElementById('wp-lead-modal');
+
+    document.getElementById('wp-lead-cancel')?.addEventListener('click', closeWorkPackageLeadModal);
+    document.getElementById('wp-lead-confirm')?.addEventListener('click', submitWorkPackageLead);
+    document.getElementById('wp-lead-search')?.addEventListener('input', (event) => {
+        populateWorkPackageLeadOptions(event.target.value);
+    });
+
+    if (modal) {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeWorkPackageLeadModal();
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+            closeWorkPackageLeadModal();
+        }
+    });
+}
+
+function openWorkPackageLeadModal(wpCode) {
+    if (!wpCode) return;
+
+    pendingLeadPackage = wpCode;
+
+    const modal = document.getElementById('wp-lead-modal');
+    const packageLine = document.getElementById('wp-lead-modal-package');
+    const search = document.getElementById('wp-lead-search');
+
+    if (packageLine) packageLine.textContent = packageLabel(wpCode) || wpCode;
+    if (search) search.value = '';
+
+    populateWorkPackageLeadOptions('');
+
+    const currentLead = getWorkPackageLeads(workPackageLeads, wpCode)[0];
+    const select = document.getElementById('wp-lead-user');
+    if (select && currentLead) select.value = currentLead.uid;
+
+    modal?.classList.remove('hidden');
+    search?.focus();
+}
+
+function closeWorkPackageLeadModal() {
+    pendingLeadPackage = '';
+    document.getElementById('wp-lead-modal')?.classList.add('hidden');
+}
+
+function populateWorkPackageLeadOptions(filterTerm) {
+    const select = document.getElementById('wp-lead-user');
+    if (!select) return;
+
+    const term = String(filterTerm || '').trim().toLowerCase();
+    const previousValue = select.value;
+
+    const candidates = getAssignableUsers().filter((user) => {
+        if (!term) return true;
+        const haystack = `${getUserFullName(user)} ${user.email || ''}`.toLowerCase();
+        return haystack.includes(term);
+    });
+
+    select.replaceChildren();
+
+    if (candidates.length === 0) {
+        const option = new Option('לא נמצאו משתמשים מאושרים', '');
+        option.disabled = true;
+        select.appendChild(option);
+        return;
+    }
+
+    candidates.forEach((user) => {
+        const name = getUserFullName(user) || user.email || user.id;
+        const label = user.email && user.email !== name ? `${name} (${user.email})` : name;
+        select.appendChild(new Option(label, user.id));
+    });
+
+    if (candidates.some((user) => user.id === previousValue)) {
+        select.value = previousValue;
+    }
+}
+
+async function submitWorkPackageLead() {
+    const wpCode = pendingLeadPackage;
+    const select = document.getElementById('wp-lead-user');
+    const uid = select?.value || '';
+
+    if (!wpCode) return;
+    if (!uid) {
+        showToast('יש לבחור משתמש מאושר', 'warning');
+        return;
+    }
+
+    const user = allUsers.find((candidate) => candidate.id === uid);
+    if (!user) {
+        showToast('המשתמש שנבחר לא נמצא', 'error');
+        return;
+    }
+
+    const confirmBtn = document.getElementById('wp-lead-confirm');
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    // כתיבה אחת: יוצרת את המסמך אם אינו קיים, ממזגת לעומק אחרת, ומסירה ראש
+    // חבילה יוצא. deleteField() מותר ב-setDoc עם merge.
+    const packageLeads = {
+        [uid]: {
+            name: getUserFullName(user),
+            email: user.email || '',
+            assignedAt: Timestamp.now(),
+            assignedBy: currentUser.uid
+        }
+    };
+
+    getWorkPackageLeads(workPackageLeads, wpCode).forEach((lead) => {
+        if (lead.uid !== uid) packageLeads[lead.uid] = deleteField();
+    });
+
+    try {
+        await setDoc(getWorkPackageLeadsRef(), {
+            leads: { [wpCode]: packageLeads },
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUser.uid
+        }, { merge: true });
+
+        closeWorkPackageLeadModal();
+        await renderWorkPackageLeads();
+        showToast('ראש חבילת העבודה עודכן בהצלחה', 'success');
+    } catch (error) {
+        console.error("Error assigning work package lead:", error);
+        showToast(error?.code === 'permission-denied'
+            ? 'אין לך הרשאה לעדכן ראשי חבילות עבודה'
+            : 'שגיאה בעדכון ראש חבילת העבודה', 'error');
+    } finally {
+        if (confirmBtn) confirmBtn.disabled = false;
+    }
+}
+
+async function confirmRemoveWorkPackageLead(wpCode) {
+    const leads = getWorkPackageLeads(workPackageLeads, wpCode);
+    if (!wpCode || leads.length === 0) return;
+
+    const names = leads.map((lead) => lead.name || lead.email || lead.uid).join(', ');
+
+    const confirmed = await showConfirmModal({
+        title: 'הסרת ראש חבילת עבודה',
+        message: `להסיר את ${names} מתפקיד ראש ${packageLabel(wpCode) || wpCode}?`,
+        confirmText: 'הסרה',
+        cancelText: 'ביטול'
+    });
+
+    if (confirmed) await removeWorkPackageLead(wpCode, leads);
+}
+
+async function removeWorkPackageLead(wpCode, leads) {
+    const packageLeads = {};
+    leads.forEach((lead) => { packageLeads[lead.uid] = deleteField(); });
+
+    try {
+        await setDoc(getWorkPackageLeadsRef(), {
+            leads: { [wpCode]: packageLeads },
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUser.uid
+        }, { merge: true });
+
+        await renderWorkPackageLeads();
+        showToast('ראש חבילת העבודה הוסר', 'info');
+    } catch (error) {
+        console.error("Error removing work package lead:", error);
+        showToast(error?.code === 'permission-denied'
+            ? 'אין לך הרשאה לעדכן ראשי חבילות עבודה'
+            : 'שגיאה בהסרת ראש חבילת העבודה', 'error');
+    }
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 

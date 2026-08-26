@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>כל הניסויים - מערכת מיזם ח"ץ</title>
+    <title>חבילות עבודה - מערכת מיזם ח"ץ</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260621-2">
     <link rel="stylesheet" href="css/layout.css?v=20260621-2">
@@ -14,7 +14,7 @@
     <style>
         /* Header Section */
         .page-header {
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .page-header h1 {
@@ -31,23 +31,152 @@
             font-weight: 400;
         }
 
+        /* Work package picker */
+        .wp-picker-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+
+        .wp-picker-card label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .wp-select {
+            width: 100%;
+            max-width: 560px;
+            padding: 11px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #111827;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .wp-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .wp-lead-line {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f3f4f6;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .wp-lead-line i {
+            color: #6b7280;
+        }
+
+        .wp-lead-name {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .wp-lead-none {
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .wp-lead-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .wp-lead-badge[hidden] {
+            display: none;
+        }
+
+        /* Admin scope note — מסביר למה הבורר מציג את כל החבילות */
+        .wp-admin-scope-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 18px;
+            padding: 13px 16px;
+            border: 1px solid #bfdbfe;
+            border-right: 4px solid #2563eb;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+            box-shadow: 0 2px 7px rgba(37, 99, 235, 0.07);
+            font-size: 13px;
+            line-height: 1.65;
+            color: #1e40af;
+        }
+
+        .wp-admin-scope-note[hidden] {
+            display: none;
+        }
+
+        .wp-admin-scope-note i {
+            margin-top: 3px;
+            flex-shrink: 0;
+            color: #2563eb;
+        }
+
+        .wp-admin-scope-note strong {
+            font-weight: 800;
+        }
+
+        /* Visibility disclaimer */
+        .wp-visibility-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #92400e;
+        }
+
+        .wp-visibility-note i {
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
         /* Statistics Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
-            max-width: 800px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .stat-card {
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            padding: 24px;
+            padding: 20px;
             display: flex;
             align-items: flex-start;
-            gap: 16px;
+            gap: 14px;
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
@@ -75,13 +204,13 @@
         }
 
         .stat-icon {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 18px;
             flex-shrink: 0;
         }
 
@@ -112,13 +241,23 @@
             color: #f59e0b;
         }
 
+        .stat-card:nth-child(4) {
+            --accent-color: #8b5cf6;
+        }
+
+        .stat-card:nth-child(4) .stat-icon {
+            background: #f5f3ff;
+            color: #8b5cf6;
+        }
+
         .stat-content {
             flex: 1;
+            min-width: 0;
         }
 
         .stat-content h3 {
             margin: 0 0 4px 0;
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
             color: #111827;
             line-height: 1;
@@ -135,9 +274,9 @@
 
         /* Search Box
            RTL: the text starts on the right, where the icon sits — so the free
-           space must be reserved on the RIGHT, not the left. The icon is a flex
-           sibling instead of an ::before on the wrapper, so it cannot overlap
-           the text or the caret. */
+           space must be reserved on the RIGHT (padding-inline-start), not left.
+           The icon is positioned as a flex sibling instead of an ::before on the
+           wrapper, so it can never overlap the text. */
         .search-box {
             position: relative;
             display: flex;
@@ -207,7 +346,7 @@
         }
 
         .experiments-table th {
-            padding: 14px 20px;
+            padding: 14px 18px;
             text-align: right;
             font-weight: 600;
             color: #374151;
@@ -231,7 +370,7 @@
         }
 
         .experiments-table td {
-            padding: 16px 20px;
+            padding: 16px 18px;
             text-align: right;
             font-size: 14px;
             color: #111827;
@@ -255,29 +394,76 @@
             font-size: 13px;
         }
 
-        .load-more-admin-wrapper {
+        /* Source + visibility badges */
+        .wp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .wp-badge.public {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+        }
+
+        .wp-badge.private {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+        }
+
+        .wp-badge.own {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        .wp-badge.shared {
+            background: #f5f3ff;
+            border: 1px solid #ddd6fe;
+            color: #6d28d9;
+        }
+
+        .wp-badge.other {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #4b5563;
+        }
+
+        .load-more-wrapper {
             display: flex;
             justify-content: center;
             margin-top: 18px;
         }
 
-        .btn-load-more-admin {
+        .load-more-wrapper.hidden {
+            display: none;
+        }
+
+        .btn-load-more-wp {
             background: #0a2f72;
             color: #fff;
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
+            font-family: inherit;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.2s, opacity 0.2s;
         }
 
-        .btn-load-more-admin:hover {
+        .btn-load-more-wp:hover {
             background: #082354;
         }
 
-        .btn-load-more-admin:disabled {
+        .btn-load-more-wp:disabled {
             opacity: 0.7;
             cursor: not-allowed;
         }
@@ -289,6 +475,7 @@
             color: #3b82f6;
             border: 1px solid #3b82f6;
             border-radius: 6px;
+            font-family: inherit;
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
@@ -311,7 +498,7 @@
         /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 80px 20px;
+            padding: 70px 20px;
             color: #9ca3af;
         }
 
@@ -331,6 +518,10 @@
         .loading-container {
             text-align: center;
             padding: 60px 20px;
+        }
+
+        .loading-container.hidden {
+            display: none;
         }
 
         .loading-spinner i {
@@ -353,6 +544,7 @@
 
         .breadcrumb-link {
             color: #6b7280;
+            cursor: pointer;
             transition: color 0.2s ease;
         }
 
@@ -370,31 +562,36 @@
            ========================================= */
         @media (max-width: 768px) {
             .page-header {
-                margin-bottom: 24px;
+                margin-bottom: 20px;
             }
 
             .page-header h1 {
                 font-size: 22px;
             }
 
-            .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-                margin-bottom: 24px;
-            }
-
-            .stat-card {
+            .wp-picker-card {
                 padding: 16px;
             }
 
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 14px;
+                gap: 10px;
+            }
+
             .stat-icon {
-                width: 40px;
-                height: 40px;
-                font-size: 16px;
+                width: 38px;
+                height: 38px;
+                font-size: 15px;
             }
 
             .stat-content h3 {
-                font-size: 26px;
+                font-size: 22px;
             }
 
             .stat-content p {
@@ -412,7 +609,7 @@
 
             .search-input {
                 padding: 10px 4px 10px 14px;
-                font-size: 14px;
+                font-size: 16px; /* מונע zoom באייפון */
             }
 
             /* הפיכת טבלה לכרטיסים במובייל */
@@ -468,7 +665,6 @@
                 min-width: 80px;
             }
 
-            /* שם הניסוי בולט */
             .experiments-table td:first-child {
                 font-size: 16px;
                 font-weight: 600;
@@ -482,12 +678,10 @@
                 display: none;
             }
 
-            /* הסתרת תאריך יצירה במובייל */
             .experiments-table .created-date-cell {
                 display: none;
             }
 
-            /* התאמת כפתור צפייה */
             .experiments-table td:last-child {
                 justify-content: stretch;
                 padding-top: 12px;
@@ -507,36 +701,21 @@
         }
 
         @media (max-width: 480px) {
-            .stat-card {
-                padding: 14px;
-                gap: 12px;
-            }
-
-            .stat-icon {
-                width: 36px;
-                height: 36px;
-                font-size: 14px;
-            }
-
-            .stat-content h3 {
-                font-size: 22px;
-            }
-
-            .experiments-table tbody tr {
-                padding: 14px;
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
 
             .page-header h1 {
                 font-size: 20px;
             }
 
-            .search-input {
-                font-size: 16px; /* מונע zoom באייפון */
+            .experiments-table tbody tr {
+                padding: 14px;
             }
         }
     </style>
 </head>
-<body data-page-context="admin">
+<body data-page-context="work-packages">
     <!-- Hamburger Menu Button (Mobile) -->
     <button class="hamburger-btn" id="hamburger-btn">
         <i class="fas fa-bars"></i>
@@ -561,6 +740,10 @@
                     <i class="fas fa-magnifying-glass-chart"></i>
                     <span>שליפה חכמה</span>
                 </a>
+                <a href="work-packages.html" class="nav-item active" aria-current="page">
+                    <i class="fas fa-boxes-stacked"></i>
+                    <span>חבילות עבודה</span>
+                </a>
                 <a href="export.html" class="nav-item">
                     <i class="fas fa-file-export"></i>
                     <span>שליפת ניסוי</span>
@@ -572,24 +755,6 @@
                 <a href="tutorials.html" class="nav-item">
                     <i class="fas fa-graduation-cap"></i>
                     <span>מרכז הדרכה</span>
-                </a>
-                <div class="nav-separator"></div>
-                <div class="nav-section-title">ניהול מערכת</div>
-                <a href="admin-users.html" class="nav-item">
-                    <i class="fas fa-users-cog"></i>
-                    <span>ניהול משתמשים</span>
-                </a>
-                <a href="admin-experiments.html" class="nav-item active">
-                    <i class="fas fa-flask"></i>
-                    <span>כל הניסויים</span>
-                </a>
-                <a href="researcher-activity.html" class="nav-item">
-                    <i class="fas fa-ranking-star"></i>
-                    <span>פעילות חוקרים</span>
-                </a>
-                <a href="bi.html" class="nav-item">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>לוח BI מערכת</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -610,12 +775,48 @@
             <div class="breadcrumb">
                 <span class="breadcrumb-link" onclick="window.location.href='dashboard.html'">בית</span>
                 <span> / </span>
-                <span class="breadcrumb-current">כל הניסויים</span>
+                <span class="breadcrumb-current">חבילות עבודה</span>
             </div>
 
             <div class="page-header">
-                <h1>כל הניסויים במערכת</h1>
-                <p class="page-subtitle">צפייה וניהול של כל הניסויים הפעילים במערכת</p>
+                <h1>חבילות עבודה</h1>
+                <p class="page-subtitle" id="wp-page-subtitle">הניסויים בחבילות העבודה שבניהולך, לפי ההרשאות שלך</p>
+            </div>
+
+            <!-- Work package picker + lead -->
+            <div class="wp-picker-card">
+                <!-- מוצג רק למנהל/ת מערכת (work-packages.js → renderScopeNotice) -->
+                <div class="wp-admin-scope-note" id="wp-admin-scope-note" role="note" hidden>
+                    <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                    <span>
+                        <strong>כמנהל/ת מערכת מוצגות לך כאן כל חבילות העבודה במערכת.</strong>
+                        ראש חבילת עבודה שאינו מנהל/ת מערכת רואה בבורר רק את חבילות העבודה שבראשותו.
+                    </span>
+                </div>
+
+                <label for="wp-select">חבילת עבודה</label>
+                <select id="wp-select" class="wp-select">
+                    <!-- Options are populated by work-packages.js -->
+                </select>
+
+                <div class="wp-lead-line">
+                    <i class="fas fa-user-tie" aria-hidden="true"></i>
+                    <span>ראש חבילת העבודה:</span>
+                    <span id="wp-lead-name" class="wp-lead-none">טוען...</span>
+                    <span class="wp-lead-badge" id="wp-lead-self-badge" hidden>
+                        <i class="fas fa-user-tie" aria-hidden="true"></i>
+                        את/ה ראש חבילת עבודה זו
+                    </span>
+                </div>
+            </div>
+
+            <!-- Visibility disclaimer -->
+            <div class="wp-visibility-note">
+                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                <span>
+                    מוצגים ניסויים חשופים, ניסויים שלך וניסויים ששותפו איתך.
+                    ניסויים חסויים אינם מוצגים עד לתום תקופת החסיון — גם לראש חבילת העבודה.
+                </span>
             </div>
 
             <!-- Statistics -->
@@ -625,8 +826,17 @@
                         <i class="fas fa-flask"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="total-experiments" aria-live="polite">…</h3>
-                        <p>סה"כ ניסויים</p>
+                        <h3 id="wp-stat-total" aria-live="polite">…</h3>
+                        <p>ניסויים בחבילה</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="wp-stat-own" aria-live="polite">…</h3>
+                        <p>הניסויים שלי</p>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -634,8 +844,17 @@
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="total-users" aria-live="polite">…</h3>
-                        <p>משתמשים</p>
+                        <h3 id="wp-stat-shared" aria-live="polite">…</h3>
+                        <p>שותפו איתי</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="wp-stat-other" aria-live="polite">…</h3>
+                        <p>של חוקרים אחרים</p>
                     </div>
                 </div>
             </div>
@@ -648,8 +867,8 @@
                 <input
                     type="text"
                     class="search-input"
-                    id="search-input"
-                    placeholder="חיפוש לפי שם ניסוי, חוקר או אתר..."
+                    id="wp-search-input"
+                    placeholder="חיפוש לפי שם ניסוי, חוקר מוביל, מקים או אתר..."
                 >
             </div>
 
@@ -658,7 +877,7 @@
                 <div class="loading-spinner">
                     <i class="fas fa-spinner fa-spin"></i>
                 </div>
-                <p class="loading-text">טוען ניסויים...</p>
+                <p class="loading-text">טוען ניסויים של חבילת העבודה...</p>
             </div>
 
             <!-- Experiments Table -->
@@ -667,10 +886,11 @@
                     <thead>
                         <tr>
                             <th>שם הניסוי</th>
-                            <th>מקים הניסוי</th>
                             <th>חוקרים מובילים</th>
+                            <th>מקים הניסוי</th>
                             <th>אתר</th>
                             <th>שנה</th>
+                            <th>שיוך</th>
                             <th>תאריך יצירה</th>
                             <th>פעולות</th>
                         </tr>
@@ -680,14 +900,14 @@
                     </tbody>
                 </table>
             </div>
-            <div class="load-more-admin-wrapper hidden" id="load-more-admin-experiments-wrapper">
-                <button type="button" class="btn-load-more-admin" id="btn-load-more-admin-experiments">טען עוד...</button>
+            <div class="load-more-wrapper hidden" id="load-more-wrapper">
+                <button type="button" class="btn-load-more-wp" id="btn-load-more-wp">טען עוד...</button>
             </div>
 
             <!-- Empty State -->
             <div class="empty-state" id="empty-state" style="display: none;">
-                <i class="fas fa-flask"></i>
-                <p>לא נמצאו ניסויים</p>
+                <i class="fas fa-boxes-stacked"></i>
+                <p>לא נמצאו ניסויים שיש לך הרשאה אליהם בחבילת עבודה זו</p>
             </div>
         </main>
     </div>
@@ -743,6 +963,6 @@
     <script src="js/chatbot.js?v=20260819-1"></script>
     <script type="module" src="js/research-map.js?v=20260819-1"></script>
     <script type="module" src="js/admin-status.js?v=20260826-2"></script>
-    <script type="module" src="js/admin-experiments.js?v=20260825-1"></script>
+    <script type="module" src="js/work-packages.js?v=20260826-4"></script>
 </body>
 </html>

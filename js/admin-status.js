@@ -7,10 +7,15 @@ import {
     limit,
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+    loadWorkPackageLeadsCached,
+    getLeadPackagesForUser
+} from "./work-package-leads.js?v=20260825-1";
 
 const ADMIN_STATUS_BADGE_ID = 'shared-admin-system-status';
 const ADMIN_STATUS_STYLE_ID = 'shared-admin-system-status-style';
 const SHARED_ADMIN_NAV_CLASS = 'shared-admin-navigation';
+const WORK_PACKAGES_NAV_CLASS = 'work-packages-navigation';
 const PRIMARY_NAV_ITEMS = [
     { href: 'dashboard.html', icon: 'fa-home', label: 'בית' },
     { href: 'smart-search.html', icon: 'fa-magnifying-glass-chart', label: 'שליפה חכמה' },
@@ -18,6 +23,14 @@ const PRIMARY_NAV_ITEMS = [
     { href: 'my-bi.html', icon: 'fa-chart-pie', label: 'הסטטיסטיקה שלי' },
     { href: 'tutorials.html', icon: 'fa-graduation-cap', label: 'מרכז הדרכה' }
 ];
+
+// מוצג לראשי חבילות עבודה ולמנהלי מערכת — ראו ensureWorkPackagesNavigation.
+const WORK_PACKAGES_NAV_ITEM = {
+    href: 'work-packages.html',
+    icon: 'fa-boxes-stacked',
+    label: 'חבילות עבודה'
+};
+
 const ADMIN_NAV_ITEMS = [
     { href: 'admin-users.html', icon: 'fa-users-cog', label: 'ניהול משתמשים' },
     { href: 'admin-experiments.html', icon: 'fa-flask', label: 'כל הניסויים' },
@@ -224,6 +237,66 @@ function removeSharedAdminNavigation() {
     document.querySelector(`.${SHARED_ADMIN_NAV_CLASS}`)?.remove();
 }
 
+/**
+ * פריט "חבילות עבודה" מוצג לראשי חבילות עבודה ולמנהלי מערכת.
+ *
+ * מנהל מערכת מקבל אותו גם ללא שיוך כראש חבילה: יש לו ממילא גישת צפייה לכל
+ * הניסויים, והדף עצמו מסביר את ההיקף — renderScopeNotice() ב-work-packages.js
+ * מציג לו הערה מפורשת שהבורר המלא הוא הרשאת מנהל, ולא מה שראש חבילה רואה.
+ * ההערה הזו היא מה שהופך את ההצגה למנהל לברורה; אם היא תוסר, יש לשקול מחדש
+ * גם את התנאי כאן (בלעדיה הדף נקרא כאילו ראש חבילה רואה את כל החבילות).
+ *
+ * הפריט מוזרק אחרי "שליפה חכמה" כדי לשמור על סדר התפריט הקיים.
+ */
+export async function ensureWorkPackagesNavigation(user = auth.currentUser) {
+    const navigation = document.querySelector('.sidebar-nav');
+    if (!navigation || !user) return false;
+
+    const [isLead, isAdmin] = await Promise.all([
+        isWorkPackageLeadUser(user),
+        checkAdminAccess(user)
+    ]);
+    const shouldShow = isLead || isAdmin;
+
+    const existing = navigation.querySelector(`a[href="${WORK_PACKAGES_NAV_ITEM.href}"]`);
+
+    if (!shouldShow) {
+        // מסירים רק פריט שהוזרק ע"י מודול זה, לא קישור שנכתב ידנית בדף עצמו.
+        if (existing?.classList.contains(WORK_PACKAGES_NAV_CLASS)) existing.remove();
+        return false;
+    }
+
+    if (existing) return true;
+
+    const link = createNavigationLink(WORK_PACKAGES_NAV_ITEM);
+    link.classList.add(WORK_PACKAGES_NAV_CLASS);
+
+    const anchor = navigation.querySelector('a[href="smart-search.html"]');
+    if (anchor) {
+        anchor.insertAdjacentElement('afterend', link);
+    } else {
+        const fallback = navigation.querySelector('a[href="export.html"]')
+            || navigation.querySelector('.admin-menu-section');
+        navigation.insertBefore(link, fallback || null);
+    }
+
+    return true;
+}
+
+/** האם המשתמש הנוכחי הוא ראש של לפחות חבילת עבודה אחת. */
+export async function isWorkPackageLeadUser(user = auth.currentUser) {
+    if (!user) return false;
+    const leads = await loadWorkPackageLeadsCached(db);
+    return getLeadPackagesForUser(leads, user.uid).length > 0;
+}
+
+/** חבילות העבודה שהמשתמש הנוכחי הוא ראש שלהן. */
+export async function getMyWorkPackages(user = auth.currentUser) {
+    if (!user) return [];
+    const leads = await loadWorkPackageLeadsCached(db);
+    return getLeadPackagesForUser(leads, user.uid);
+}
+
 export function checkAdminAccess(user = auth.currentUser) {
     if (!user) return Promise.resolve(false);
 
@@ -254,11 +327,17 @@ onAuthStateChanged(auth, async (user) => {
 
     ensurePrimaryNavigation();
 
-    if (await checkAdminAccess(user)) {
+    const isAdmin = await checkAdminAccess(user);
+
+    if (isAdmin) {
         showAdminStatusBadge();
         ensureAdminNavigation();
     } else {
         hideAdminStatusBadge();
         removeSharedAdminNavigation();
     }
+
+    // מנהל מערכת מקבל את הפריט גם כשאינו רשום כראש חבילה במסמך הראשים.
+    // checkAdminAccess ממוזכר, ולכן הקריאה כאן אינה שאילתה נוספת.
+    await ensureWorkPackagesNavigation(user);
 });
