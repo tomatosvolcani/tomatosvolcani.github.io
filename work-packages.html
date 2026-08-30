@@ -110,6 +110,37 @@
             display: none;
         }
 
+        /* הפניה לעמוד ניהול המשתמשים — מוצגת למנהל/ת מערכת בלבד */
+        .wp-lead-manage-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 10px 0 0 0;
+            font-size: 12.5px;
+            line-height: 1.65;
+            color: #6b7280;
+        }
+
+        .wp-lead-manage-hint[hidden] {
+            display: none;
+        }
+
+        .wp-lead-manage-hint i {
+            margin-top: 3px;
+            flex-shrink: 0;
+            color: #9ca3af;
+        }
+
+        .wp-lead-manage-hint a {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .wp-lead-manage-hint a:hover {
+            text-decoration: underline;
+        }
+
         /* Admin scope note — מסביר למה הבורר מציג את כל החבילות */
         .wp-admin-scope-note {
             display: flex;
@@ -808,6 +839,16 @@
                         את/ה ראש חבילת עבודה זו
                     </span>
                 </div>
+
+                <!-- מוצג רק למנהל/ת מערכת (work-packages.js → renderScopeNotice) -->
+                <p class="wp-lead-manage-hint" id="wp-lead-manage-hint" role="note" hidden>
+                    <i class="fas fa-circle-info" aria-hidden="true"></i>
+                    <span>
+                        הגדרת ראשי חבילות עבודה ושינוי השיוך מתבצעים בעמוד
+                        <a href="admin-users.html#wp-leads">ניהול משתמשים</a>,
+                        בכרטיסייה <strong>"שיוך ראשי חבילות"</strong>.
+                    </span>
+                </p>
             </div>
 
             <!-- Visibility disclaimer -->
@@ -963,6 +1004,6 @@
     <script src="js/chatbot.js?v=20260819-1"></script>
     <script type="module" src="js/research-map.js?v=20260819-1"></script>
     <script type="module" src="js/admin-status.js?v=20260826-2"></script>
-    <script type="module" src="js/work-packages.js?v=20260826-4"></script>
+    <script type="module" src="js/work-packages.js?v=20260830-1"></script>
 </body>
 </html>

@@ -200,6 +200,11 @@ function renderScopeNotice() {
     const note = document.getElementById('wp-admin-scope-note');
     if (note) note.hidden = !isAdminUser;
 
+    // ראש חבילה אינו יכול לשנות שיוך, ולכן ההפניה לעמוד ניהול המשתמשים מוצגת
+    // למנהל/ת מערכת בלבד — למי שאין לו את ההרשאה זו הפניה למבוי סתום.
+    const manageHint = document.getElementById('wp-lead-manage-hint');
+    if (manageHint) manageHint.hidden = !isAdminUser;
+
     const subtitle = document.getElementById('wp-page-subtitle');
     if (subtitle && isAdminUser) {
         subtitle.textContent = 'כל חבילות העבודה במערכת — בהרשאת מנהל/ת מערכת, לפי ההרשאות שלך';

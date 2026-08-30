@@ -98,6 +98,18 @@ function initAdminTabs() {
     tabs.forEach((tab) => {
         tab.addEventListener('click', () => activateAdminTab(tab.dataset.tab));
     });
+
+    // deep-link: work-packages.html מפנה לכאן עם #wp-leads כדי לפתוח ישירות את
+    // כרטיסיית "שיוך ראשי חבילות". hash לא מוכר פשוט נשאר בכרטיסייה ברירת המחדל.
+    const openTabFromHash = () => {
+        const requested = window.location.hash.replace('#', '');
+        if (tabs.some((tab) => tab.dataset.tab === requested)) {
+            activateAdminTab(requested);
+        }
+    };
+
+    openTabFromHash();
+    window.addEventListener('hashchange', openTabFromHash);
 }
 
 function activateAdminTab(tabName) {
