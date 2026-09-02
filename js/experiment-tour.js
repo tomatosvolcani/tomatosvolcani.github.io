@@ -1,6 +1,9 @@
 // js/experiment-tour.js
 // מדריך למשתמש בתוך עמוד הניסוי — מבוסס Driver.js
 // ניתן לשנות ולהרחיב קובץ זה בלבד כדי לעדכן את הסיור בעמוד הניסוי
+//
+// הערה על כותרות השלבים: הן נשארות טקסט נקי (ללא HTML ואייקונים) — רק ה-description
+// עובר כ-HTML. אייקונים/הדגשות נוספים ממוקמים בגוף התיאור.
 
 export function initExperimentTour() {
     if (!window.driver || !window.driver.js) {
@@ -16,38 +19,38 @@ export function initExperimentTour() {
         style.id = 'tour-custom-style';
         style.innerHTML = `
             .driver-popover {
-                border-radius: 14px !important;
-                box-shadow: 0 8px 32px rgba(10, 47, 114, 0.22), 0 2px 8px rgba(0,0,0,0.12) !important;
-                border: 1.5px solid rgba(37, 99, 235, 0.15) !important;
+                border-radius: 12px !important;
+                box-shadow: 0 18px 44px rgba(10, 47, 114, 0.20), 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+                border: 1px solid #dbe3ef !important;
                 padding: 0 !important;
                 overflow: hidden !important;
-                max-width: 380px !important;
+                max-width: 400px !important;
                 font-family: 'Heebo', sans-serif !important;
                 direction: rtl !important;
             }
             .driver-popover-title {
-                background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%) !important;
+                background: linear-gradient(135deg, #0a2f72 0%, #1e40af 100%) !important;
                 color: #fff !important;
-                padding: 14px 18px 12px !important;
-                font-size: 1.05rem !important;
-                font-weight: 700 !important;
+                /* padding שמאלי מוגדל — שם יושב כפתור הסגירה */
+                padding: 13px 18px 13px 42px !important;
+                font-size: 1rem !important;
+                font-weight: 600 !important;
+                letter-spacing: -0.01em !important;
                 border-bottom: none !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 8px !important;
                 text-align: right !important;
             }
             .driver-popover-description {
-                padding: 14px 18px !important;
-                font-size: 0.92rem !important;
-                color: #1e293b !important;
-                line-height: 1.7 !important;
+                padding: 16px 18px 6px !important;
+                font-size: 0.9rem !important;
+                color: #334155 !important;
+                line-height: 1.75 !important;
                 text-align: right !important;
                 direction: rtl !important;
             }
             .driver-popover-footer {
-                padding: 10px 18px 14px !important;
-                border-top: 1px solid #e2e8f0 !important;
+                padding: 12px 18px 14px !important;
+                border-top: 1px solid #eef2f7 !important;
+                background: #fbfcfe !important;
                 display: flex !important;
                 gap: 8px !important;
                 justify-content: flex-start !important;
@@ -58,90 +61,126 @@ export function initExperimentTour() {
             .driver-popover-done-btn {
                 border-radius: 8px !important;
                 font-family: 'Heebo', sans-serif !important;
-                font-size: 0.88rem !important;
+                font-size: 0.86rem !important;
                 font-weight: 600 !important;
-                padding: 7px 16px !important;
-                border: none !important;
+                padding: 8px 18px !important;
+                border: 1px solid transparent !important;
                 cursor: pointer !important;
-                transition: opacity 0.2s !important;
+                text-shadow: none !important;
+                transition: background 0.18s ease, border-color 0.18s ease !important;
             }
             .driver-popover-next-btn,
             .driver-popover-done-btn {
-                background: #2563eb !important;
+                background: #0a2f72 !important;
                 color: #fff !important;
             }
             .driver-popover-next-btn:hover,
-            .driver-popover-done-btn:hover { opacity: 0.88 !important; }
+            .driver-popover-done-btn:hover { background: #123f8f !important; }
             .driver-popover-prev-btn {
-                background: #f1f5f9 !important;
+                background: #fff !important;
                 color: #334155 !important;
+                border-color: #d6deea !important;
             }
-            .driver-popover-prev-btn:hover { background: #e2e8f0 !important; }
+            .driver-popover-prev-btn:hover { background: #f1f5f9 !important; }
             .driver-popover-progress-text {
-                font-size: 0.8rem !important;
+                font-size: 0.78rem !important;
+                font-weight: 500 !important;
                 color: #94a3b8 !important;
                 margin-right: auto !important;
                 align-self: center !important;
             }
             .driver-popover-close-btn {
-                color: rgba(255,255,255,0.7) !important;
-                top: 10px !important;
+                color: rgba(255,255,255,0.75) !important;
+                top: 9px !important;
                 left: 12px !important;
                 right: auto !important;
-                font-size: 1.1rem !important;
+                font-size: 1.15rem !important;
+                transition: color 0.18s ease !important;
             }
             .driver-popover-close-btn:hover { color: #fff !important; }
             .tour-list {
-                margin: 6px 0 0 0;
-                padding-right: 18px;
+                margin: 8px 0 0 0;
+                padding: 0;
                 list-style: none;
             }
             .tour-list li {
-                margin-bottom: 4px;
-                padding-right: 2px;
                 position: relative;
+                margin-bottom: 6px;
+                padding-right: 16px;
             }
+            .tour-list li:last-child { margin-bottom: 0; }
             .tour-list li::before {
-                content: "←";
+                content: "";
                 position: absolute;
-                right: -16px;
-                color: #2563eb;
-                font-size: 0.8rem;
-                top: 2px;
+                right: 0;
+                top: 0.62em;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #2563eb;
             }
-            .tour-accent { color: #1d4ed8; font-weight: 700; }
+            .tour-accent { color: #1d4ed8; font-weight: 600; }
             .tour-divider {
                 border: none;
-                border-top: 1px solid #e2e8f0;
-                margin: 8px 0;
+                border-top: 1px solid #eef2f7;
+                margin: 12px 0;
+            }
+            .tour-note {
+                margin-top: 12px;
+                padding: 10px 12px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-right: 3px solid #2563eb;
+                border-radius: 8px;
+                font-size: 0.86rem;
+                line-height: 1.65;
+                color: #334155;
+            }
+            .tour-note-title {
+                display: block;
+                margin-bottom: 2px;
+                font-weight: 600;
+                color: #0a2f72;
+            }
+            .tour-status {
+                display: inline-block;
+                padding: 1px 7px;
+                border-radius: 5px;
+                background: #eef2ff;
+                color: #1e40af;
+                font-size: 0.82rem;
+                font-weight: 600;
+                white-space: nowrap;
             }
         `;
         document.head.appendChild(style);
     }
 
-    // ===== שלבי הסיור בעמוד הניסוי =====
-    const tourDriver = driver({
+    // ===== הגדרות הסיור =====
+    const tourConfig = {
         showProgress: true,
         animate: true,
         allowClose: true,
         overlayColor: 'rgba(15, 35, 90, 0.65)',
-        nextBtnText: 'הבא ←',
-        prevBtnText: '→ הקודם',
-        doneBtnText: '✓ סיום הסיור',
-        progressText: 'שלב {{current}} מתוך {{total}}',
+        nextBtnText: 'הבא',
+        prevBtnText: 'הקודם',
+        doneBtnText: 'סיום',
+        progressText: 'שלב {{current}} מתוך {{total}}'
+    };
 
-        steps: [
+    // ===== שלבי הסיור בעמוד הניסוי =====
+    const tourSteps = [
 
             // ── שלב 1: ברכה כללית ──
             {
                 element: '.breadcrumb',
                 popover: {
-                    title: '📋 ברוכים לעמוד הניסוי!',
+                    title: 'עמוד הניסוי — סקירה כללית',
                     description: `
-                        כאן תוכלו לתעד ולנהל את כל פרטי הניסוי שיצרתם.
+                        בעמוד זה מתעדים ומנהלים את כל פרטי הניסוי.
                         <hr class="tour-divider">
-                        הפס העליון (פירורי לחם) מראה תמיד את המיקום הנוכחי שלכם בתוך הניסוי.
-                        הסיור הקצר הזה יסביר כל חלק 🚀
+                        הפס העליון מציין תמיד את המיקום הנוכחי בתוך הניסוי, ולצידו מוצג מחוון השמירה.
+                        הסיור הקצר יעבור על כל חלקי העמוד.
                     `,
                     side: 'bottom',
                     align: 'start'
@@ -152,7 +191,7 @@ export function initExperimentTour() {
             {
                 element: '.experiment-nav-item',
                 popover: {
-                    title: '🗂️ ניווט בין חלקי הניסוי',
+                    title: 'ניווט בין חלקי הניסוי',
                     description: `
                         התפריט הצדדי מחולק לשלושה אזורים עיקריים:
                         <ul class="tour-list">
@@ -160,7 +199,7 @@ export function initExperimentTour() {
                             <li><span class="tour-accent">הכנות לניסוי</span> — גידול, מבנה, קרקע, טפטוף</li>
                             <li><span class="tour-accent">מהלך הניסוי</span> — השקיה, צימוח, אקלים ועוד</li>
                         </ul>
-                        לחצו על כל סעיף כדי לפתוח אותו.
+                        לחיצה על כל סעיף פותחת אותו.
                     `,
                     side: 'left',
                     align: 'start'
@@ -168,12 +207,14 @@ export function initExperimentTour() {
             },
 
             // ── שלב 3: תוכנית הניסוי ──
+            // מסמנים את פריט התפריט ולא את #view-basic: הוא גבוה ממסך שלם,
+            // וההדגשה שלו נראית כאילו לא סומן דבר.
             {
-                element: '#view-basic',
+                element: 'a[data-view="basic"]',
                 popover: {
-                    title: '📝 תוכנית הניסוי',
+                    title: 'תוכנית הניסוי',
                     description: `
-                        זהו המסך הראשי — מלאו כאן את הפרטים הבסיסיים:
+                        זהו המסך הראשי, ובו הפרטים הבסיסיים של הניסוי:
                         <ul class="tour-list">
                             <li>חוקרים מובילים, שנה וחודש הניסוי</li>
                             <li>אתר הניסוי וקורדינטות (כולל בחירה מהמפה)</li>
@@ -182,16 +223,18 @@ export function initExperimentTour() {
                             <li>חבילת עבודה במסגרת מיזם ח"ץ</li>
                         </ul>
                     `,
-                    side: 'right',
+                    side: 'left',
                     align: 'start'
                 }
             },
 
             // ── שלב 4: שותפים ──
+            // שדה החיפוש הגלוי. אין להשתמש ב-#partner-search — זהו שדה legacy
+            // שיושב בתוך div מוסתר (display:none) ונשמר לתאימות לאחור בלבד.
             {
-                element: '#partner-search',
+                element: '#experiment-partner-search',
                 popover: {
-                    title: '👥 הוספת שותפים לניסוי',
+                    title: 'הוספת שותפים לניסוי',
                     description: `
                         הקלידו <span class="tour-accent">שם או כתובת אימייל</span> של חוקר רשום במערכת.
                         <hr class="tour-divider">
@@ -211,9 +254,9 @@ export function initExperimentTour() {
             {
                 element: '#prep-toggle',
                 popover: {
-                    title: '🌱 הכנות לניסוי',
+                    title: 'הכנות לניסוי',
                     description: `
-                        לחצו כדי לפתוח את ארבעת הסעיפים:
+                        לחיצה כאן פותחת את ארבעת הסעיפים:
                         <ul class="tour-list">
                             <li><span class="tour-accent">פרטי הגידול</span> — סוג, זן, מועד שתילה, עומד ושטח</li>
                             <li><span class="tour-accent">מבנה</span> — חממה, שדה, גג, כיוון</li>
@@ -230,7 +273,7 @@ export function initExperimentTour() {
             {
                 element: '#shared-toggle-container',
                 popover: {
-                    title: '🔄 נתונים משותפים לכל הטיפולים',
+                    title: 'נתונים משותפים לכל הטיפולים',
                     description: `
                         בחלקי ה"הכנות" יש מתג חשוב —
                         <span class="tour-accent">נתונים זהים לכלל הטיפולים</span>.
@@ -239,7 +282,7 @@ export function initExperimentTour() {
                             <li><strong>פעיל (ברירת מחדל)</strong> — ממלאים פעם אחת לכל הטיפולים</li>
                             <li><strong>כבוי</strong> — כרטיסייה נפרדת לכל טיפול בנפרד</li>
                         </ul>
-                        כיבוי המתג יוצר לשוניות אחת לכל טיפול בחלק העליון של המסך.
+                        כיבוי המתג יוצר לשונית לכל טיפול בחלק העליון של המסך.
                     `,
                     side: 'bottom',
                     align: 'start'
@@ -250,9 +293,9 @@ export function initExperimentTour() {
             {
                 element: '#progress-toggle',
                 popover: {
-                    title: '📈 מהלך הניסוי',
+                    title: 'מהלך הניסוי',
                     description: `
-                        כאן תוכלו לתעד נתונים שנאספים <strong>לאורך</strong> הניסוי:
+                        כאן מתועדים נתונים שנאספים <strong>לאורך</strong> הניסוי:
                         <ul class="tour-list">
                             <li><span class="tour-accent">השקיה ודשן</span> — העלאת קבצי נתונים עם תאריכים</li>
                             <li><span class="tour-accent">צימוח</span> — מדידות גדילה עם תאריך מדידה</li>
@@ -270,9 +313,9 @@ export function initExperimentTour() {
             {
                 element: 'a[data-view="yield"]',
                 popover: {
-                    title: '🌾 נתוני יבול',
+                    title: 'נתוני יבול',
                     description: `
-                        לאחר הקטיף, הזינו כאן את <span class="tour-accent">נתוני היבול</span>:
+                        לאחר הקטיף מזינים כאן את <span class="tour-accent">נתוני היבול</span>:
                         <ul class="tour-list">
                             <li>מדידות — תאריך, חזרה, קומת פרי, כמות ואיכות</li>
                             <li>פגעים — תיעוד נזקים ביבול</li>
@@ -288,9 +331,9 @@ export function initExperimentTour() {
             {
                 element: 'a[data-view="events"]',
                 popover: {
-                    title: '📓 יומן אירועים',
+                    title: 'יומן אירועים',
                     description: `
-                        כאן תוכלו לרשום <span class="tour-accent">אירועים חשובים</span> שאירעו במהלך הניסוי —
+                        כאן נרשמים <span class="tour-accent">אירועים חשובים</span> שאירעו במהלך הניסוי —
                         תקלות, תצפיות מיוחדות, שינויי תנאים וכל הערה שחשוב לתעד.
                         <hr class="tour-divider">
                         האירועים מסודרים לפי תאריך ומהווים יומן כרונולוגי של הניסוי.
@@ -304,7 +347,7 @@ export function initExperimentTour() {
             {
                 element: 'a[data-view="financial-analysis"]',
                 popover: {
-                    title: '💰 ניתוחים פיננסיים',
+                    title: 'ניתוחים פיננסיים',
                     description: `
                         בסעיף זה ניתן לצרף <span class="tour-accent">קבצי נתונים פיננסיים</span>
                         — עלויות, תשומות וניתוחי רווחיות הקשורים לניסוי.
@@ -314,17 +357,27 @@ export function initExperimentTour() {
                 }
             },
 
-            // ── שלב 11: כפתור שמירה ──
+            // ── שלב 11: שמירה אוטומטית ──
             {
                 element: '.btn-save',
                 popover: {
-                    title: '💾 שמירת הנתונים',
+                    title: 'שמירה אוטומטית',
                     description: `
-                        לאחר מילוי או עדכון נתונים, <strong>חשוב ללחוץ על כפתור השמירה</strong>
-                        כדי שהשינויים ישמרו בשרת.
+                        הנתונים נשמרים <span class="tour-accent">אוטומטית</span> — כשלוש שניות לאחר שמפסיקים
+                        להקליד, בלי צורך ללחוץ על שמירה.
                         <hr class="tour-divider">
-                        ⚠️ <span class="tour-accent">אין שמירה אוטומטית</span> — כל מעבר בין מסכים
-                        לפני שמירה עלול לגרום לאובדן הנתונים שהוזנו.
+                        מחוון השמירה שליד הפס העליון מציג את המצב:
+                        <span class="tour-status">שומר...</span> ולאחריו
+                        <span class="tour-status">נשמר בהצלחה</span>.
+                        <ul class="tour-list">
+                            <li>מעבר בין מסכים או יציאה מהעמוד שומרים את השינויים לפני המעבר</li>
+                            <li>בבעיית רשת המחוון מתריע, והשמירה חוזרת אוטומטית כשהחיבור מתחדש</li>
+                        </ul>
+                        <div class="tour-note">
+                            <span class="tour-note-title">הכפתור "שמירה עכשיו"</span>
+                            מיועד לשמירה מיידית עם בדיקת תקינות מלאה של הטופס — הוא אינו נדרש
+                            כדי שהנתונים יישמרו.
+                        </div>
                     `,
                     side: 'top',
                     align: 'center'
@@ -333,25 +386,51 @@ export function initExperimentTour() {
 
             // ── שלב 12: סיום ──
             {
-                element: '.sidebar-footer',
+                element: '.sidebar-nav',
                 popover: {
-                    title: '✅ מוכנים לעבודה!',
+                    title: 'סיום הסיור',
                     description: `
-                        עכשיו אתם מכירים את כל חלקי עמוד הניסוי.
-                        <hr class="tour-divider">
+                        אלה כל חלקי עמוד הניסוי. מהתפריט הצדדי אפשר להמשיך:
                         <ul class="tour-list">
-                            <li>לחזרה לרשימת הניסויים — <span class="tour-accent">בית</span> בתפריט</li>
-                            <li>לייצוא נתונים לאקסל — <span class="tour-accent">שליפת ניסוי</span></li>
-                            <li>לבעיות — <span class="tour-accent">דיווח תקלות</span> כאן למטה</li>
+                            <li>חזרה לרשימת הניסויים — <span class="tour-accent">בית</span></li>
+                            <li>ייצוא נתונים לאקסל — <span class="tour-accent">שליפת ניסוי</span></li>
+                            <li>תקלה או הצעה לשיפור — <span class="tour-accent">תקלות והצעות</span></li>
                         </ul>
-                        <strong>בהצלחה בניסוי! 🌟</strong>
+                        <div class="tour-note">
+                            ניתן להפעיל את הסיור מחדש בכל עת דרך
+                            <span class="tour-accent">סיור בניסוי</span> בתפריט הצדדי.
+                        </div>
                     `,
-                    side: 'top',
-                    align: 'start'
+                    side: 'left',
+                    align: 'center'
                 }
             }
-        ]
-    });
+    ];
+
+    /**
+     * האם העוגן של השלב מוצג כרגע במסך.
+     *
+     * בעמוד הניסוי חלק מהעוגנים תלויי-מצב: כל מסך (view) מוצג בנפרד, ומתג
+     * "נתונים זהים לכלל הטיפולים" מוצג רק במסכי ההכנות. Driver.js אינו בודק
+     * זאת בעצמו, ולכן עוגן מוסתר מסתיים בהדגשה של מלבן במקום שרירותי בדף.
+     */
+    function isAnchorVisible(selector) {
+        const element = document.querySelector(selector);
+        if (!element || !element.getClientRects().length) return false;
+
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    // שלב שהעוגן שלו אינו מוצג כרגע מוצג ללא הדגשה — Driver.js ממקם פופאובר
+    // ללא element במרכז המסך, וכך התוכן נשמר בלי סימון שגוי.
+    function resolveSteps() {
+        return tourSteps.map((step) => {
+            if (!step.element || isAnchorVisible(step.element)) return step;
+            const { element, ...stepWithoutAnchor } = step;
+            return stepWithoutAnchor;
+        });
+    }
 
     // ── מאזין לכפתור הסיור ──
     const tourBtn = document.getElementById('btn-start-experiment-tour');
@@ -363,7 +442,8 @@ export function initExperimentTour() {
                 const overlay = document.getElementById('sidebar-overlay');
                 if (overlay) overlay.click();
             }
-            tourDriver.drive();
+            // הסיור נבנה מחדש בכל הפעלה — סט העוגנים הגלויים משתנה לפי המסך הפתוח.
+            driver({ ...tourConfig, steps: resolveSteps() }).drive();
         });
     }
 }

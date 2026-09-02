@@ -15,7 +15,7 @@ import {
     startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
-import { initSystemTour } from "./system-tour.js";
+import { initSystemTour } from "./system-tour.js?v=20260902-1";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { getRole } from "./permissions-utils.js";
 import { siteLabel } from "./labels.js";

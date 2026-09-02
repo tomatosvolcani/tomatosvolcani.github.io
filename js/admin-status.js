@@ -21,6 +21,7 @@ const PRIMARY_NAV_ITEMS = [
     { href: 'smart-search.html', icon: 'fa-magnifying-glass-chart', label: 'שליפה חכמה' },
     { href: 'export.html', icon: 'fa-file-export', label: 'שליפת ניסוי' },
     { href: 'my-bi.html', icon: 'fa-chart-pie', label: 'הסטטיסטיקה שלי' },
+    { href: 'report-issue.html', icon: 'fa-comment-dots', label: 'תקלות והצעות' },
     { href: 'tutorials.html', icon: 'fa-graduation-cap', label: 'מרכז הדרכה' }
 ];
 

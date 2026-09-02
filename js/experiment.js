@@ -23,7 +23,7 @@ import {
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
-import { initExperimentTour } from "./experiment-tour.js?v=20260818-1";
+import { initExperimentTour } from "./experiment-tour.js?v=20260902-2";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20260818-1";
 import {

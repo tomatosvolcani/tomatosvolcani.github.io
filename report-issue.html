@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>דיווח תקלות - מיזם ח"ץ</title>
+    <title>תקלות והצעות - מיזם ח"ץ</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css?v=20260621-2">
     <link rel="stylesheet" href="css/layout.css?v=20260621-2">
@@ -41,20 +41,19 @@
                     <i class="fas fa-chart-pie"></i>
                     <span>הסטטיסטיקה שלי</span>
                 </a>
+                <a href="report-issue.html" class="nav-item active" aria-current="page">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>תקלות והצעות</span>
+                </a>
                 <a href="tutorials.html" class="nav-item">
                     <i class="fas fa-graduation-cap"></i>
                     <span>מרכז הדרכה</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=1Ts8Nb7SBUedhjc0Bkz5yY9XvXTtZwZBjymvdvhbcjNUOVdGWUNWV1FYOFRERDRES1BQWjhXMzhSVy4u" class="btn-report-issue" target="_blank" rel="noopener">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    <span>דיווח תקלות</span>
-                    <i class="fas fa-external-link-alt" aria-hidden="true"></i>
-                </a>
                 <button id="btn-logout" class="btn-logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>התנתקות</span>
+                    <div class="sign" aria-hidden="true"><svg viewBox="0 0 512 512"><path d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-64 0c-53 0-96-43-96-96L0 128C0 75 43 32 96 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32z"></path></svg></div>
+                    <div class="text">התנתקות</div>
                 </button>
             </div>
         </aside>
@@ -64,18 +63,42 @@
                 <div class="breadcrumb" style="margin-bottom: 16px;">
                     <span class="breadcrumb-link" onclick="window.location.href='dashboard.html'">בית</span>
                     <span> / </span>
-                    <span class="breadcrumb-current">דיווח תקלות</span>
+                    <span class="breadcrumb-current">תקלות והצעות</span>
                 </div>
 
                 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.06);padding:24px;">
-                    <h1 style="margin-bottom:8px;">דיווח תקלות</h1>
+                    <h1 style="margin-bottom:8px;">דיווח תקלות והצעות לשיפור</h1>
                     <p style="margin-bottom:18px;color:#475569;line-height:1.7;">
-                        אם הטופס לא מוצג היטב, אפשר לפתוח אותו ישירות כאן:
+                        נתקלתם בתקלה במערכת, או שיש לכם רעיון לשיפור? זה המקום. הטופס שבהמשך העמוד
+                        נשלח לצוות הפיתוח של מיזם ח"ץ, וכל פנייה נקראת — גם קטנה.
                     </p>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:18px;">
+                        <div style="padding:16px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px;">
+                            <h2 style="display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:16px; color:#991b1b;">
+                                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                                דיווח על תקלה
+                            </h2>
+                            <p style="margin:0; color:#7f1d1d; line-height:1.7; font-size:14px;">
+                                משהו לא עובד כמצופה — שגיאה בשמירה, נתונים שלא מוצגים, קובץ שלא נטען.
+                                כדאי לציין באיזה עמוד זה קרה ומה ניסיתם לעשות, כדי שנוכל לשחזר את התקלה.
+                            </p>
+                        </div>
+                        <div style="padding:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px;">
+                            <h2 style="display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:16px; color:#1e40af;">
+                                <i class="fas fa-lightbulb" aria-hidden="true"></i>
+                                הצעה לשיפור או פיצ'ר חדש
+                            </h2>
+                            <p style="margin:0; color:#1e3a8a; line-height:1.7; font-size:14px;">
+                                שדה שחסר לכם בטופס הניסוי, נתון שתרצו לראות בשליפה או בסטטיסטיקה,
+                                או כל שינוי שיחסוך לכם זמן. תיאור קצר של מה שהייתם רוצים לעשות עוזר לנו לתעדף.
+                            </p>
+                        </div>
+                    </div>
 
                     <div style="margin-bottom:18px; padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
                         <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=1Ts8Nb7SBUedhjc0Bkz5yY9XvXTtZwZBjymvdvhbcjNUOVdGWUNWV1FYOFRERDRES1BQWjhXMzhSVy4u" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8; font-weight:600;">
-                            לא מוצג היטב? לחץ כאן
+                            הטופס לא מוצג היטב? לפתיחה בחלון נפרד לחצו כאן
                         </a>
                     </div>
 
@@ -89,7 +112,7 @@
 
             <script src="js/accessibility.js?v=20260819-1"></script>
             <script type="module" src="js/research-map.js?v=20260819-1"></script>
-            <script type="module" src="js/admin-status.js?v=20260826-2"></script>
+            <script type="module" src="js/admin-status.js?v=20260902-1"></script>
             <script type="module">
                 import { auth } from "./js/firebase-config.js";
                 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";

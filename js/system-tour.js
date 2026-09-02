@@ -17,45 +17,44 @@ export function initSystemTour() {
         style.innerHTML = `
             /* ---- פופאובר כללי ---- */
             .driver-popover {
-                border-radius: 14px !important;
-                box-shadow: 0 8px 32px rgba(10, 47, 114, 0.22), 0 2px 8px rgba(0,0,0,0.12) !important;
-                border: 1.5px solid rgba(37, 99, 235, 0.15) !important;
+                border-radius: 12px !important;
+                box-shadow: 0 18px 44px rgba(10, 47, 114, 0.20), 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+                border: 1px solid #dbe3ef !important;
                 padding: 0 !important;
                 overflow: hidden !important;
-                max-width: 380px !important;
+                max-width: 400px !important;
                 font-family: 'Heebo', sans-serif !important;
                 direction: rtl !important;
             }
 
             /* ---- כותרת הפופאובר ---- */
             .driver-popover-title {
-                background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%) !important;
+                background: linear-gradient(135deg, #0a2f72 0%, #1e40af 100%) !important;
                 color: #fff !important;
-                padding: 14px 18px 12px !important;
-                font-size: 1.05rem !important;
-                font-weight: 700 !important;
-                letter-spacing: 0.01em !important;
+                /* padding שמאלי מוגדל — שם יושב כפתור הסגירה */
+                padding: 13px 18px 13px 42px !important;
+                font-size: 1rem !important;
+                font-weight: 600 !important;
+                letter-spacing: -0.01em !important;
                 border-bottom: none !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 8px !important;
                 text-align: right !important;
             }
 
             /* ---- תוכן הפופאובר ---- */
             .driver-popover-description {
-                padding: 14px 18px !important;
-                font-size: 0.92rem !important;
-                color: #1e293b !important;
-                line-height: 1.7 !important;
+                padding: 16px 18px 6px !important;
+                font-size: 0.9rem !important;
+                color: #334155 !important;
+                line-height: 1.75 !important;
                 text-align: right !important;
                 direction: rtl !important;
             }
 
             /* ---- כפתורי ניווט ---- */
             .driver-popover-footer {
-                padding: 10px 18px 14px !important;
-                border-top: 1px solid #e2e8f0 !important;
+                padding: 12px 18px 14px !important;
+                border-top: 1px solid #eef2f7 !important;
+                background: #fbfcfe !important;
                 display: flex !important;
                 gap: 8px !important;
                 justify-content: flex-start !important;
@@ -66,33 +65,36 @@ export function initSystemTour() {
             .driver-popover-done-btn {
                 border-radius: 8px !important;
                 font-family: 'Heebo', sans-serif !important;
-                font-size: 0.88rem !important;
+                font-size: 0.86rem !important;
                 font-weight: 600 !important;
-                padding: 7px 16px !important;
-                border: none !important;
+                padding: 8px 18px !important;
+                border: 1px solid transparent !important;
                 cursor: pointer !important;
-                transition: opacity 0.2s !important;
+                text-shadow: none !important;
+                transition: background 0.18s ease, border-color 0.18s ease !important;
             }
             .driver-popover-next-btn,
             .driver-popover-done-btn {
-                background: #2563eb !important;
+                background: #0a2f72 !important;
                 color: #fff !important;
             }
             .driver-popover-next-btn:hover,
             .driver-popover-done-btn:hover {
-                opacity: 0.88 !important;
+                background: #123f8f !important;
             }
             .driver-popover-prev-btn {
-                background: #f1f5f9 !important;
+                background: #fff !important;
                 color: #334155 !important;
+                border-color: #d6deea !important;
             }
             .driver-popover-prev-btn:hover {
-                background: #e2e8f0 !important;
+                background: #f1f5f9 !important;
             }
 
             /* ---- מונה שלבים ---- */
             .driver-popover-progress-text {
-                font-size: 0.8rem !important;
+                font-size: 0.78rem !important;
+                font-weight: 500 !important;
                 color: #94a3b8 !important;
                 margin-right: auto !important;
                 align-self: center !important;
@@ -100,60 +102,82 @@ export function initSystemTour() {
 
             /* ---- כפתור סגירה ---- */
             .driver-popover-close-btn {
-                color: rgba(255,255,255,0.7) !important;
-                top: 10px !important;
+                color: rgba(255,255,255,0.75) !important;
+                top: 9px !important;
                 left: 12px !important;
                 right: auto !important;
-                font-size: 1.1rem !important;
+                font-size: 1.15rem !important;
+                transition: color 0.18s ease !important;
             }
             .driver-popover-close-btn:hover {
                 color: #fff !important;
             }
 
-            /* ---- שלט הבדגש ---- */
-            .tour-badge {
-                display: inline-block;
-                background: rgba(255,255,255,0.22);
-                color: #fff;
-                font-size: 0.78rem;
-                font-weight: 600;
-                padding: 2px 9px;
-                border-radius: 20px;
-                margin-right: 6px;
-                vertical-align: middle;
-            }
-
             /* ---- רשימת נקודות בתיאור ---- */
             .tour-list {
-                margin: 6px 0 0 0;
-                padding-right: 18px;
+                margin: 8px 0 0 0;
+                padding: 0;
                 list-style: none;
             }
             .tour-list li {
-                margin-bottom: 4px;
-                padding-right: 2px;
                 position: relative;
+                margin-bottom: 6px;
+                padding-right: 16px;
             }
+            .tour-list li:last-child { margin-bottom: 0; }
             .tour-list li::before {
-                content: "←";
+                content: "";
                 position: absolute;
-                right: -16px;
-                color: #2563eb;
-                font-size: 0.8rem;
-                top: 2px;
+                right: 0;
+                top: 0.62em;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #2563eb;
             }
 
             /* ---- צבע הדגשה בטקסט ---- */
             .tour-accent {
                 color: #1d4ed8;
-                font-weight: 700;
+                font-weight: 600;
             }
 
             /* ---- קו הפרדה קל ---- */
             .tour-divider {
                 border: none;
-                border-top: 1px solid #e2e8f0;
-                margin: 8px 0;
+                border-top: 1px solid #eef2f7;
+                margin: 12px 0;
+            }
+
+            /* ---- הערה מודגשת בתוך התיאור ---- */
+            .tour-note {
+                margin-top: 12px;
+                padding: 10px 12px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-right: 3px solid #2563eb;
+                border-radius: 8px;
+                font-size: 0.86rem;
+                line-height: 1.65;
+                color: #334155;
+            }
+            .tour-note-title {
+                display: block;
+                margin-bottom: 2px;
+                font-weight: 600;
+                color: #0a2f72;
+            }
+
+            /* ---- ציטוט של טקסט שמופיע במערכת ---- */
+            .tour-status {
+                display: inline-block;
+                padding: 1px 7px;
+                border-radius: 5px;
+                background: #eef2ff;
+                color: #1e40af;
+                font-size: 0.82rem;
+                font-weight: 600;
+                white-space: nowrap;
             }
         `;
         document.head.appendChild(style);
@@ -165,9 +189,9 @@ export function initSystemTour() {
         animate: true,
         allowClose: true,
         overlayColor: 'rgba(15, 35, 90, 0.65)',
-        nextBtnText: 'הבא ←',
-        prevBtnText: '→ הקודם',
-        doneBtnText: '✓ סיום הסיור',
+        nextBtnText: 'הבא',
+        prevBtnText: 'הקודם',
+        doneBtnText: 'סיום',
         progressText: 'שלב {{current}} מתוך {{total}}',
 
         steps: [
@@ -175,12 +199,12 @@ export function initSystemTour() {
             {
                 element: '.dashboard-main h1',
                 popover: {
-                    title: '👋 ברוכים הבאים למערכת איגום נתונים - למיזם ח"ץ!',
+                    title: 'ברוכים הבאים למערכת איגום הנתונים של מיזם ח"ץ',
                     description: `
                         זהו <span class="tour-accent">מסך הבית</span> שלכם — כאן מוצגים כל הניסויים שלכם,
                         גם אלו שיצרתם וגם כאלו שחוקרים אחרים שיתפו איתכם.
                         <hr class="tour-divider">
-                        הסיור הקצר הבא ינחה אתכם בכל חלקי המערכת 🚀
+                        הסיור הקצר הבא יעבור על כל חלקי המערכת.
                     `,
                     side: 'bottom',
                     align: 'start'
@@ -191,7 +215,7 @@ export function initSystemTour() {
             {
                 element: '.sidebar-nav',
                 popover: {
-                    title: '🗂️ תפריט ניווט',
+                    title: 'תפריט הניווט',
                     description: `
                         מהתפריט הצדדי תוכלו לגשת לכל חלקי המערכת:
                         <ul class="tour-list">
@@ -209,12 +233,12 @@ export function initSystemTour() {
             {
                 element: '.experiments-legend',
                 popover: {
-                    title: '🏷️ זיהוי סוג הניסוי',
+                    title: 'זיהוי סוג הניסוי',
                     description: `
                         כל ניסוי מסומן בצבע שונה כדי להבחין בקלות:
                         <ul class="tour-list">
-                            <li>סמל <span class="tour-accent">ירוק (✔️)</span> — ניסוי שאתם הקמתם</li>
-                            <li>סמל <span class="tour-accent">כחול (👥)</span> — ניסוי שחוקר אחר שיתף אתכם בו</li>
+                            <li>סמל <span class="tour-accent">ירוק</span> — ניסוי שאתם הקמתם</li>
+                            <li>סמל <span class="tour-accent">כחול</span> — ניסוי שחוקר אחר שיתף אתכם בו</li>
                         </ul>
                         <hr class="tour-divider">
                         בניסויים משותפים תוכלו לראות וגם לערוך נתונים (בהתאם להרשאות).
@@ -228,7 +252,7 @@ export function initSystemTour() {
             {
                 element: '#add-experiment-btn',
                 popover: {
-                    title: '🧪 יצירת ניסוי חדש',
+                    title: 'יצירת ניסוי חדש',
                     description: `
                         <strong>לחצו על הריבוע הזה</strong> כדי להתחיל תיעוד ניסוי חדש.
                         <hr class="tour-divider">
@@ -247,7 +271,7 @@ export function initSystemTour() {
             {
                 element: '#new-experiment-modal .modal',
                 popover: {
-                    title: '✏️ שם הניסוי',
+                    title: 'שם הניסוי',
                     description: `
                         הזינו <span class="tour-accent">שם תיאורי לניסוי</span> (למשל: "עגבניות חממה 2025")
                         ולחצו על <strong>"יצירת ניסוי"</strong>.
@@ -276,7 +300,7 @@ export function initSystemTour() {
             {
                 element: 'a[href="export.html"]',
                 popover: {
-                    title: '📊 שליפת נתונים לאקסל',
+                    title: 'שליפת נתונים לאקסל',
                     description: `
                         בסיום (או בכל שלב) תוכלו לייצא את נתוני הניסוי לאקסל דרך
                         <span class="tour-accent">שליפת ניסוי</span> בתפריט.
@@ -290,22 +314,20 @@ export function initSystemTour() {
 
             // ── שלב 7: סיום ──
             {
-                element: '.sidebar-footer',
+                element: '.sidebar-nav',
                 popover: {
-                    title: '✅ מוכנים להתחיל!',
+                    title: 'סיום הסיור',
                     description: `
                         אתם מוכנים לעבוד עם מערכת ח"ץ.
                         <hr class="tour-divider">
                         <ul class="tour-list">
-                            <li>נתקלתם בבעיה? השתמשו ב<span class="tour-accent">דיווח תקלות</span> כאן למטה</li>
-                            <li>יש שאלות? פנו לצ'אטבוט המובנה בפינה השמאלית</li>
-                            <li>בתוך כל ניסוי — לחצו על <span class="tour-accent">סיור בניסוי</span> לקבלת הדרכה מפורטת</li>
+                            <li>תקלה או הצעה לשיפור — <span class="tour-accent">תקלות והצעות</span> בתפריט</li>
+                            <li>שאלות — הצ'אטבוט המובנה בפינה השמאלית</li>
+                            <li>בתוך כל ניסוי — <span class="tour-accent">סיור בניסוי</span> להדרכה מפורטת</li>
                         </ul>
-                        <hr class="tour-divider">
-                        <strong>בהצלחה! 🌟</strong>
                     `,
-                    side: 'top',
-                    align: 'start'
+                    side: 'left',
+                    align: 'center'
                 }
             }
         ]
