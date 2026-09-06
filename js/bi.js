@@ -14,7 +14,8 @@ import {
     collection,
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 
 let currentUser = null;
@@ -22,6 +23,8 @@ let currentUser = null;
 let allExperiments = [];
 /** @type {Map<string, { fullName: string, email: string }>} */
 let publicResearchersByUid = new Map();
+/** מופע Leaflet הפעיל, נשמר כדי שאפשר יהיה לרנדר מחדש אחרי "נסה שוב". */
+let experimentsMapInstance = null;
 
 
 // ======================================================
@@ -93,6 +96,10 @@ async function loadAndRender() {
     const loadingEl = document.getElementById('loading-container');
     const contentEl = document.getElementById('bi-content');
 
+    // Reset to the loading state so a retry starts from a clean slate.
+    if (loadingEl) loadingEl.style.display = '';
+    if (contentEl) contentEl.classList.add('hidden');
+
     try {
         // ---- Load experiments and public researcher names in parallel ----
         const experimentsQuery = query(collectionGroup(db, 'experiments'));
@@ -126,6 +133,15 @@ async function loadAndRender() {
 
     } catch (err) {
         console.error("loadAndRender:", err);
+        if (loadingEl) loadingEl.style.display = 'none';
+
+        // כשל רשת אינו כשל הרשאות, ואסור שיגרור הרחקה מהדף עם הודעה שגויה.
+        // נשארים בעמוד ומציעים לנסות שוב.
+        if (isRetryableFirestoreError(err)) {
+            showRetryToast('שגיאה בטעינת נתונים. החיבור לשרת נכשל.', loadAndRender);
+            return;
+        }
+
         if (err.code === 'permission-denied') {
             showToast('אין הרשאות גישה לדף זה. נדרשות הרשאות מנהל.', 'error');
         } else {
@@ -170,6 +186,13 @@ function renderExperimentsMap(exps) {
     const mapContainer = document.getElementById('experiments-map');
     if (!mapContainer) return;
 
+    // renderAll may run more than once (retry after a failed load), and Leaflet
+    // throws "Map container is already initialized" on a reused container.
+    if (experimentsMapInstance) {
+        experimentsMapInstance.remove();
+        experimentsMapInstance = null;
+    }
+
     mapContainer.innerHTML = '';
 
     const expsWithCoords = exps
@@ -193,6 +216,7 @@ function renderExperimentsMap(exps) {
     }
 
     const map = L.map(mapContainer).setView([31.5, 34.75], 7);
+    experimentsMapInstance = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -682,7 +706,13 @@ function validateLatLng(lat, lng) {
 // ======================================================
 function getCtx(id) {
     const el = document.getElementById(id);
-    return el ? el.getContext('2d') : null;
+    if (!el) return null;
+
+    // renderAll may run more than once (retry after a failed load), and Chart.js
+    // refuses to reuse a canvas that still has a live chart attached to it.
+    Chart.getChart(el)?.destroy();
+
+    return el.getContext('2d');
 }
 
 function setText(id, val) {

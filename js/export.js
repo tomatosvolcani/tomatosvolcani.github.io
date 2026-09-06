@@ -9,7 +9,8 @@ import {
 import {
     ref, listAll, getBlob
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
@@ -132,7 +133,11 @@ async function loadExperimentsForExport() {
         }
     } catch (err) {
         console.error("Error loading experiments:", err);
-        showToast('שגיאה בטעינת הניסויים', 'error');
+        if (isRetryableFirestoreError(err)) {
+            showRetryToast('לא ניתן לטעון את הניסויים. החיבור לשרת נכשל.', loadExperimentsForExport);
+        } else {
+            showToast('שגיאה בטעינת הניסויים', 'error');
+        }
     }
 
     if (loading) loading.classList.add('hidden');
@@ -168,7 +173,11 @@ async function loadMoreExportExperiments() {
         updateExportLoadMoreButtonVisibility();
     } catch (error) {
         console.error("Error loading more experiments for export:", error);
-        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('שגיאה בטעינת ניסויים נוספים. החיבור לשרת נכשל.', loadMoreExportExperiments);
+        } else {
+            showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        }
     } finally {
         if (btn) {
             btn.disabled = false;

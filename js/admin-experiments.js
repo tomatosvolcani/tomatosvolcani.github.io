@@ -13,7 +13,8 @@ import {
     startAfter,
     getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { siteLabel } from "./labels.js";
 import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260826-2";
 import {
@@ -156,8 +157,16 @@ async function loadAllExperiments() {
         updateLoadMoreButtonVisibility();
 
     } catch (error) {
-        // שגיאת הרשאות = אין גישה לדף זה
         console.error("Error loading experiments:", error);
+
+        // כשל רשת אינו כשל הרשאות. בלי ההפרדה הזו מנהל ברשת חלשה מוחזר
+        // לדשבורד עם הודעה שגויה על היעדר הרשאות.
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לטעון את הניסויים. החיבור לשרת נכשל.', loadAllExperiments);
+            return;
+        }
+
+        // שגיאת הרשאות = אין גישה לדף זה
         showToast('אין לך הרשאות גישה לדף זה', 'error');
         setTimeout(() => {
             window.location.href = "dashboard.html";
@@ -184,7 +193,11 @@ async function loadMoreExperiments() {
         updateLoadMoreButtonVisibility();
     } catch (error) {
         console.error("Error loading more experiments:", error);
-        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('שגיאה בטעינת ניסויים נוספים. החיבור לשרת נכשל.', loadMoreExperiments);
+        } else {
+            showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        }
     } finally {
         if (btn) {
             btn.disabled = false;

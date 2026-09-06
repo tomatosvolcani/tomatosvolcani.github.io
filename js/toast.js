@@ -51,6 +51,72 @@ export function showToast(message, type = 'info', duration = 3000) {
     return toast;
 }
 
+/**
+ * Error toast with a "try again" button.
+ *
+ * Unlike showToast this one does NOT auto-dismiss: a failed data load leaves the
+ * page showing nothing, so the user has to actively decide to retry or dismiss.
+ * Use it only for failures that a retry can actually fix (network / transport).
+ * Permission errors should keep using showToast — retrying them changes nothing.
+ *
+ * @param {string} message - The message to display
+ * @param {() => (void|Promise<void>)} onRetry - Runs when "נסה שוב" is clicked
+ * @param {{retryText?: string}} [options]
+ */
+export function showRetryToast(message, onRetry, { retryText = 'נסה שוב' } = {}) {
+    const container = ensureToastContainer();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-error toast-with-action';
+    toast.setAttribute('role', 'alert');
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-times-circle';
+
+    const text = document.createElement('span');
+    text.className = 'toast-text';
+    text.textContent = message;
+
+    const retryButton = document.createElement('button');
+    retryButton.type = 'button';
+    retryButton.className = 'toast-action';
+    retryButton.textContent = retryText;
+
+    const dismissButton = document.createElement('button');
+    dismissButton.type = 'button';
+    dismissButton.className = 'toast-dismiss';
+    dismissButton.setAttribute('aria-label', 'סגירת ההודעה');
+    dismissButton.innerHTML = '<i class="fas fa-times"></i>';
+
+    const dismiss = () => {
+        toast.classList.add('toast-hide');
+        setTimeout(() => toast.remove(), 300);
+    };
+
+    retryButton.addEventListener('click', async () => {
+        retryButton.disabled = true;
+        const originalText = retryButton.textContent;
+        retryButton.textContent = 'מנסה...';
+        try {
+            await onRetry();
+            dismiss();
+        } catch (error) {
+            // The retry failed too. Keep the toast so the user can try again,
+            // and let the caller's own error handling report the new failure.
+            console.error('Retry failed:', error);
+            retryButton.disabled = false;
+            retryButton.textContent = originalText;
+        }
+    });
+
+    dismissButton.addEventListener('click', dismiss);
+
+    toast.append(icon, text, retryButton, dismissButton);
+    container.appendChild(toast);
+
+    return toast;
+}
+
 let activeDialogResolver = null;
 
 function removeActiveDialog() {

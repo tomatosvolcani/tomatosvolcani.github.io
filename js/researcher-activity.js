@@ -9,6 +9,7 @@ import {
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { checkAdminAccess, showAdminStatusBadge } from "./admin-status.js?v=20260826-2";
 import {
     normalizeExternalLeadResearchers,
@@ -21,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSidebar();
     document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
     document.getElementById("btn-print")?.addEventListener("click", () => window.print());
+    document.getElementById("btn-retry-report")?.addEventListener("click", retryActivityReport);
     document.getElementById("researcher-search")?.addEventListener("input", (event) => {
         renderRows(filterRows(event.target.value));
     });
@@ -107,14 +109,47 @@ async function loadActivityReport() {
         console.error("Failed to load researcher activity report:", error);
         document.getElementById("loading-state")?.setAttribute("hidden", "");
         document.getElementById("error-state")?.removeAttribute("hidden");
+
+        const canRetry = isRetryableFirestoreError(error);
         setText(
             "error-message",
             error?.code === "permission-denied"
                 ? "אין הרשאה לקריאת נתוני המערכת. יש לפתוח את הדוח מחשבון מנהל מאושר."
-                : "אירעה שגיאה בטעינת הדוח. כדאי לרענן את העמוד ולנסות שוב."
+                : canRetry
+                    ? "החיבור לשרת נכשל ולכן הדוח לא נטען. אפשר לנסות שוב."
+                    : "אירעה שגיאה בטעינת הדוח. כדאי לרענן את העמוד ולנסות שוב."
         );
+        // Only offer the button when a retry can actually help - a permission or
+        // index error would just fail again with the same message.
+        toggleRetryButton(canRetry);
         showToast("לא ניתן לטעון את דוח פעילות החוקרים", "error");
     }
+}
+
+/** מציג או מסתיר את כפתור "נסה שוב" שבמסך השגיאה. */
+function toggleRetryButton(visible) {
+    const button = document.getElementById("btn-retry-report");
+    if (!button) return;
+
+    if (visible) {
+        button.disabled = false;
+        button.removeAttribute("hidden");
+    } else {
+        button.setAttribute("hidden", "");
+    }
+}
+
+/** טעינה חוזרת של הדוח אחרי כשל רשת, בלי לרענן את כל העמוד. */
+async function retryActivityReport() {
+    const button = document.getElementById("btn-retry-report");
+    if (button) button.disabled = true;
+
+    document.getElementById("error-state")?.setAttribute("hidden", "");
+    toggleRetryButton(false);
+    document.getElementById("loading-state")?.removeAttribute("hidden");
+
+    // loadActivityReport מטפל בעצמו בשגיאה ומחזיר את מסך השגיאה במידת הצורך.
+    await loadActivityReport();
 }
 
 function buildResearcherDirectory(snapshot) {

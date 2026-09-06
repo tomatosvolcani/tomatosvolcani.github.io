@@ -242,6 +242,28 @@
 
         .error-state i { color: #dc2626; }
 
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 9px;
+            background: #0a2f72;
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .retry-btn:hover:not(:disabled) { background: #082354; }
+
+        .retry-btn:disabled { opacity: 0.6; cursor: default; }
+
+        .retry-btn i { display: inline; margin: 0; font-size: inherit; color: inherit; }
+
         @media (max-width: 768px) {
             .page-header { flex-direction: column; }
             .stats-grid { grid-template-columns: 1fr; }
@@ -408,6 +430,10 @@
             <div class="error-state" id="error-state" hidden>
                 <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
                 <div id="error-message">לא ניתן לטעון את הדוח.</div>
+                <button type="button" class="retry-btn" id="btn-retry-report" hidden>
+                    <i class="fas fa-rotate-right" aria-hidden="true"></i>
+                    נסה שוב
+                </button>
             </div>
         </main>
     </div>

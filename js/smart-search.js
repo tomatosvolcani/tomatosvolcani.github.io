@@ -11,7 +11,8 @@ import {
     query,
     where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { timestampToDate } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
@@ -171,9 +172,17 @@ onAuthStateChanged(auth, async (user) => {
         await loadSmartSearchExperiments();
     } catch (error) {
         console.error("Smart search initialization failed:", error);
-        showToast("שגיאה בטעינת עמוד השליפה החכמה", "error");
         hideLoading();
         showEmptyState();
+
+        // כשל באתחול מגיע לפני שנקבע היקף ההרשאות, ולכן טעינה חוזרת של העמוד
+        // היא הדרך הבטוחה לנסות שוב.
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast("לא ניתן לטעון את עמוד השליפה החכמה. החיבור לשרת נכשל.",
+                () => window.location.reload());
+        } else {
+            showToast("שגיאה בטעינת עמוד השליפה החכמה", "error");
+        }
     }
 });
 
@@ -400,7 +409,12 @@ async function loadSmartSearchExperiments() {
         applyFiltersAndSearch();
     } catch (error) {
         console.error("Error loading smart search experiments:", error);
-        showToast("שגיאה בטעינת הניסויים", "error");
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast("לא ניתן לטעון את הניסויים. החיבור לשרת נכשל.",
+                loadSmartSearchExperiments);
+        } else {
+            showToast("שגיאה בטעינת הניסויים", "error");
+        }
         showEmptyState();
     } finally {
         hideLoading();

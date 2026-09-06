@@ -5,6 +5,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import {
     doc,
     getDoc,
+    getDocFromServer,
     collection,
     getDocsFromServer,
     addDoc,
@@ -14,7 +15,8 @@ import {
     limit,
     startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { initSystemTour } from "./system-tour.js?v=20260902-1";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { getRole } from "./permissions-utils.js";
@@ -31,6 +33,8 @@ let sharedExperimentsLastDoc = null;
 let hasMoreMyExperiments = true;
 let hasMoreSharedExperiments = true;
 let isLoadingExperimentsBatch = false;
+/** ניסויים משותפים שלא נטענו באצווה הנוכחית בגלל תקלת חיבור. */
+let unreachableSharedInBatch = 0;
 const renderedExperimentKeys = new Set();
 
 // Wait for DOM to be ready
@@ -306,6 +310,12 @@ async function loadExperiments() {
 
     } catch (error) {
         console.error("Error loading experiments:", error);
+        // בלי הדיווח הזה כשל טעינה נראה בדיוק כמו "אין לך ניסויים".
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לטעון את הניסויים. החיבור לשרת נכשל.', loadExperiments);
+        } else {
+            showToast('שגיאה בטעינת הניסויים', 'error');
+        }
     } finally {
         // הסתר את הספינר והצג את הגריד
         if (loadingContainer) loadingContainer.classList.add('hidden');
@@ -338,7 +348,11 @@ async function loadMoreExperiments() {
         updateLoadMoreButtonVisibility();
     } catch (error) {
         console.error("Error loading more experiments:", error);
-        showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('שגיאה בטעינת ניסויים נוספים. החיבור לשרת נכשל.', loadMoreExperiments);
+        } else {
+            showToast('שגיאה בטעינת ניסויים נוספים', 'error');
+        }
     } finally {
         if (loadMoreBtn) {
             loadMoreBtn.disabled = false;
@@ -350,6 +364,7 @@ async function loadMoreExperiments() {
 async function loadNextExperimentsBatch() {
     if (isLoadingExperimentsBatch) return 0;
     isLoadingExperimentsBatch = true;
+    unreachableSharedInBatch = 0;
 
     try {
         let loadedInBatch = 0;
@@ -369,10 +384,31 @@ async function loadNextExperimentsBatch() {
             loadedInBatch += sharedExperiments.length;
         }
 
+        reportUnreachableSharedExperiments();
+
         return loadedInBatch;
     } finally {
         isLoadingExperimentsBatch = false;
     }
+}
+
+/**
+ * מדווח על ניסויים משותפים שלא נטענו בגלל תקלת חיבור.
+ * בלי זה הכרטיסים פשוט נעדרים מהגריד והמשתמש חושב שהם נמחקו.
+ */
+function reportUnreachableSharedExperiments() {
+    if (unreachableSharedInBatch <= 0) return;
+
+    const count = unreachableSharedInBatch;
+    unreachableSharedInBatch = 0;
+
+    showRetryToast(
+        count === 1
+            ? 'ניסוי משותף אחד לא נטען בגלל תקלת חיבור.'
+            : `${count} ניסויים משותפים לא נטענו בגלל תקלת חיבור.`,
+        // loadExperiments כבר מאפס את העימוד, מנקה את הגריד ומטפל בספינר.
+        loadExperiments
+    );
 }
 
 async function fetchMyExperimentsPage(pageSize) {
@@ -446,7 +482,7 @@ async function fetchSharedExperimentsPage(pageSize) {
 
         try {
             const originalExperimentRef = doc(db, "users", ownerUid, "experiments", experimentId);
-            const originalExperimentSnap = await getDoc(originalExperimentRef);
+            const originalExperimentSnap = await getDocFromServer(originalExperimentRef);
             if (!originalExperimentSnap.exists()) return null;
 
             return {
@@ -457,6 +493,9 @@ async function fetchSharedExperimentsPage(pageSize) {
             };
         } catch (error) {
             console.error("Error loading shared experiment:", error);
+            // מסמך שנמחק או שיתוף שבוטל = דילוג לגיטימי. תקלת רשת = כרטיס
+            // שנעלם מהגריד בלי שהמשתמש ידע, ולכן נספר ומדווח בסוף האצווה.
+            if (isRetryableFirestoreError(error)) unreachableSharedInBatch++;
             return null;
         }
     });

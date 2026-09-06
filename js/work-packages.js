@@ -17,7 +17,8 @@ import {
     query,
     where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { formatDateIL } from "./date-utils.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { isExperimentPublic, timestampToDate } from "./permissions-utils.js";
@@ -112,9 +113,17 @@ onAuthStateChanged(auth, async (user) => {
         await loadCurrentWorkPackage();
     } catch (error) {
         console.error("Work packages initialization failed:", error);
-        showToast('שגיאה בטעינת עמוד חבילות העבודה', 'error');
         hideLoading();
         showEmptyState();
+
+        // כשל באתחול מגיע לפני שנקבע היקף ההרשאות, ולכן טעינה חוזרת של העמוד
+        // היא הדרך הבטוחה לנסות שוב - היא מריצה את כל רצף האתחול מחדש.
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לטעון את עמוד חבילות העבודה. החיבור לשרת נכשל.',
+                () => window.location.reload());
+        } else {
+            showToast('שגיאה בטעינת עמוד חבילות העבודה', 'error');
+        }
     }
 });
 
@@ -309,7 +318,12 @@ async function loadCurrentWorkPackage() {
         renderExperiments({ reset: true });
     } catch (error) {
         console.error("Error loading work package experiments:", error);
-        showToast('שגיאה בטעינת הניסויים של חבילת העבודה', 'error');
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לטעון את הניסויים של חבילת העבודה. החיבור לשרת נכשל.',
+                loadCurrentWorkPackage);
+        } else {
+            showToast('שגיאה בטעינת הניסויים של חבילת העבודה', 'error');
+        }
         currentExperiments = [];
         filteredExperiments = [];
         updateStatistics();

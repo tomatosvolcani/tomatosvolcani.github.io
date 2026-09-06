@@ -10,7 +10,8 @@ import {
 import {
     ref, listAll, getBlob
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { initServerTime, getTrustedNow } from "./server-time.js";
 import { canRead, timestampToDate } from "./permissions-utils.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
@@ -251,7 +252,13 @@ onAuthStateChanged(auth, async (user) => {
     } catch (error) {
         console.error('Smart export init error:', error);
         setStepError('שגיאה באתחול הייצוא');
-        showToast('שגיאה באתחול עמוד הייצוא', 'error');
+
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לאתחל את עמוד הייצוא. החיבור לשרת נכשל.',
+                () => window.location.reload());
+        } else {
+            showToast('שגיאה באתחול עמוד הייצוא', 'error');
+        }
     }
 });
 

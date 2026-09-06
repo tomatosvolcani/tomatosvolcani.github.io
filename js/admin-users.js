@@ -15,7 +15,8 @@ import {
     query,
     orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast, showConfirmModal } from "./toast.js";
+import { showToast, showConfirmModal, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { packageLabel } from "./labels.js?v=20260726-4";
 import {
     ASSIGNABLE_WORK_PACKAGE_CODES,
@@ -186,8 +187,17 @@ async function loadAllUsers() {
         await renderWorkPackageLeads();
 
     } catch (error) {
-        // שגיאת הרשאות = אין גישה לדף זה
         console.error("Error loading users:", error);
+
+        // כשל רשת אינו כשל הרשאות. עד שהקריאות עברו ל-getDocsFromServer כל
+        // שגיאה נבלעה כאן כ"אין הרשאות", ומנהל ברשת חלשה היה מוצא את עצמו
+        // מוחזר לדשבורד עם הודעה שגויה. עכשיו מציעים לו לנסות שוב.
+        if (isRetryableFirestoreError(error)) {
+            showRetryToast('לא ניתן לטעון את רשימת המשתמשים. החיבור לשרת נכשל.', loadAllUsers);
+            return;
+        }
+
+        // שגיאת הרשאות = אין גישה לדף זה
         showToast('אין לך הרשאות גישה לדף זה', 'error');
         setTimeout(() => {
             window.location.href = "dashboard.html";

@@ -12,13 +12,15 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import {
     doc,
     getDoc,
+    getDocFromServer,
     collection,
     getDocsFromServer,
     query,
     orderBy,
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./toast.js";
+import { showToast, showRetryToast } from "./toast.js";
+import { isRetryableFirestoreError } from "./firestore-errors.js";
 import { siteLabel, packageLabel } from "./labels.js?v=20260726-4";
 import {
     getLeadResearchersText,
@@ -30,6 +32,8 @@ let currentUser = null;
 let userData    = null;
 /** @type {Array<{id:string, ownerUid:string, isShared:boolean, [key:string]:any}>} */
 let allExperiments = [];
+/** מופע Leaflet הפעיל, נשמר כדי שאפשר יהיה לרנדר מחדש אחרי "נסה שוב". */
+let experimentsMapInstance = null;
 
 const prefersReducedMotion = window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -172,6 +176,10 @@ async function loadAndRender() {
     const loadingEl = document.getElementById('loading-container');
     const contentEl = document.getElementById('bi-content');
 
+    // Reset to the loading state so a retry starts from a clean slate.
+    if (loadingEl) loadingEl.style.display = '';
+    if (contentEl) contentEl.classList.add('hidden');
+
     try {
         // --- קריאה 1: ניסויים שלי ---
         const myRef  = collection(db, 'users', currentUser.uid, 'experiments');
@@ -189,6 +197,10 @@ async function loadAndRender() {
         const sharedSnap = await getDocsFromServer(sharedRef);
 
         // --- קריאות מקבילות לניסויים המשותפים ---
+        // ניסוי משותף שנפל בגלל תקלת חיבור אינו ניסוי שנמחק, ואסור שייעלם
+        // מהתצוגה בשקט - הוא היה מטה כלפי מטה כל KPI בלוח בלי שום סימן.
+        let unreachableSharedCount = 0;
+
         const sharedFetches = sharedSnap.docs.map(async sharedDoc => {
             const sharedData = sharedDoc.data();
             const { ownerUid, experimentId, cachedExperiment } = sharedData;
@@ -204,10 +216,14 @@ async function loadAndRender() {
             }
 
             try {
-                const expSnap = await getDoc(doc(db, 'users', ownerUid, 'experiments', experimentId));
+                const expSnap = await getDocFromServer(doc(db, 'users', ownerUid, 'experiments', experimentId));
                 if (!expSnap.exists()) return null;
                 return { id: experimentId, ownerUid, isShared: true, ...expSnap.data() };
-            } catch {
+            } catch (err) {
+                // מסמך שנמחק או שיתוף שבוטל = דילוג לגיטימי ושקט.
+                // תקלת רשת = נתון חסר שהמשתמש חייב לדעת עליו.
+                if (isRetryableFirestoreError(err)) unreachableSharedCount++;
+                else console.warn('Shared experiment skipped:', experimentId, err?.code);
                 return null;
             }
         });
@@ -222,10 +238,24 @@ async function loadAndRender() {
         // --- Render after content is visible (Leaflet needs visible container) ---
         renderAll(myExperiments.length, sharedResults.length);
 
+        if (unreachableSharedCount > 0) {
+            showRetryToast(
+                unreachableSharedCount === 1
+                    ? 'ניסוי משותף אחד לא נטען בגלל תקלת חיבור. הנתונים בלוח חלקיים.'
+                    : `${unreachableSharedCount} ניסויים משותפים לא נטענו בגלל תקלת חיבור. הנתונים בלוח חלקיים.`,
+                loadAndRender
+            );
+        }
+
     } catch (err) {
         console.error('loadAndRender:', err);
-        showToast('שגיאה בטעינת הנתונים', 'error');
         if (loadingEl) loadingEl.style.display = 'none';
+
+        if (isRetryableFirestoreError(err)) {
+            showRetryToast('שגיאה בטעינת הנתונים. החיבור לשרת נכשל.', loadAndRender);
+        } else {
+            showToast('שגיאה בטעינת הנתונים', 'error');
+        }
     }
 }
 
@@ -427,6 +457,14 @@ function renderExperimentsMap(exps) {
     const mapContainer = document.getElementById('experiments-map');
     if (!mapContainer) return;
 
+    // renderAll may run more than once (retry after a failed load), and Leaflet
+    // throws "Map container is already initialized" on a reused container.
+    // Tear the previous instance down before clearing the container.
+    if (experimentsMapInstance) {
+        experimentsMapInstance.remove();
+        experimentsMapInstance = null;
+    }
+
     mapContainer.innerHTML = '';
 
     // Parse coordinates from already-loaded experiment docs (no extra Firestore reads)
@@ -452,6 +490,7 @@ function renderExperimentsMap(exps) {
 
     // Initialize map centered on Israel
     const map = L.map(mapContainer).setView([31.5, 34.75], 7);
+    experimentsMapInstance = map;
 
     // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1098,7 +1137,13 @@ function sortedEntries(freq, topN = 10) {
 // ======================================================
 function getCtx(id) {
     const el = document.getElementById(id);
-    return el ? el.getContext('2d') : null;
+    if (!el) return null;
+
+    // renderAll may run more than once (retry after a failed load), and Chart.js
+    // refuses to reuse a canvas that still has a live chart attached to it.
+    Chart.getChart(el)?.destroy();
+
+    return el.getContext('2d');
 }
 
 function setText(id, val) {
