@@ -13,7 +13,7 @@ import {
     collectionGroup,
     doc,
     getDoc,
-    getDocs,
+    getDocsFromServer,
     query,
     where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -326,7 +326,7 @@ async function fetchOwnExperiments(workPackage) {
         collection(db, "users", currentUser.uid, "experiments"),
         where("workPackage", "==", workPackage)
     );
-    const snapshot = await getDocs(ownQuery);
+    const snapshot = await getDocsFromServer(ownQuery);
 
     return snapshot.docs.map((docSnap) => normalizeExperiment({
         id: docSnap.id,
@@ -337,7 +337,7 @@ async function fetchOwnExperiments(workPackage) {
 }
 
 async function fetchSharedExperiments(workPackage) {
-    const sharedSnapshot = await getDocs(collection(db, "users", currentUser.uid, "sharedExperiments"));
+    const sharedSnapshot = await getDocsFromServer(collection(db, "users", currentUser.uid, "sharedExperiments"));
 
     const results = await Promise.all(sharedSnapshot.docs.map(async (sharedDoc) => {
         const sharedData = sharedDoc.data();
@@ -396,7 +396,7 @@ async function fetchPublicExperiments(workPackage) {
             where("visibility", "==", "public"),
             where("workPackage", "==", workPackage)
         );
-        docs = (await getDocs(compoundQuery)).docs;
+        docs = (await getDocsFromServer(compoundQuery)).docs;
     } catch (error) {
         if (error?.code !== 'failed-precondition') throw error;
 
@@ -416,7 +416,7 @@ async function fetchPublicExperiments(workPackage) {
             collectionGroup(db, "experiments"),
             where("visibility", "==", "public")
         );
-        docs = (await getDocs(fallbackQuery)).docs
+        docs = (await getDocsFromServer(fallbackQuery)).docs
             .filter((docSnap) => docSnap.data()?.workPackage === workPackage);
     }
 
@@ -462,7 +462,7 @@ function toAdminExperiment(entry) {
  */
 function loadAllExperimentsForAdmin() {
     if (!adminAllExperimentsPromise) {
-        adminAllExperimentsPromise = getDocs(collectionGroup(db, "experiments"))
+        adminAllExperimentsPromise = getDocsFromServer(collectionGroup(db, "experiments"))
             .then((snapshot) => snapshot.docs
                 .map(toExperimentEntry)
                 .filter((entry) => Boolean(entry.ownerUid)))
@@ -488,7 +488,7 @@ async function fetchAdminExperiments(workPackage) {
                 collectionGroup(db, "experiments"),
                 where("workPackage", "==", workPackage)
             );
-            const snapshot = await getDocs(scopedQuery);
+            const snapshot = await getDocsFromServer(scopedQuery);
 
             return snapshot.docs
                 .map(toExperimentEntry)

@@ -4,7 +4,7 @@ import { formatDateIL } from "./date-utils.js";
 import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-    doc, getDoc, collection, collectionGroup, getDocs, query, orderBy, limit, startAfter
+    doc, getDoc, collection, collectionGroup, getDocsFromServer, query, orderBy, limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref, listAll, getBlob
@@ -95,7 +95,7 @@ onAuthStateChanged(auth, async (user) => {
 async function checkAndDisplayAdminMenu() {
     try {
         const usersQuery = query(collection(db, "users"), limit(2));
-        const snapshot = await getDocs(usersQuery);
+        const snapshot = await getDocsFromServer(usersQuery);
         if (snapshot.size > 1) {
             isAdmin = true;
             const sidebar = document.querySelector('.sidebar-nav');
@@ -220,7 +220,7 @@ async function fetchAdminExportsPage(pageSize) {
         allQuery = query(collectionGroup(db, 'experiments'), startAfter(adminExportsLastDoc), limit(fetchSize));
     }
 
-    const allSnap = await getDocs(allQuery);
+    const allSnap = await getDocsFromServer(allQuery);
     if (allSnap.empty) {
         hasMoreAdminExports = false;
         return [];
@@ -274,7 +274,7 @@ async function fetchMyExportsPage(pageSize) {
         myQuery = query(myRef, orderBy("createdAt", "desc"), startAfter(myExportsLastDoc), limit(fetchSize));
     }
 
-    const mySnap = await getDocs(myQuery);
+    const mySnap = await getDocsFromServer(myQuery);
     if (mySnap.empty) {
         hasMoreMyExports = false;
         return [];
@@ -304,7 +304,7 @@ async function fetchSharedExportsPage(pageSize) {
         sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), startAfter(sharedExportsLastDoc), limit(fetchSize));
     }
 
-    const sharedSnap = await getDocs(sharedQuery);
+    const sharedSnap = await getDocsFromServer(sharedQuery);
     if (sharedSnap.empty) {
         hasMoreSharedExports = false;
         return [];

@@ -6,7 +6,7 @@ import {
     collectionGroup,
     doc,
     getDoc,
-    getDocs,
+    getDocsFromServer,
     limit,
     query,
     where
@@ -338,7 +338,7 @@ function setUserDisplayName() {
 async function checkAndDisplayAdminMenu() {
     try {
         const usersQuery = query(collection(db, "users"), limit(2));
-        const snapshot = await getDocs(usersQuery);
+        const snapshot = await getDocsFromServer(usersQuery);
 
         if (snapshot.size > 1) {
             displayAdminMenu();
@@ -409,7 +409,7 @@ async function loadSmartSearchExperiments() {
 }
 
 async function fetchOwnExperiments() {
-    const ownSnap = await getDocs(collection(db, "users", currentUser.uid, "experiments"));
+    const ownSnap = await getDocsFromServer(collection(db, "users", currentUser.uid, "experiments"));
 
     return ownSnap.docs.map((docSnap) => normalizeExperiment({
         id: docSnap.id,
@@ -420,7 +420,7 @@ async function fetchOwnExperiments() {
 }
 
 async function fetchSharedExperiments() {
-    const sharedSnap = await getDocs(collection(db, "users", currentUser.uid, "sharedExperiments"));
+    const sharedSnap = await getDocsFromServer(collection(db, "users", currentUser.uid, "sharedExperiments"));
 
     const results = await Promise.all(sharedSnap.docs.map(async (sharedDoc) => {
         const sharedData = sharedDoc.data();
@@ -462,7 +462,7 @@ async function fetchPublicExperiments(sharedKeys) {
         collectionGroup(db, "experiments"),
         where("visibility", "==", "public")
     );
-    const publicSnap = await getDocs(publicQuery);
+    const publicSnap = await getDocsFromServer(publicQuery);
 
     return publicSnap.docs
         .map((docSnap) => {
@@ -483,7 +483,7 @@ async function fetchPublicExperiments(sharedKeys) {
 }
 
 async function fetchAdminExperiments(sharedKeys) {
-    const allSnap = await getDocs(collectionGroup(db, "experiments"));
+    const allSnap = await getDocsFromServer(collectionGroup(db, "experiments"));
 
     return allSnap.docs
         .map((docSnap) => {

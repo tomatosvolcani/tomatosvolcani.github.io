@@ -10,7 +10,7 @@ import {
     getDoc,
     collectionGroup,
     query,
-    getDocs,
+    getDocsFromServer,
     collection,
     limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -97,8 +97,8 @@ async function loadAndRender() {
         // ---- Load experiments and public researcher names in parallel ----
         const experimentsQuery = query(collectionGroup(db, 'experiments'));
         const [snapshot, publicUsersSnapshot] = await Promise.all([
-            getDocs(experimentsQuery),
-            getDocs(collection(db, 'publicUsers'))
+            getDocsFromServer(experimentsQuery),
+            getDocsFromServer(collection(db, 'publicUsers'))
         ]);
 
         publicResearchersByUid = new Map();

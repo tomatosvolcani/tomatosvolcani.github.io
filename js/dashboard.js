@@ -6,7 +6,7 @@ import {
     doc,
     getDoc,
     collection,
-    getDocs,
+    getDocsFromServer,
     addDoc,
     serverTimestamp,
     query,
@@ -215,7 +215,7 @@ async function checkAndDisplayAdminMenu() {
     try {
         // מנסים לקרוא 2 משתמשים - רק מנהל יכול לפי ה-Rules
         const usersQuery = query(collection(db, "users"), limit(2));
-        const snapshot = await getDocs(usersQuery);
+        const snapshot = await getDocsFromServer(usersQuery);
 
         // אם קראנו יותר ממשתמש אחד - יש הרשאות ניהול
         if (snapshot.size > 1) {
@@ -385,7 +385,7 @@ async function fetchMyExperimentsPage(pageSize) {
         myQuery = query(myExperimentsRef, orderBy("createdAt", "desc"), startAfter(myExperimentsLastDoc), limit(fetchSize));
     }
 
-    const snapshot = await getDocs(myQuery);
+    const snapshot = await getDocsFromServer(myQuery);
     if (snapshot.empty) {
         hasMoreMyExperiments = false;
         return [];
@@ -415,7 +415,7 @@ async function fetchSharedExperimentsPage(pageSize) {
         sharedQuery = query(sharedRef, orderBy("addedAt", "desc"), startAfter(sharedExperimentsLastDoc), limit(fetchSize));
     }
 
-    const sharedSnapshot = await getDocs(sharedQuery);
+    const sharedSnapshot = await getDocsFromServer(sharedQuery);
     if (sharedSnapshot.empty) {
         hasMoreSharedExperiments = false;
         return [];

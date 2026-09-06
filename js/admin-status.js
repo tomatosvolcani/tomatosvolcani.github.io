@@ -3,7 +3,7 @@ import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
-    getDocs,
+    getDocsFromServer,
     limit,
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -309,7 +309,7 @@ export function checkAdminAccess(user = auth.currentUser) {
     if (!adminAccessPromise) {
         // Keep the project's established Limit-2 admin detection unchanged.
         const usersQuery = query(collection(db, "users"), limit(2));
-        adminAccessPromise = getDocs(usersQuery)
+        adminAccessPromise = getDocsFromServer(usersQuery)
             .then(snapshot => snapshot.size > 1)
             .catch(() => false);
     }

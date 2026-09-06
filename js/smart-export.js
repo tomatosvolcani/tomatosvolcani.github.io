@@ -5,7 +5,7 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-    doc, getDoc, collection, getDocs, query, limit
+    doc, getDoc, collection, getDocsFromServer, query, limit
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     ref, listAll, getBlob
@@ -257,7 +257,7 @@ onAuthStateChanged(auth, async (user) => {
 
 async function checkAdmin() {
     try {
-        const snap = await getDocs(query(collection(db, 'users'), limit(2)));
+        const snap = await getDocsFromServer(query(collection(db, 'users'), limit(2)));
         return snap.size > 1;
     } catch (_) { return false; }
 }

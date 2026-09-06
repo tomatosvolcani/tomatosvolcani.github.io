@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import {
     collectionGroup,
     query,
-    getDocs,
+    getDocsFromServer,
     doc,
     getDoc,
     collection,
@@ -204,7 +204,7 @@ async function fetchNextExperimentsPage() {
             experimentsQuery = query(collectionGroup(db, 'experiments'), startAfter(lastExperimentDoc), limit(fetchSize));
         }
 
-        const querySnapshot = await getDocs(experimentsQuery);
+        const querySnapshot = await getDocsFromServer(experimentsQuery);
         if (querySnapshot.empty) {
             hasMoreExperiments = false;
             return 0;

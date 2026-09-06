@@ -5,7 +5,7 @@ import {
     collectionGroup,
     doc,
     getDoc,
-    getDocs,
+    getDocsFromServer,
     query
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast } from "./toast.js";
@@ -86,8 +86,8 @@ async function loadUserName(user) {
 async function loadActivityReport() {
     try {
         const [experimentsSnapshot, usersSnapshot] = await Promise.all([
-            getDocs(query(collectionGroup(db, "experiments"))),
-            getDocs(collection(db, "users"))
+            getDocsFromServer(query(collectionGroup(db, "experiments"))),
+            getDocsFromServer(collection(db, "users"))
         ]);
 
         const directory = buildResearcherDirectory(usersSnapshot);

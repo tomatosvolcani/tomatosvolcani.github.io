@@ -13,7 +13,7 @@ import {
     doc,
     getDoc,
     collection,
-    getDocs,
+    getDocsFromServer,
     query,
     orderBy,
     limit
@@ -123,7 +123,7 @@ async function loadUserInfo() {
 async function checkAndDisplayAdminMenu() {
     try {
         const q    = query(collection(db, 'users'), limit(2));
-        const snap = await getDocs(q);
+        const snap = await getDocsFromServer(q);
         if (snap.size > 1) displayAdminMenu();
     } catch {
         // no admin rights – fine
@@ -163,7 +163,7 @@ async function loadAndRender() {
     try {
         // --- קריאה 1: ניסויים שלי ---
         const myRef  = collection(db, 'users', currentUser.uid, 'experiments');
-        const mySnap = await getDocs(query(myRef, orderBy('createdAt', 'desc')));
+        const mySnap = await getDocsFromServer(query(myRef, orderBy('createdAt', 'desc')));
 
         const myExperiments = mySnap.docs.map(d => ({
             id: d.id,
@@ -174,7 +174,7 @@ async function loadAndRender() {
 
         // --- קריאה 2: רשימת ניסויים משותפים ---
         const sharedRef  = collection(db, 'users', currentUser.uid, 'sharedExperiments');
-        const sharedSnap = await getDocs(sharedRef);
+        const sharedSnap = await getDocsFromServer(sharedRef);
 
         // --- קריאות מקבילות לניסויים המשותפים ---
         const sharedFetches = sharedSnap.docs.map(async sharedDoc => {

@@ -9,7 +9,7 @@ import {
     deleteDoc,
     serverTimestamp,
     collection,
-    getDocs,
+    getDocsFromServer,
     query,
     limit,
     Timestamp,
@@ -1644,7 +1644,7 @@ async function loadUserData() {
 async function checkAndDisplayAdminMenu() {
     try {
         const usersQuery = query(collection(db, "users"), limit(2));
-        const snapshot = await getDocs(usersQuery);
+        const snapshot = await getDocsFromServer(usersQuery);
         if (snapshot.size > 1) {
             displayAdminMenuInExperiment();
         }
@@ -1696,7 +1696,7 @@ async function loadAllUsers() {
         // publicUsers contains ONLY: uid, firstName, lastName, email, role
         // Does NOT contain: phone, createdAt, or any other sensitive data
         const usersRef = collection(db, "publicUsers");
-        const querySnapshot = await getDocs(usersRef);
+        const querySnapshot = await getDocsFromServer(usersRef);
 
         allUsers = [];
         querySnapshot.forEach((docSnap) => {

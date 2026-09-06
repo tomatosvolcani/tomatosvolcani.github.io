@@ -4,7 +4,7 @@ import { formatDateIL } from "./date-utils.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
-    getDocs,
+    getDocsFromServer,
     doc,
     getDoc,
     updateDoc,
@@ -170,7 +170,7 @@ async function loadAllUsers() {
     try {
         const usersRef = collection(db, "users");
         const q = query(usersRef, orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await getDocsFromServer(q);
 
         allUsers = [];
         querySnapshot.forEach((doc) => {
