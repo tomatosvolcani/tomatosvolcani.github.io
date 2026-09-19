@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/layout.css?v=20260621-2">
     <link rel="stylesheet" href="css/forms.css?v=20260621-2">
     <link rel="stylesheet" href="css/experiment.css?v=20260826-1">
-    <link rel="stylesheet" href="css/experiment-ai.css?v=20260918-1">
+    <link rel="stylesheet" href="css/experiment-ai.css?v=20260920-2">
     <link rel="stylesheet" href="css/experiment-ai-enhance.css?v=20260802-report-position">
     <link rel="stylesheet" href="css/accessibility.css?v=20260820-1">
     <link rel="stylesheet" href="css/chatbot.css?v=20260819-2">
@@ -1666,12 +1666,18 @@
             <button type="button" id="ai-drawer-close" class="ai-icon-button" aria-label="סגירת עוזר ה‑AI"><i class="fas fa-xmark"></i></button>
         </div>
 
+        <!-- Collapse handle on the drawer's outer edge. The drawer retracts to the
+             left, so the arrow points left. Duplicates the header's × on purpose:
+             the eye lands on the panel edge, not the far corner. -->
+        <button type="button" id="ai-drawer-collapse" class="ai-drawer-collapse" aria-label="צמצום וסגירת עוזר ה‑AI" title="סגירה">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+
         <div class="ai-drawer-body">
             <div class="ai-privacy-note" role="note">
                 <i class="fas fa-shield-halved"></i>
                 <div>
                     <strong>שיתוף מידע עם כלי בינה מלאכותית של צד שלישי</strong>
-                    <span>התמונות והטקסט שתעלה/י נשלחים לעיבוד במודל של Google. אם המידע חסוי במיוחד — יש לשקול לפני שיתופו.</span>
                     <span class="ai-privacy-assurance"><i class="fas fa-circle-check"></i> המערכת עובדת מול ה‑API בתשלום של Google, שבו הקלט והפלט אינם משמשים לאימון מודלים.</span>
                 </div>
             </div>
@@ -1690,6 +1696,12 @@
             <section class="ai-panel">
                 <h3><span>2</span> טקסט נוסף</h3>
                 <textarea id="ai-source-text" rows="5" placeholder="אפשר להדביק סיכום, טבלה, הודעת דוא״ל או הערות. אין חובה אם התמונות מספיקות."></textarea>
+            </section>
+
+            <!-- Settings, not a step: the model picker and the overwrite toggle apply to the
+                 whole analysis, so they must not sit under the "טקסט נוסף" heading. -->
+            <section class="ai-panel">
+                <h3><span class="ai-panel-icon"><i class="fas fa-sliders"></i></span> הגדרות ניתוח</h3>
 
                 <label class="ai-model-field" for="ai-model-select">
                     <span><i class="fas fa-microchip"></i> מודל לניתוח</span>

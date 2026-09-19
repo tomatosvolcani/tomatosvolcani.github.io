@@ -21,10 +21,22 @@
     font-size: 10px;
     font-weight: 800;
 }
+/* Stacking band for the drawer: ABOVE the shared floating widgets, BELOW modals.
+ *
+ *   accessibility widget 2000 | chatbot 2000 | research map 2100
+ *   -> backdrop 2190, drawer 2200
+ *   toasts / confirm modals 9999-11000 | flatpickr 10040 | AI review overlays 100000
+ *
+ * At the old 1190/1200 all three widgets rendered on top of the open drawer, in
+ * the exact screen region it occupies, and the backdrop could not even dim them.
+ * Raising the drawer hides them behind it without this file having to know any
+ * other component's class names. Must stay below the modal layer: requestClose()
+ * can open a confirm dialog, which has to appear above the drawer.
+ */
 .ai-experiment-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1190;
+    z-index: 2190;
     background: rgba(15, 23, 42, .45);
     opacity: 0;
     pointer-events: none;
@@ -33,7 +45,7 @@
 .ai-experiment-backdrop.open { opacity: 1; pointer-events: auto; }
 .ai-experiment-drawer {
     position: fixed;
-    z-index: 1200;
+    z-index: 2200;
     top: 0;
     left: 0;
     width: min(520px, 96vw);
@@ -67,7 +79,37 @@
     border-radius: 10px;
     cursor: pointer;
 }
-.ai-drawer-body { padding: 22px 24px 110px; overflow-y: auto; }
+/* Tinted body so the white step cards read as raised surfaces against it. */
+.ai-drawer-body { padding: 20px 22px 110px; overflow-y: auto; background: #f4f7fb; }
+
+/* Collapse handle, attached to the drawer's outer (page-facing) edge.
+   `right` is physical and unaffected by the drawer's direction: rtl. */
+.ai-drawer-collapse {
+    position: absolute;
+    top: 50%;
+    right: -24px;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 72px;
+    padding: 0;
+    border: 0;
+    border-radius: 0 10px 10px 0;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 4px 0 12px rgba(15, 23, 42, .22);
+    transition: background .15s ease, width .15s ease;
+}
+.ai-drawer-collapse:hover { background: #1e40af; width: 28px; }
+.ai-drawer-collapse:focus-visible { outline: 3px solid #facc15; outline-offset: 2px; }
+
+@media (max-width: 700px) {
+    /* The drawer is 96vw here — a handle hanging off the edge would fall out of
+       the viewport. The header's × is the only close control at this size. */
+    .ai-drawer-collapse { display: none; }
+}
 .ai-info-box {
     display: flex;
     gap: 12px;
@@ -218,9 +260,51 @@ body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 66px; }
     cursor: pointer;
     flex: 0 0 auto;
 }
-.ai-panel { margin-bottom: 18px; }
-.ai-panel h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #1f2937; font-size: 15px; }
-.ai-panel h3 > span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
+/* Each numbered step is a card. Before this the drawer was a flat stack of
+   headings and controls, which made it read as one long form instead of two
+   discrete steps. */
+.ai-panel {
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid #e8edf3;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+.ai-panel h3 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 12px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+/* Filled badge instead of a pale tint — the step number is the primary
+   wayfinding cue in the drawer and needs to hold its own against the heading. */
+.ai-panel h3 > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, .35);
+}
+/* Settings card: same circle, but neutral — it is not a numbered step and must
+   not compete with 1 and 2 for attention. */
+.ai-panel h3 > span.ai-panel-icon {
+    background: #eef2f7;
+    color: #64748b;
+    font-size: 11px;
+    box-shadow: none;
+}
+/* First control in a card sits flush under the heading. */
+.ai-panel h3 + .ai-model-field { margin-top: 0; }
 .ai-image-dropzone {
     display: flex;
     flex-direction: column;
@@ -358,8 +442,14 @@ body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 66px; }
 /* Fixed AI tab directly below the accessibility tab. */
 .ai-fixed-tab {
     position: fixed;
+    /* z-index stays BELOW .a11y-widget (2000) on purpose. The accessibility menu
+       opens sideways (position:absolute; left:56px; width:220px) and overlaps this
+       tab horizontally, so the tab must sit under it while the menu is open.
+       Raising this makes the tab poke through the open menu. */
     z-index: 1999;
-    top: 156px;
+    /* The accessibility toggle occupies 100-148px on this same edge. 156 left an
+       8px gap, which read as one cramped cluster rather than two controls. */
+    top: 180px;
     left: 0;
     width: 104px;
     height: 48px;
@@ -419,39 +509,35 @@ body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 66px; }
 /* =========================================================
    Third-party AI data-sharing disclosure (inside the drawer)
    ========================================================= */
+/* Now that the "think before sharing" caution is gone, this is a disclosure
+   notice rather than a warning — so it is neutral slate, not amber. Amber on a
+   box whose only body line is reassuring read as a false alarm. */
 .ai-privacy-note {
     display: flex;
     align-items: flex-start;
     gap: 11px;
-    margin: 0 0 18px;
-    padding: 13px 14px;
-    border: 1px solid #fde68a;
+    margin: 0 0 20px;
+    padding: 13px 15px;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    background: linear-gradient(180deg, #fffbeb 0%, #fff7e6 100%);
-    color: #92400e;
+    background: #fff;
     direction: rtl;
     text-align: right;
 }
 .ai-privacy-note > i {
     flex: 0 0 auto;
-    margin-top: 2px;
+    margin-top: 1px;
     font-size: 16px;
-    color: #d97706;
+    color: #64748b;
 }
-.ai-privacy-note > div { display: grid; gap: 3px; }
-.ai-privacy-note strong { font-size: 13px; font-weight: 800; color: #7c2d12; }
-.ai-privacy-note span { font-size: 12px; line-height: 1.5; color: #92400e; }
-/* Emphasis inside the body copy must not jump to the heading's 13px. */
+.ai-privacy-note > div { display: grid; gap: 5px; }
+.ai-privacy-note strong { font-size: 13px; font-weight: 800; color: #334155; }
+.ai-privacy-note span { font-size: 12px; line-height: 1.55; color: #475569; }
 .ai-privacy-note span strong { font-size: inherit; }
-/* The "not used for training" line is a reassurance, not a caution — it gets its
-   own row below a hairline divider so it does not read as part of the warning. */
 .ai-privacy-note span.ai-privacy-assurance {
     display: flex;
     align-items: flex-start;
     gap: 6px;
-    margin-top: 7px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(217, 119, 6, .22);
-    color: #065f46;
+    color: #047857;
 }
-.ai-privacy-note span.ai-privacy-assurance > i { flex: 0 0 auto; margin-top: 2px; color: #059669; }
+.ai-privacy-note span.ai-privacy-assurance > i { flex: 0 0 auto; margin-top: 3px; font-size: 11px; color: #059669; }

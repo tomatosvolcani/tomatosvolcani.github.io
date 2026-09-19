@@ -26,6 +26,7 @@ export class ExperimentAIController {
         this.drawer = document.getElementById('ai-experiment-drawer');
         this.backdrop = document.getElementById('ai-experiment-backdrop');
         this.closeButton = document.getElementById('ai-drawer-close');
+        this.collapseButton = document.getElementById('ai-drawer-collapse');
         this.fileInput = document.getElementById('ai-image-input');
         this.dropzone = document.getElementById('ai-image-dropzone');
         this.fileList = document.getElementById('ai-selected-files');
@@ -53,6 +54,7 @@ export class ExperimentAIController {
             else this.open();
         });
         this.closeButton?.addEventListener('click', () => this.requestClose());
+        this.collapseButton?.addEventListener('click', () => this.requestClose());
         this.backdrop?.addEventListener('click', () => this.requestClose());
         this.fileInput?.addEventListener('change', () => this.addFiles(this.fileInput.files));
         this.dropzone?.addEventListener('click', () => this.fileInput?.click());
