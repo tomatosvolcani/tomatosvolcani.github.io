@@ -488,7 +488,7 @@ export class ExperimentAIController {
             return;
         }
 
-        const selectedModel = this.modelSelect?.value || 'gemini-3.6-flash';
+        const selectedModel = this.modelSelect?.value || 'gemini-3.8-flash';
         this.setBusy(true, `${selectedModel} קורא את המקורות וממפה אותם לשדות...`);
         this.results?.classList.add('hidden');
 

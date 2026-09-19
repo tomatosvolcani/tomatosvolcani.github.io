@@ -309,7 +309,7 @@ export function wireExperimentAIController(controller, hooks = {}) {
     // מציג overlay רק בזמן ניתוח (לא בזמן שמירה), לפי הודעה
     const isAnalyzing = isBusy && /קורא|מנתח|ממפה|מקור/.test(message);
     if (isAnalyzing) {
-      const model = controller.modelSelect?.value || 'gemini-3.6-flash';
+      const model = controller.modelSelect?.value || 'gemini-3.8-flash';
       AIThinking.show({ model });
     } else if (!isBusy) {
       AIThinking.hide();

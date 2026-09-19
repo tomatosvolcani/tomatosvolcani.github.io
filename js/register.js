@@ -63,6 +63,8 @@ document.getElementById('btn-register').addEventListener('click', async () => {
 
         // שמירת נתונים מלאים ב-users (פרטי - רק המשתמש עצמו יכול לקרוא)
         // isApproved: false - משתמש חדש צריך אישור מנהל לפני גישה למערכת
+        // allowAI: true - גישה לעוזר ה-AI פתוחה כברירת מחדל. חוקי האבטחה חוסמים
+        // שינוי של השדה מהאתר (גם לאדמין), ולכן כיבוי נעשה רק דרך Firebase Console.
         await setDoc(doc(db, "users", user.uid), {
             firstName: fname,
             lastName: lname,
@@ -70,6 +72,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
             phone: phone,
             role: role,
             isApproved: false,  // ברירת מחדל: לא מאושר - דורש אישור מנהל
+            allowAI: true,      // ברירת מחדל: AI מותר - כיבוי דרך הקונסולה בלבד
             createdAt: new Date()
         });
 

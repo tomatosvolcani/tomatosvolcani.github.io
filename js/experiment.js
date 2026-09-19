@@ -25,7 +25,7 @@ import {
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
 import { initExperimentTour } from "./experiment-tour.js?v=20260902-2";
 import { initServerTime, getTrustedNow } from "./server-time.js";
-import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20260818-1";
+import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20260918-1";
 import {
     canRead,
     canEdit,
@@ -8429,9 +8429,14 @@ async function uploadProgressFile(file, folder, progressId, fillId, textId) {
 // AI-assisted experiment import adapter
 // =========================================
 function initExperimentAI() {
-    // Intentionally disabled until the planned AI/LLM launch. The single
-    // release switch lives in experiment-ai-config.js.
-    if (window.EXPERIMENT_AI_ENABLED !== true) return;
+    // Two switches gate the feature: the system-wide window.EXPERIMENT_AI_ENABLED
+    // in experiment-ai-config.js, and the per-user users/{uid}.allowAI flag that
+    // loadUserData() already put in userData (it runs before loadExperiment()).
+    // allowAI is immutable for every client, so only the Firebase Console can turn
+    // it off. The Cloud Function checks it again — this is UI gating, not security.
+    const aiAllowedForUser = window.EXPERIMENT_AI_ENABLED === true && userData?.allowAI !== false;
+    window.setExperimentAiEntryVisible?.(aiAllowedForUser);
+    if (!aiAllowedForUser) return;
 
     if (!experimentAI) {
         experimentAI = createExperimentAIIntegration({

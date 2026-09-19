@@ -441,3 +441,17 @@ body:has(#ai-review-bar:not(.hidden)) .sidebar { padding-top: 66px; }
 .ai-privacy-note > div { display: grid; gap: 3px; }
 .ai-privacy-note strong { font-size: 13px; font-weight: 800; color: #7c2d12; }
 .ai-privacy-note span { font-size: 12px; line-height: 1.5; color: #92400e; }
+/* Emphasis inside the body copy must not jump to the heading's 13px. */
+.ai-privacy-note span strong { font-size: inherit; }
+/* The "not used for training" line is a reassurance, not a caution — it gets its
+   own row below a hairline divider so it does not read as part of the warning. */
+.ai-privacy-note span.ai-privacy-assurance {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 7px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(217, 119, 6, .22);
+    color: #065f46;
+}
+.ai-privacy-note span.ai-privacy-assurance > i { flex: 0 0 auto; margin-top: 2px; color: #059669; }
