@@ -3,16 +3,28 @@
 // The Gemini API key is never exposed here; all model calls go through the backend.
 
 const DEFAULT_API_URL = '/api/ai/parse-experiment';
+// Cost limits. backend/inputs.py enforces the same numbers — that is the real
+// boundary; these only fail fast in the browser. Keep the two in sync.
 const MAX_IMAGES = 12;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_CLOUD_IMAGE_BYTES = 27 * 1024 * 1024;
+// Cloud Run rejects a request body above 32MB; leave room for the form fields.
+const MAX_CLOUD_UPLOAD_BYTES = 30 * 1024 * 1024;
+const MAX_TABLE_FILES = 3;
+const MAX_TABLE_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_USER_TEXT_CHARS = 20000;
 const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+const TABLE_EXTENSIONS = ['.csv', '.xlsx'];
+const TABLE_ACCEPT = '.csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const MODEL_CAPACITY_MESSAGE = 'יש כרגע עומס על המודל או שמכסת הקריאות החינמית הסתיימה. נסו לבחור מודל אחר או לנסות שוב מאוחר יותר.';
 
 export class ExperimentAIController {
     constructor(options) {
         this.options = options;
+        // תמונות וטבלאות נשמרות בנפרד: רק התמונות עוברות את מסך היישור/סיבוב.
         this.files = [];
+        this.tableFiles = [];
         this.isBusy = false;
         this.hasAppliedDraft = false;
         this.lastResult = null;
@@ -29,6 +41,8 @@ export class ExperimentAIController {
         this.collapseButton = document.getElementById('ai-drawer-collapse');
         this.fileInput = document.getElementById('ai-image-input');
         this.dropzone = document.getElementById('ai-image-dropzone');
+        this.dropzoneTitle = document.getElementById('ai-dropzone-title');
+        this.dropzoneHint = document.getElementById('ai-dropzone-hint');
         this.fileList = document.getElementById('ai-selected-files');
         this.userText = document.getElementById('ai-source-text');
         this.modelSelect = document.getElementById('ai-model-select');
@@ -43,6 +57,8 @@ export class ExperimentAIController {
         this.cancelButton = document.getElementById('ai-cancel-draft');
 
         if (!this.button || !this.drawer) return;
+
+        this.applySourceMode();
 
         // Keep the assistant as a regular item in the right sidebar.
         this.button.classList.remove('ai-floating-button');
@@ -94,6 +110,33 @@ export class ExperimentAIController {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && this.drawer.classList.contains('open')) this.requestClose();
         });
+    }
+
+    imagesAllowed() {
+        return Boolean(this.options.allowImages?.());
+    }
+
+    // Image analysis is opt-in per user (users/{uid}.allowAIImages === true);
+    // CSV/XLSX and free text are open to everyone with AI access. The server
+    // enforces the same split — this only adapts the drop zone.
+    applySourceMode() {
+        const images = this.imagesAllowed();
+        const tableSize = formatBytes(MAX_TABLE_FILE_BYTES);
+        if (this.fileInput) this.fileInput.accept = images ? `${IMAGE_ACCEPT},${TABLE_ACCEPT}` : TABLE_ACCEPT;
+        if (this.dropzoneTitle) {
+            this.dropzoneTitle.textContent = images
+                ? 'גררו תמונות או קובצי CSV / Excel לכאן או לחצו לבחירה'
+                : 'גררו קובצי CSV / Excel לכאן או לחצו לבחירה';
+        }
+        if (this.dropzoneHint) {
+            this.dropzoneHint.textContent = images
+                ? `עד ${MAX_IMAGES} תמונות (JPG, PNG, WEBP, HEIC) ועד ${MAX_TABLE_FILES} טבלאות CSV / XLSX של עד ${tableSize}`
+                : `עד ${MAX_TABLE_FILES} קבצים מסוג CSV או XLSX, עד ${tableSize} לקובץ`;
+        }
+        if (!images && this.files.length) {
+            this.files = [];
+            this.renderFiles();
+        }
     }
 
     setupFixedTab() {
@@ -291,25 +334,47 @@ export class ExperimentAIController {
 
     addFiles(fileList) {
         const incoming = Array.from(fileList || []);
+        const imagesAllowed = this.imagesAllowed();
+        const notify = (message) => this.options.notify?.(message, 'warning');
         for (const file of incoming) {
-            if (this.files.length >= MAX_IMAGES) {
-                this.options.notify?.(`ניתן לצרף עד ${MAX_IMAGES} תמונות בכל קריאה`, 'warning');
-                break;
-            }
-            if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
-                this.options.notify?.(`הקובץ ${file.name} אינו תמונה נתמכת`, 'warning');
-                continue;
-            }
-            if (file.size > MAX_IMAGE_BYTES) {
-                this.options.notify?.(`הקובץ ${file.name} גדול מ-10MB`, 'warning');
-                continue;
-            }
-            const duplicate = this.files.some((existing) =>
-                existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified
-            );
-            if (!duplicate) {
-                this.files.push(file);
-                this.rotations.set(file, 0);
+            const kind = classifySourceFile(file);
+            if (kind === 'image') {
+                if (!imagesAllowed) {
+                    notify(`ניתוח תמונות אינו פעיל עבור המשתמש שלך. ניתן לצרף קובצי CSV או XLSX.`);
+                    continue;
+                }
+                if (this.files.length >= MAX_IMAGES) {
+                    notify(`ניתן לצרף עד ${MAX_IMAGES} תמונות בכל קריאה`);
+                    continue;
+                }
+                if (file.size > MAX_IMAGE_BYTES) {
+                    notify(`הקובץ ${file.name} גדול מ-10MB`);
+                    continue;
+                }
+                if (!hasFile(this.files, file)) {
+                    this.files.push(file);
+                    this.rotations.set(file, 0);
+                }
+            } else if (kind === 'table') {
+                if (this.tableFiles.length >= MAX_TABLE_FILES) {
+                    notify(`ניתן לצרף עד ${MAX_TABLE_FILES} קובצי CSV / XLSX בכל קריאה`);
+                    continue;
+                }
+                if (file.size > MAX_TABLE_FILE_BYTES) {
+                    notify(`הקובץ ${file.name} גדול מ-${formatBytes(MAX_TABLE_FILE_BYTES)}. כדי לשמור על עלות הניתוח, השאירו בקובץ רק את הנתונים הרלוונטיים לניסוי.`);
+                    continue;
+                }
+                if (!file.size) {
+                    notify(`הקובץ ${file.name} ריק`);
+                    continue;
+                }
+                if (!hasFile(this.tableFiles, file)) this.tableFiles.push(file);
+            } else if (kind === 'legacy-excel') {
+                notify(`הקובץ ${file.name} בפורמט Excel ישן (.xls). שמרו אותו כ-.xlsx ונסו שוב.`);
+            } else {
+                notify(imagesAllowed
+                    ? `הקובץ ${file.name} אינו נתמך. ניתן לצרף תמונות או קובצי CSV / XLSX.`
+                    : `הקובץ ${file.name} אינו נתמך. ניתן לצרף קובצי CSV או XLSX.`);
             }
         }
         if (this.fileInput) this.fileInput.value = '';
@@ -318,22 +383,32 @@ export class ExperimentAIController {
 
     renderFiles() {
         if (!this.fileList) return;
-        if (!this.files.length) {
-            this.fileList.innerHTML = '<div class="ai-empty-files">לא נבחרו תמונות</div>';
+        const entries = [
+            ...this.files.map((file, index) => ({ file, index, kind: 'image', icon: 'fa-image', label: 'הסר תמונה' })),
+            ...this.tableFiles.map((file, index) => ({
+                file,
+                index,
+                kind: 'table',
+                icon: file.name.toLowerCase().endsWith('.csv') ? 'fa-file-csv' : 'fa-file-excel',
+                label: 'הסר קובץ'
+            }))
+        ];
+        if (!entries.length) {
+            this.fileList.innerHTML = '<div class="ai-empty-files">לא נבחרו קבצים</div>';
             return;
         }
-        this.fileList.innerHTML = this.files.map((file, index) => `
+        this.fileList.innerHTML = entries.map(({ file, index, kind, icon, label }) => `
             <div class="ai-file-chip">
-                <i class="fas fa-image"></i>
+                <i class="fas ${icon}"></i>
                 <span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
                 <small>${formatBytes(file.size)}</small>
-                <button type="button" data-remove-ai-file="${index}" aria-label="הסר תמונה"><i class="fas fa-xmark"></i></button>
+                <button type="button" data-remove-ai-file="${kind}:${index}" aria-label="${label}"><i class="fas fa-xmark"></i></button>
             </div>
         `).join('');
         this.fileList.querySelectorAll('[data-remove-ai-file]').forEach((button) => {
             button.addEventListener('click', () => {
-                const index = Number(button.dataset.removeAiFile);
-                this.files.splice(index, 1);
+                const [kind, index] = button.dataset.removeAiFile.split(':');
+                (kind === 'table' ? this.tableFiles : this.files).splice(Number(index), 1);
                 this.renderFiles();
             });
         });
@@ -344,16 +419,28 @@ export class ExperimentAIController {
     // ─────────────────────────────────────────────────────────────
     onAnalyzeClick() {
         const text = this.userText?.value.trim() || '';
-        if (!this.files.length && !text) {
-            this.options.notify?.('יש לצרף לפחות תמונה אחת או להזין טקסט', 'warning');
-            return;
-        }
+        if (!this.validateSources(text)) return;
         // אם יש תמונות — פותחים קודם מסך יישור/סיבוב; אחרת מנתחים ישר
         if (this.files.length) {
             this.openImageReview();
         } else {
             this.analyze();
         }
+    }
+
+    validateSources(text) {
+        if (!this.files.length && !this.tableFiles.length && !text) {
+            this.options.notify?.('יש לצרף לפחות קובץ אחד או להזין טקסט', 'warning');
+            return false;
+        }
+        if (text.length > MAX_USER_TEXT_CHARS) {
+            this.options.notify?.(
+                `הטקסט ארוך מדי (${text.length.toLocaleString()} תווים). המגבלה היא ${MAX_USER_TEXT_CHARS.toLocaleString()} תווים — קצרו אותו או צרפו את הנתונים כקובץ CSV / XLSX.`,
+                'warning'
+            );
+            return false;
+        }
+        return true;
     }
 
     openImageReview() {
@@ -485,10 +572,7 @@ export class ExperimentAIController {
 
     async analyze() {
         const text = this.userText?.value.trim() || '';
-        if (!this.files.length && !text) {
-            this.options.notify?.('יש לצרף לפחות תמונה אחת או להזין טקסט', 'warning');
-            return;
-        }
+        if (!this.validateSources(text)) return;
 
         const selectedModel = this.modelSelect?.value || 'gemini-3.8-flash';
         this.setBusy(true, `${selectedModel} קורא את המקורות וממפה אותם לשדות...`);
@@ -504,11 +588,17 @@ export class ExperimentAIController {
             const uploadFiles = await optimizeImagesForUpload(this.files, (done, total) => {
                 this.setBusy(true, `מכין תמונות לניתוח (${done}/${total})...`);
             });
-            const totalUploadBytes = uploadFiles.reduce((sum, file) => sum + file.size, 0);
-            if (totalUploadBytes > MAX_CLOUD_IMAGE_BYTES) {
+            const totalImageBytes = uploadFiles.reduce((sum, file) => sum + file.size, 0);
+            if (totalImageBytes > MAX_CLOUD_IMAGE_BYTES) {
                 throw new Error('המשקל הכולל של התמונות גדול מדי לשליחה. נסו להסיר תמונה או להשתמש בתמונות קטנות יותר.');
             }
+            const totalTableBytes = this.tableFiles.reduce((sum, file) => sum + file.size, 0);
+            if (totalImageBytes + totalTableBytes > MAX_CLOUD_UPLOAD_BYTES) {
+                throw new Error('המשקל הכולל של הקבצים גדול מדי לשליחה. נסו להסיר תמונה או קובץ.');
+            }
             uploadFiles.forEach((file) => formData.append('images', file, file.name));
+            // CSV/XLSX נשלחים כפי שהם; השרת ממיר אותם לטקסט ומגביל את הנפח שמגיע למודל.
+            this.tableFiles.forEach((file) => formData.append('tables', file, file.name));
             formData.append('user_text', text);
             formData.append('model', selectedModel);
             formData.append('context_json', JSON.stringify(context));
@@ -696,6 +786,22 @@ async function rotateImageFile(file, degrees) {
     const quality = type === 'image/jpeg' ? 0.92 : undefined;
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, quality));
     return new File([blob], file.name, { type, lastModified: Date.now() });
+}
+
+// סיווג לפי סוג MIME לתמונות, ולפי סיומת לטבלאות: דפדפנים מדווחים על CSV
+// כ-text/csv, כ-application/vnd.ms-excel (כש-Excel מותקן) או בלי סוג בכלל.
+function classifySourceFile(file) {
+    const name = String(file.name || '').toLowerCase();
+    if (ACCEPTED_IMAGE_TYPES.has(file.type)) return 'image';
+    if (TABLE_EXTENSIONS.some((extension) => name.endsWith(extension))) return 'table';
+    if (name.endsWith('.xls')) return 'legacy-excel';
+    return 'unsupported';
+}
+
+function hasFile(list, file) {
+    return list.some((existing) =>
+        existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified
+    );
 }
 
 function escapeHtml(value) {

@@ -9,7 +9,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { showToast, showConfirmModal } from "./toast.js";
-import { ExperimentAIController } from "./experiment-ai.js?v=20260920-1";
+import { ExperimentAIController } from "./experiment-ai.js?v=20261020-1";
 import { wireExperimentAIController, AIFieldMark } from "./experiment-ai-enhance.js?v=20260918-1";
 
 export function createExperimentAIIntegration(adapter) {
@@ -17,6 +17,7 @@ export function createExperimentAIIntegration(adapter) {
         state,
         SHARED_SECTION_IDS,
         STUDY_TYPES,
+        canUseAiImages,
         addKeywordTag,
         addVariableRow,
         collectEventsData,
@@ -282,6 +283,7 @@ export function createExperimentAIIntegration(adapter) {
         if (aiController || !document.getElementById('btn-ai-mode')) return;
         aiController = new ExperimentAIController({
             canEdit: () => Boolean(state.permissionsState?.canEdit),
+            allowImages: () => Boolean(canUseAiImages?.()),
             enterMode: enterAiReviewMode,
             exitMode: exitAiReviewMode,
             getAuthToken: () => state.currentUser?.getIdToken?.() || '',

@@ -25,7 +25,7 @@ import {
 import { showToast, showConfirmModal, showInfoModal, showThreeOptionModal } from "./toast.js";
 import { initExperimentTour } from "./experiment-tour.js?v=20260902-2";
 import { initServerTime, getTrustedNow } from "./server-time.js";
-import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20260920-1";
+import { createExperimentAIIntegration } from "./experiment-ai-integration.js?v=20261020-1";
 import {
     canRead,
     canEdit,
@@ -8437,6 +8437,9 @@ function initExperimentAI() {
     const aiAllowedForUser = window.EXPERIMENT_AI_ENABLED === true && userData?.allowAI !== false;
     window.setExperimentAiEntryVisible?.(aiAllowedForUser);
     if (!aiAllowedForUser) return;
+    // Image analysis is a separate opt-in on top of that: only an explicit
+    // users/{uid}.allowAIImages === true (missing means no). CSV/XLSX and text
+    // stay available to every allowAI user. Also enforced by the Cloud Function.
 
     if (!experimentAI) {
         experimentAI = createExperimentAIIntegration({
@@ -8465,6 +8468,7 @@ function initExperimentAI() {
             },
             SHARED_SECTION_IDS,
             STUDY_TYPES,
+            canUseAiImages: () => userData?.allowAIImages === true,
             addKeywordTag,
             addVariableRow,
             collectEventsData,

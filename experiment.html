@@ -1684,18 +1684,21 @@
 
             <section class="ai-panel">
                 <h3><span>1</span> העלאת מקורות</h3>
+                <!-- Defaults to the tables-only wording. experiment-ai.js (applySourceMode)
+                     switches the text and the accept list for users whose
+                     users/{uid}.allowAIImages is true. -->
                 <div id="ai-image-dropzone" class="ai-image-dropzone" tabindex="0" role="button">
                     <i class="fas fa-cloud-arrow-up"></i>
-                    <strong>גררו תמונות לכאן או לחצו לבחירה</strong>
-                    <small>עד 12 תמונות; JPG, PNG, WEBP, HEIC</small>
-                    <input id="ai-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple hidden>
+                    <strong id="ai-dropzone-title">גררו קובצי CSV / Excel לכאן או לחצו לבחירה</strong>
+                    <small id="ai-dropzone-hint">עד 3 קבצים מסוג CSV או XLSX, עד 2MB לקובץ</small>
+                    <input id="ai-image-input" type="file" accept=".csv,.xlsx" multiple hidden>
                 </div>
-                <div id="ai-selected-files" class="ai-selected-files"><div class="ai-empty-files">לא נבחרו תמונות</div></div>
+                <div id="ai-selected-files" class="ai-selected-files"><div class="ai-empty-files">לא נבחרו קבצים</div></div>
             </section>
 
             <section class="ai-panel">
                 <h3><span>2</span> טקסט נוסף</h3>
-                <textarea id="ai-source-text" rows="5" placeholder="אפשר להדביק סיכום, טבלה, הודעת דוא״ל או הערות. אין חובה אם התמונות מספיקות."></textarea>
+                <textarea id="ai-source-text" rows="5" placeholder="אפשר להדביק סיכום, טבלה, הודעת דוא״ל או הערות (עד 20,000 תווים). אין חובה אם הקבצים מספיקים."></textarea>
             </section>
 
             <!-- Settings, not a step: the model picker and the overwrite toggle apply to the
@@ -1708,9 +1711,6 @@
                     <select id="ai-model-select">
                         <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash — מאוזן בין דיוק למהירות</option>
                         <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — מהיר ופחות מדויק</option>
-                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite — מהיר ופחות מדויק</option>
-                        <option value="gemma-4-26b-a4b-it">Gemma 4 26B A4B IT — מדויק ואיטי</option>
-                        <option value="gemma-4-31b-it">Gemma 4 31B IT — מדויק ואיטי</option>
                     </select>
                     <small>ברירת המחדל היא Gemini 3.8 Flash. תמונות גדולות עוברות אופטימיזציה מקומית לפני השליחה כדי לקצר את זמן הניתוח.</small>
                 </label>
@@ -1750,6 +1750,6 @@
     <script type="module" src="js/research-map.js?v=20260819-1"></script>
     <script src="js/experiment-ai-config.js?v=20260920-1"></script>
     <script type="module" src="js/admin-status.js?v=20260906-1"></script>
-    <script type="module" src="js/experiment.js?v=20260918-1"></script>
+    <script type="module" src="js/experiment.js?v=20261020-1"></script>
 </body>
 </html>

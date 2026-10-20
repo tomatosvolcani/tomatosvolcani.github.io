@@ -65,6 +65,8 @@ document.getElementById('btn-register').addEventListener('click', async () => {
         // isApproved: false - משתמש חדש צריך אישור מנהל לפני גישה למערכת
         // allowAI: true - גישה לעוזר ה-AI פתוחה כברירת מחדל. חוקי האבטחה חוסמים
         // שינוי של השדה מהאתר (גם לאדמין), ולכן כיבוי נעשה רק דרך Firebase Console.
+        // allowAIImages: false - ניתוח תמונות סגור כברירת מחדל (גם ערך חסר == סגור).
+        // נשמר במפורש כדי שהשדה יופיע בקונסולה ויהיה קל להפוך אותו ל-true.
         await setDoc(doc(db, "users", user.uid), {
             firstName: fname,
             lastName: lname,
@@ -73,6 +75,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
             role: role,
             isApproved: false,  // ברירת מחדל: לא מאושר - דורש אישור מנהל
             allowAI: true,      // ברירת מחדל: AI מותר - כיבוי דרך הקונסולה בלבד
+            allowAIImages: false, // ברירת מחדל: ניתוח תמונות סגור - פתיחה דרך הקונסולה בלבד
             createdAt: new Date()
         });
 
