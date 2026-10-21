@@ -566,6 +566,32 @@ body.a11y-high-contrast .btn-chat-toggle::before {
     color: var(--a11y-bg) !important;
 }
 
+/* Side dock (js/side-dock.js) */
+body.a11y-high-contrast .side-dock-card {
+    border: 2px solid var(--a11y-border) !important;
+    border-left: 0 !important;
+}
+
+body.a11y-high-contrast .side-dock-title {
+    color: var(--a11y-text) !important;
+    border-color: var(--a11y-border) !important;
+}
+
+body.a11y-high-contrast .side-dock-tile {
+    background: var(--a11y-bg) !important;
+    background-image: none !important;
+    color: var(--a11y-text) !important;
+    border: 2px solid var(--a11y-border) !important;
+    text-decoration: none !important; /* the AI tile is an <a> */
+    filter: none !important;
+}
+
+body.a11y-high-contrast :is(.side-dock-tile:hover, .side-dock-tile[aria-expanded="true"], .side-dock-tile.active, .side-dock-handle) {
+    background: var(--a11y-accent) !important;
+    color: var(--a11y-bg) !important;
+    border-color: var(--a11y-accent) !important;
+}
+
 /* BI dashboards and data visualisations */
 body.a11y-high-contrast .bi-main {
     --accent-navy: var(--a11y-accent);
@@ -860,6 +886,12 @@ body.a11y-large-text .a11y-menu h4 {
 body.a11y-large-text .dev-notice {
     font-size: 16px !important;
     padding: 14px 20px !important;
+}
+
+/* The side dock tiles are a fixed width; the generic span/button 1.1em
+   compounds to ~22px there and pushes labels out of the tile. */
+body.a11y-large-text .side-dock-tile-label {
+    font-size: 13px !important;
 }
 
 /* ── Responsive ── */

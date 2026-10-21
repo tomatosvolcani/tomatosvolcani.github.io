@@ -30,8 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (pageContext === "dashboard") return;
 
     mountWidget();
+    const docked = dockWidget();
     initUiListeners();
-    initDrag();
+    if (!docked) initDrag();
 
     onAuthStateChanged(auth, async (user) => {
         currentUser = user || null;
@@ -184,7 +185,7 @@ function mountWidget() {
             </div>
         </div>
 
-        <button class="btn-research-map-toggle" id="btn-research-map-toggle" aria-label="פתיחת מפת המחקר">
+        <button class="btn-research-map-toggle" id="btn-research-map-toggle" aria-label="פתיחת מפת המחקר" aria-controls="research-map-panel" aria-expanded="false">
             <i class="fa-solid fa-map"></i>
             <span>מפת המחקר</span>
         </button>
@@ -200,6 +201,27 @@ function mountWidget() {
 
     document.body.appendChild(wrapper);
     widgetElements = collectElements();
+}
+
+// Into the shared side dock when the page loads js/side-dock.js. Docked, the
+// widget does not move, so the drag hint goes too.
+function dockWidget() {
+    const docked = Boolean(window.SideDock?.add({
+        key: "map",
+        order: 30,
+        label: "מפת המחקר",
+        icon: "fa-solid fa-map",
+        root: widgetElements.widget,
+        button: widgetElements.toggleBtn,
+        close: closePanel
+    }));
+
+    if (docked) {
+        widgetElements.hint?.remove();
+        widgetElements.hint = null;
+        widgetElements.hintCloseBtn = null;
+    }
+    return docked;
 }
 
 function collectElements() {
@@ -282,11 +304,13 @@ function initUiListeners() {
 function openPanel() {
     widgetElements.panel?.classList.add("show");
     widgetElements.panel?.setAttribute("aria-hidden", "false");
+    widgetElements.toggleBtn?.setAttribute("aria-expanded", "true");
 }
 
 function closePanel() {
     widgetElements.panel?.classList.remove("show");
     widgetElements.panel?.setAttribute("aria-hidden", "true");
+    widgetElements.toggleBtn?.setAttribute("aria-expanded", "false");
 }
 
 function initDrag() {

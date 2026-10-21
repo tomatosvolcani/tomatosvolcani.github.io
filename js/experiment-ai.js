@@ -149,8 +149,21 @@ export class ExperimentAIController {
         button.setAttribute('aria-expanded', 'false');
         button.setAttribute('aria-label', 'פתיחת עוזר AI');
         button.title = 'פתיחת עוזר AI';
-        document.body.appendChild(button);
         this.fixedTabButton = button;
+
+        // Into the shared side dock when the page loads js/side-dock.js; otherwise
+        // a fixed tab under the accessibility tab. The copy keeps
+        // data-ai-feature-entry, so the allowAI gating hides it in either place.
+        // No close callback: the open drawer covers the dock.
+        const docked = window.SideDock?.add({
+            key: 'ai',
+            order: 20,
+            label: 'עוזר AI',
+            icon: 'fas fa-wand-magic-sparkles',
+            root: button,
+            button,
+        });
+        if (!docked) document.body.appendChild(button);
 
         button.addEventListener('click', (event) => {
             event.preventDefault();

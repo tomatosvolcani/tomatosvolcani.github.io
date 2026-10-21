@@ -37,6 +37,22 @@
 
     if (!a11yToggleBtn || !a11yMenu) return;
 
+    function closeMenu() {
+        a11yMenu.classList.remove('show');
+        a11yToggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    // Into the shared side dock when the page loads js/side-dock.js.
+    window.SideDock?.add({
+        key: 'a11y',
+        order: 10,
+        label: 'נגישות',
+        icon: 'fa-solid fa-universal-access',
+        root: document.querySelector('.a11y-widget'),
+        button: a11yToggleBtn,
+        close: closeMenu
+    });
+
     // Toggle Menu
     a11yToggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -48,16 +64,14 @@
     // Close menu on outside click
     document.addEventListener('click', (e) => {
         if (!a11yMenu.contains(e.target) && !a11yToggleBtn.contains(e.target)) {
-            a11yMenu.classList.remove('show');
-            a11yToggleBtn.setAttribute('aria-expanded', 'false');
+            closeMenu();
         }
     });
 
     // Close on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && a11yMenu.classList.contains('show')) {
-            a11yMenu.classList.remove('show');
-            a11yToggleBtn.setAttribute('aria-expanded', 'false');
+            closeMenu();
             a11yToggleBtn.focus();
         }
     });

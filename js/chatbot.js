@@ -18,6 +18,20 @@
 
     if (!chatToggleBtn || !chatPanel) return;
 
+    // Into the shared side dock when the page loads js/side-dock.js. Docked, the
+    // launcher stays in place as an open/close toggle and nothing is draggable.
+    const docked = Boolean(window.SideDock?.add({
+        key: 'chat',
+        order: 40,
+        label: "צ'אט עזרה",
+        icon: 'fa-solid fa-comment-dots',
+        root: document.querySelector('.chat-container'),
+        button: chatToggleBtn,
+        close: closeChat
+    }));
+    chatToggleBtn.setAttribute('aria-controls', 'chat-panel');
+    chatToggleBtn.setAttribute('aria-expanded', 'false');
+
     // ── Page-context-aware FAQ data ──
     const pageContext = document.body.getAttribute('data-page-context') || 'auth';
 
@@ -100,23 +114,32 @@
     let typeWriterTimeout;
 
     // ── Open/Close Chat ──
-    chatToggleBtn.addEventListener('click', () => {
+    // Floating, the round launcher shrinks away while the panel is open.
+    function openChat() {
         chatPanel.classList.add('show');
-        chatToggleBtn.style.transform = 'scale(0)';
+        chatToggleBtn.setAttribute('aria-expanded', 'true');
+        if (!docked) chatToggleBtn.style.transform = 'scale(0)';
+    }
+
+    function closeChat() {
+        chatPanel.classList.remove('show');
+        chatToggleBtn.setAttribute('aria-expanded', 'false');
+        if (!docked) chatToggleBtn.style.transform = 'scale(1)';
+    }
+
+    chatToggleBtn.addEventListener('click', () => {
+        if (docked && chatPanel.classList.contains('show')) closeChat();
+        else openChat();
     });
 
     if (btnCloseChat) {
-        btnCloseChat.addEventListener('click', () => {
-            chatPanel.classList.remove('show');
-            chatToggleBtn.style.transform = 'scale(1)';
-        });
+        btnCloseChat.addEventListener('click', closeChat);
     }
 
     // Close on Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && chatPanel.classList.contains('show')) {
-            chatPanel.classList.remove('show');
-            chatToggleBtn.style.transform = 'scale(1)';
+            closeChat();
         }
     });
 
@@ -209,7 +232,7 @@
     }
 
     // ── Drag to Move (via chat-header or toggle button) ──
-    initDrag();
+    if (!docked) initDrag();
 
     function initDrag() {
         const container = document.querySelector('.chat-container');

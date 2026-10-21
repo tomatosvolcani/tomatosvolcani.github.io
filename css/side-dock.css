@@ -1,0 +1,301 @@
+/* =========================================
+   Side Dock - Shared Across All Pages
+   Collapsible tool rail on the left edge (js/side-dock.js). The page is RTL
+   with the main navigation on the right, so the helpers live on the opposite
+   edge with the collapse handle on their page-facing side.
+   ========================================= */
+
+/* Geometry lives on <html> so neighbours can stay clear of the rail through
+   --side-dock-inset (see .ai-review-report at the bottom). */
+html.has-side-dock {
+    --side-dock-card-w: 88px;
+    --side-dock-pad: 8px;
+    --side-dock-handle-w: 22px;
+    --side-dock-inset: calc(var(--side-dock-card-w) + var(--side-dock-handle-w));
+}
+
+html.has-side-dock.side-dock-collapsed {
+    --side-dock-inset: var(--side-dock-handle-w);
+}
+
+/* ── Rail ──
+   Full-height and vertically centring its content without a transform:
+   a transform here would turn the fixed panels below into children of the
+   rail instead of the viewport. */
+.side-dock {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2100;
+    display: flex;
+    align-items: center;
+    direction: ltr; /* physical order: card, then handle */
+    pointer-events: none; /* the empty part of the rail must not block the page */
+}
+
+.side-dock > * {
+    pointer-events: auto;
+}
+
+.side-dock-preload,
+.side-dock-preload * {
+    transition: none !important;
+}
+
+/* ── Card ── */
+.side-dock-card {
+    direction: rtl;
+    width: var(--side-dock-card-w);
+    box-sizing: border-box;
+    padding: 10px var(--side-dock-pad);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #dbe3ef;
+    border-left: 0;
+    border-radius: 0 16px 16px 0;
+    box-shadow: 0 14px 34px -14px rgba(15, 23, 42, 0.38);
+    /* Expanding: visible at once, then slide in. */
+    transition: margin-left 0.25s ease, visibility 0s linear 0s;
+}
+
+/* Collapsing: slide out, then hide so the tiles leave the tab order. */
+.side-dock.collapsed .side-dock-card {
+    margin-left: calc(-1 * var(--side-dock-card-w));
+    visibility: hidden;
+    transition: margin-left 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.side-dock-title {
+    padding-bottom: 7px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.side-dock-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ── Docked widgets ──
+   Each widget root keeps its own class; only its legacy floating position
+   is cancelled here. */
+.side-dock .side-dock-item {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    margin: 0;
+}
+
+.side-dock .side-dock-item.hidden,
+.side-dock .side-dock-item[hidden] {
+    display: none !important;
+}
+
+/* ── Tiles ── */
+.side-dock-tile {
+    position: relative;
+    width: 100%;
+    min-height: 64px;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 9px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #f1f5fb;
+    color: #0a2f72;
+    font-family: inherit;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.side-dock-tile:hover {
+    background: #e2eaf7;
+    border-color: #b9c8e2;
+    color: #0a2f72;
+}
+
+.side-dock-tile:focus-visible {
+    outline: 3px solid #facc15;
+    outline-offset: 2px;
+}
+
+/* Its panel is open. */
+.side-dock-tile[aria-expanded="true"],
+.side-dock-tile.active {
+    background: #0a2f72;
+    border-color: #0a2f72;
+    color: #ffffff;
+}
+
+.side-dock-tile-icon {
+    font-size: 19px;
+    line-height: 1;
+    color: inherit;
+}
+
+.side-dock-tile-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: inherit;
+}
+
+/* The AI assistant keeps its blue gradient identity. */
+.side-dock-tile[data-side-dock-tile="ai"] {
+    border-color: transparent;
+    background: linear-gradient(150deg, #1d4ed8 0%, #0284c7 100%);
+    color: #ffffff;
+}
+
+.side-dock-tile[data-side-dock-tile="ai"]:hover {
+    color: #ffffff;
+    filter: brightness(1.08);
+}
+
+/* ── Collapse handle ── */
+.side-dock-handle {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: var(--side-dock-handle-w);
+    height: 72px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 0 10px 10px 0;
+    background: #0a2f72;
+    color: #ffffff;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 4px 0 12px rgba(15, 23, 42, 0.2);
+    transition: background-color 0.15s ease;
+}
+
+.side-dock-handle:hover {
+    background: #2d4aaa;
+}
+
+.side-dock-handle:focus-visible {
+    outline: 3px solid #facc15;
+    outline-offset: 2px;
+}
+
+.side-dock-handle i {
+    transition: transform 0.25s ease;
+}
+
+.side-dock.collapsed .side-dock-handle i {
+    transform: rotate(180deg);
+}
+
+/* ── Panels, opened to the right of the rail ── */
+
+/* Accessibility menu: small, so it sits beside its own tile. */
+.side-dock .a11y-menu {
+    left: calc(100% + var(--side-dock-pad) + var(--side-dock-handle-w) + 10px);
+    top: 0;
+    z-index: 2;
+}
+
+/* Chat and research map: tall, so they centre on the viewport like the rail.
+   `translate` composes with each panel's own show/hide `transform`. */
+.side-dock .chat-panel,
+.side-dock .research-map-panel {
+    position: fixed;
+    z-index: 2;
+    left: calc(var(--side-dock-inset) + 12px);
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    translate: 0 -50%;
+    transform-origin: left center;
+}
+
+.side-dock .chat-panel {
+    height: min(480px, calc(100vh - 32px));
+}
+
+.side-dock .research-map-panel {
+    width: min(560px, calc(100vw - var(--side-dock-inset) - 28px));
+    max-height: min(78vh, 700px, calc(100vh - 32px));
+}
+
+/* Panels no longer move the widget, so they are not drag handles. */
+.side-dock .chat-header,
+.side-dock .chat-header:active {
+    cursor: default;
+}
+
+/* ── Neighbours ── */
+
+/* The AI review report shares this edge; keep it beside the rail. */
+html.has-side-dock .ai-review-report {
+    left: calc(var(--side-dock-inset) + 14px);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    html.has-side-dock {
+        --side-dock-card-w: 70px;
+        --side-dock-pad: 6px;
+        --side-dock-handle-w: 20px;
+    }
+
+    .side-dock-tile {
+        min-height: 56px;
+        padding: 7px 3px 6px;
+        gap: 4px;
+    }
+
+    .side-dock-tile-icon {
+        font-size: 17px;
+    }
+
+    .side-dock-tile-label {
+        font-size: 10.5px;
+    }
+
+    .side-dock-title {
+        font-size: 10px;
+    }
+}
+
+/* Phones: the big panels take the full width, over the rail. */
+@media (max-width: 640px) {
+    .side-dock .chat-panel,
+    .side-dock .research-map-panel {
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+
+    .side-dock .chat-panel {
+        height: min(70vh, 460px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .side-dock-card,
+    .side-dock.collapsed .side-dock-card,
+    .side-dock-handle i {
+        transition: none;
+    }
+}
