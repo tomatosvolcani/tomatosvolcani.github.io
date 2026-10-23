@@ -190,6 +190,18 @@ export function createExperimentAIIntegration(adapter) {
         }
     };
     
+    // סכימות השורות חייבות לשקף את העמודות שקיימות בפועל בטבלה (addProgressRow /
+    // addSoilTableRow ב-experiment.js). עמודה שמוצגת כ-<input type="number"> מסומנת
+    // כאן 'number': אחרת המודל שולח "180 קוב", הדפדפן מרוקן את השדה והערך אובד בשקט.
+    // uploadDate אינו נשלח למודל — זה תאריך מערכת, ומולא כאן כמו בהעלאה ידנית.
+    const AI_LOG_TABLE_INSTRUCTIONS =
+        'Add one row per data row of the source (one irrigation/fertilization event or period); never merge several ' +
+        'source rows into one summary row. Skip total/subtotal lines such as סה"כ — they repeat rows already added. ' +
+        'A single dated event: startDate and endDate are the same date. A row without a date: leave the dates out ' +
+        '(never borrow a date from another row) and keep its stage and description in notes. ' +
+        'Numeric columns are bare numbers in the stated unit; convert if the source uses another unit. ' +
+        'fileName: the name of the source file the row came from, if any.';
+
     const AI_SECTION_COLLECTIONS = {
         crop: {
             varieties: { label: 'זנים', rowSchema: { value: 'string' } }
@@ -197,14 +209,24 @@ export function createExperimentAIIntegration(adapter) {
         soil: {
             compostRows: { label: 'קומפוסט', rowSchema: { date: 'YYYY-MM-DD', amount: 'string', method: 'string' } },
             disinfectRows: { label: 'חיטויי קרקע', rowSchema: { date: 'YYYY-MM-DD', material: 'string', amount: 'string', method: 'string' } },
-            cultivationRows: { label: 'עיבודי קרקע', rowSchema: { date: 'YYYY-MM-DD', action: 'string', depth: 'string', notes: 'string' } }
+            cultivationRows: { label: 'עיבודי קרקע', rowSchema: { date: 'YYYY-MM-DD', action: 'string, preferably one of: טיחוח, משטט, עיבוד קרקע, פינוי' } }
         },
         drip: {
             irrigationTimes: { label: 'שעות השקיה ביום', rowSchema: { time: 'HH:MM' } }
         },
         irrigation: {
-            irrigationData: { label: 'נתוני השקיה', rowSchema: { fileName: 'string', uploadDate: 'YYYY-MM-DD', startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', totalWater: 'string', notes: 'string' } },
-            fertilizationData: { label: 'נתוני דישון', rowSchema: { fileName: 'string', uploadDate: 'YYYY-MM-DD', startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', fertType: 'string', company: 'string', totalFert: 'string', notes: 'string' } }
+            irrigationData: {
+                label: 'נתוני השקיה',
+                rowSchema: () => ({ fileName: 'string', startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', totalWater: `number (${getAiIrrigationWaterUnit()})`, notes: 'string' }),
+                instructions: AI_LOG_TABLE_INSTRUCTIONS,
+                stampUploadDate: true
+            },
+            fertilizationData: {
+                label: 'נתוני דישון',
+                rowSchema: { fileName: 'string', startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', fertType: 'string', company: 'string', totalFert: 'number', notes: 'string' },
+                instructions: AI_LOG_TABLE_INSTRUCTIONS,
+                stampUploadDate: true
+            }
         },
         growth: {
             growthData: { label: 'מדדי צימוח', rowSchema: { name: 'string', value: 'string', measureDate: 'YYYY-MM-DD' } }
@@ -213,20 +235,87 @@ export function createExperimentAIIntegration(adapter) {
             climateData: { label: 'נתוני אקלים וסנסורים', rowSchema: { name: 'string', location: 'string', sensorPosition: 'string', sensorDepth: 'string', startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD', fileName: 'string', notes: 'string' } }
         },
         agrotechnics: {
-            agrotechnicsData: { label: 'פעולות אגרוטכניות', rowSchema: { action: 'string', actionOther: 'string', actionDate: 'YYYY-MM-DD', hours: 'string', workers: 'string' } },
-            pollinationData: { label: 'האבקה', rowSchema: { date: 'YYYY-MM-DD', hives: 'string' } }
+            agrotechnicsData: { label: 'פעולות אגרוטכניות', rowSchema: { action: 'string', actionOther: 'string', actionDate: 'YYYY-MM-DD', hours: 'number', workers: 'number' } },
+            pollinationData: { label: 'האבקה', rowSchema: { date: 'YYYY-MM-DD', hives: 'number' } }
         },
         plantProtection: {
             pests: { label: 'מזיקים', rowSchema: { pest: 'string', date: 'YYYY-MM-DD', inoculationType: 'string', inoculationMethod: 'string', inoculationAmount: 'string', notes: 'string' } },
             diseases: { label: 'מחלות', rowSchema: { pest: 'string', date: 'YYYY-MM-DD', inoculationType: 'string', inoculationMethod: 'string', inoculationAmount: 'string', notes: 'string' } },
-            sprays: { label: 'ריסוסים', rowSchema: { material: 'string', date: 'YYYY-MM-DD', dosage: 'string', combined: 'string', notes: 'string' } },
-            drenches: { label: 'הגמעות', rowSchema: { material: 'string', date: 'YYYY-MM-DD', dosage: 'string', combined: 'string', notes: 'string' } }
+            sprays: { label: 'ריסוסים', rowSchema: { material: 'string', date: 'YYYY-MM-DD', dosage: 'number', combined: 'string', notes: 'string' } },
+            drenches: { label: 'הגמעות', rowSchema: { material: 'string', date: 'YYYY-MM-DD', dosage: 'number', combined: 'string', notes: 'string' } }
         },
         yield: {
-            measures: { label: 'מדידות יבול', rowSchema: { measureDate: 'YYYY-MM-DD', repeatCount: 'string', fruitFloor: 'string', quality: 'string', quantity: 'string', fruitDesc: 'string', notes: 'string' } },
-            damages: { label: 'נזקי יבול', rowSchema: { measureDate: 'YYYY-MM-DD', repeatCount: 'string', damage: 'string', damageIndex: 'string', damageValue: 'string', damageDesc: 'string' } }
+            measures: { label: 'מדידות יבול', rowSchema: { measureDate: 'YYYY-MM-DD', repeatCount: 'string', fruitFloor: 'number', quality: 'string', quantity: 'number (ק"ג)', fruitDesc: 'string', notes: 'string' } },
+            damages: { label: 'נזקי יבול', rowSchema: { measureDate: 'YYYY-MM-DD', repeatCount: 'string', damage: 'string', damageIndex: 'string', damageValue: 'number', damageDesc: 'string' } }
         }
     };
+
+    // כמו getIrrigationWaterUnit() ב-experiment.js: ניסוי שדה נמדד בקוב, מעבדה בליטר.
+    function getAiIrrigationWaterUnit() {
+        return getCurrentStudyType() === 'lab' ? 'ליטר' : 'קוב';
+    }
+
+    function resolveAiRowSchema(descriptor) {
+        const schema = descriptor?.rowSchema;
+        return (typeof schema === 'function' ? schema() : schema) || {};
+    }
+
+    // מספר בודד מתוך ערך AI ("1,250 קוב" → "1250"). ערך עם כמה מספרים ("28-35")
+    // אינו ניתן להכרעה ומוחזר null, כדי שלא ייכנס מספר שגוי בשקט.
+    function parseAiNumber(value) {
+        if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
+        const numbers = String(value ?? '').replace(/(\d),(?=\d{3}(?!\d))/g, '$1').match(/-?\d+(?:\.\d+)?/g) || [];
+        return numbers.length === 1 ? String(Number(numbers[0])) : null;
+    }
+
+    // תאריך ISO, או תאריך ישראלי dd/mm/yyyy שהמודל לא המיר. אחרת null.
+    function parseAiDate(value) {
+        const text = String(value ?? '').trim();
+        let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            const il = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
+            if (il) match = [text, il[3].length === 2 ? `20${il[3]}` : il[3], il[2].padStart(2, '0'), il[1].padStart(2, '0')];
+        }
+        if (!match) return null;
+        const iso = `${match[1]}-${match[2]}-${match[3]}`;
+        const parsed = new Date(`${iso}T00:00:00Z`);
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(iso) ? iso : null;
+    }
+
+    /**
+     * מיישר שורות שה-AI הציע לעמודות הטבלה בפועל: עמודות שאינן בסכימה מושמטות,
+     * מספרים ותאריכים מנורמלים לפורמט שה-<input> מקבל. ערך שלא ניתן לנרמל מדווח
+     * ב-dropped במקום להיעלם בשקט מהטבלה.
+     */
+    function normalizeAiCollectionRows(descriptor, rows, { stampUploadDate = false } = {}) {
+        const schema = resolveAiRowSchema(descriptor);
+        const dropped = [];
+        const today = new Date().toISOString().split('T')[0];
+        const normalized = (Array.isArray(rows) ? rows : []).map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row)) return row;
+            const clean = {};
+            Object.entries(row).forEach(([field, value]) => {
+                if (!hasAiMeaningfulValue(value)) return;
+                const type = schema[field];
+                if (type === undefined) {
+                    dropped.push(`${field}="${value}" (עמודה שאינה קיימת בטבלה)`);
+                } else if (String(type).startsWith('number')) {
+                    const number = parseAiNumber(value);
+                    if (number === null) dropped.push(`${field}="${value}" (לא מספר יחיד)`);
+                    else clean[field] = number;
+                } else if (type === 'YYYY-MM-DD') {
+                    const date = parseAiDate(value);
+                    if (date === null) dropped.push(`${field}="${value}" (תאריך לא תקין)`);
+                    else clean[field] = date;
+                } else {
+                    clean[field] = value;
+                }
+            });
+            if (stampUploadDate && descriptor?.stampUploadDate && hasAiMeaningfulValue(clean)) clean.uploadDate = today;
+            return clean;
+        }).filter(hasAiMeaningfulValue);
+        return { rows: normalized, dropped };
+    }
     
     // מיפוי כל טבלת collection ל-tbody שלה, לצורך סימון שורות שנוספו ע"י AI.
     const AI_COLLECTION_TBODY = {
@@ -271,7 +360,8 @@ export function createExperimentAIIntegration(adapter) {
         let aiRows = [];
         try {
             const decoded = JSON.parse(update?.value_json || '[]');
-            aiRows = Array.isArray(decoded) ? decoded : [decoded];
+            // אותה נרמול כמו בהחלה, אחרת "180 קוב" לא היה תואם ל-"180" שבטבלה.
+            aiRows = normalizeAiCollectionRows(AI_SECTION_COLLECTIONS[sectionId]?.[key], Array.isArray(decoded) ? decoded : [decoded]).rows;
         } catch { return null; }
         if (!aiRows.length) return null;
         const tbody = document.getElementById(tbodyId);
@@ -503,7 +593,8 @@ export function createExperimentAIIntegration(adapter) {
                         page,
                         page_label: AI_VIEW_LABELS[page],
                         label: descriptor.label,
-                        row_schema: descriptor.rowSchema,
+                        row_schema: resolveAiRowSchema(descriptor),
+                        ...(descriptor.instructions ? { instructions: descriptor.instructions } : {}),
                         current_value: getAiCollectionValue(sectionId, data, key),
                         merge_policy: allowOverwriteExisting ? 'replace_or_append' : 'append_only'
                     });
@@ -540,24 +631,26 @@ export function createExperimentAIIntegration(adapter) {
      * חתימה יציבה להשוואת פריטי אוסף. JSON.stringify גולמי תלוי בסדר המפתחות
      * וברווחים, ולכן שורה זהה שהגיעה מה-AI נספרה כחדשה ושוכפלה בטבלה.
      */
-    function aiItemSignature(item) {
+    function aiItemSignature(item, ignoreKeys = []) {
         if (item === null || item === undefined) return '';
         if (typeof item !== 'object') return String(item).trim().toLowerCase();
-        if (Array.isArray(item)) return `[${item.map(aiItemSignature).join('|')}]`;
+        if (Array.isArray(item)) return `[${item.map(entry => aiItemSignature(entry)).join('|')}]`;
         return Object.keys(item)
-            .filter(key => hasAiMeaningfulValue(item[key]))
+            .filter(key => !ignoreKeys.includes(key) && hasAiMeaningfulValue(item[key]))
             .sort()
             .map(key => `${key}=${aiItemSignature(item[key])}`)
             .join('&');
     }
-    
-    function mergeAiArrays(existing, incoming, allowOverwrite, operation) {
+
+    // ignoreKeys: שדות מערכת (uploadDate) שאינם חלק מזהות השורה — בלעדיהם הרצה
+    // חוזרת של אותו קובץ ביום אחר הייתה משכפלת את כל השורות.
+    function mergeAiArrays(existing, incoming, allowOverwrite, operation, ignoreKeys = []) {
         const safeIncoming = Array.isArray(incoming) ? incoming.filter(hasAiMeaningfulValue) : [];
         if (allowOverwrite && operation === 'set') return deepClone(safeIncoming);
         const merged = [...(Array.isArray(existing) ? existing : [])];
-        const seen = new Set(merged.map(aiItemSignature));
+        const seen = new Set(merged.map(item => aiItemSignature(item, ignoreKeys)));
         safeIncoming.forEach(item => {
-            const signature = aiItemSignature(item);
+            const signature = aiItemSignature(item, ignoreKeys);
             if (!seen.has(signature)) {
                 merged.push(deepClone(item));
                 seen.add(signature);
@@ -783,16 +876,25 @@ export function createExperimentAIIntegration(adapter) {
         const replaced = allowOverwrite && operation === 'set';
         let before = 0;
         let after = 0;
-    
+        // זנים ושעות השקיה הם רשימות מחרוזות עם נרמול משלהם; שאר הטבלאות הן שורות-אובייקט.
+        const isStringList = (sectionId === 'crop' && key === 'varieties') || (sectionId === 'drip' && key === 'irrigationTimes');
+        const descriptor = AI_SECTION_COLLECTIONS[sectionId][key];
+        const { rows, dropped } = isStringList
+            ? { rows: value, dropped: [] }
+            : normalizeAiCollectionRows(descriptor, value, { stampUploadDate: true });
+        const notes = dropped.map(item => `${sectionId}.${key}: הערך ${item} לא הוזן`);
+        const ignoreKeys = descriptor.stampUploadDate ? ['uploadDate'] : [];
+        if (!rows.length) return { applied: false, reason: 'אף שורה לא נותרה לאחר התאמה לעמודות הטבלה', notes };
+
         if (sectionId === 'plantProtection') {
             target.plantProtectionData = target.plantProtectionData || { pests: [], diseases: [], sprays: [], drenches: [] };
             before = (target.plantProtectionData[key] || []).length;
-            target.plantProtectionData[key] = mergeAiArrays(target.plantProtectionData[key], value, allowOverwrite, operation);
+            target.plantProtectionData[key] = mergeAiArrays(target.plantProtectionData[key], rows, allowOverwrite, operation);
             after = target.plantProtectionData[key].length;
         } else if (sectionId === 'yield') {
             target.yieldData = target.yieldData || { measures: [], damages: [] };
             before = (target.yieldData[key] || []).length;
-            target.yieldData[key] = mergeAiArrays(target.yieldData[key], value, allowOverwrite, operation);
+            target.yieldData[key] = mergeAiArrays(target.yieldData[key], rows, allowOverwrite, operation);
             after = target.yieldData[key].length;
         } else if (sectionId === 'crop' && key === 'varieties') {
             before = (target.varieties || []).length;
@@ -810,18 +912,18 @@ export function createExperimentAIIntegration(adapter) {
             after = target.irrigationTimes.length;
         } else {
             before = (target[key] || []).length;
-            target[key] = mergeAiArrays(target[key], value, allowOverwrite, operation);
+            target[key] = mergeAiArrays(target[key], rows, allowOverwrite, operation, ignoreKeys);
             after = target[key].length;
         }
-    
+
         if (!replaced && after === before) {
-            return { applied: false, skipped: true, reason: 'כל השורות שהוצעו כבר קיימות בטבלה' };
+            return { applied: false, skipped: true, reason: 'כל השורות שהוצעו כבר קיימות בטבלה', notes };
         }
-    
+
         if (isSharedScope) model.sharedData = target;
         else model.byTreatment[index] = target;
         aiDirtyViews.add(AI_SECTION_TO_VIEW[sectionId]);
-        return { applied: true, marked: false };
+        return { applied: true, marked: false, notes };
     }
     
     async function applyAiExtraction(payload, { allowOverwriteExisting = false } = {}) {
@@ -870,6 +972,9 @@ export function createExperimentAIIntegration(adapter) {
                 }
             }
     
+            // ערכים בודדים שהושמטו מתוך שורה שכן הוזנה — מוצגים כדי שלא ייעלמו בשקט.
+            if (Array.isArray(outcome.notes)) rejected.push(...outcome.notes);
+
             if (outcome.applied) {
                 appliedCount += 1;
                 appliedPaths.push(update.path);
