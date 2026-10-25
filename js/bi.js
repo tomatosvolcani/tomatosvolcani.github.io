@@ -25,6 +25,12 @@ let allExperiments = [];
 let publicResearchersByUid = new Map();
 /** מופע Leaflet הפעיל, נשמר כדי שאפשר יהיה לרנדר מחדש אחרי "נסה שוב". */
 let experimentsMapInstance = null;
+/**
+ * איחודי שמות זנים מ-appSettings/varietyOptions (מנוהל ב-admin-varieties.html):
+ * שם ישן באותיות קטנות → השם הנכון. כך איות ישן שעוד נשאר בניסוי נספר תחת השם הנכון.
+ * @type {Map<string, string>}
+ */
+let varietyAliases = new Map();
 
 
 // ======================================================
@@ -103,10 +109,25 @@ async function loadAndRender() {
     try {
         // ---- Load experiments and public researcher names in parallel ----
         const experimentsQuery = query(collectionGroup(db, 'experiments'));
-        const [snapshot, publicUsersSnapshot] = await Promise.all([
+        const [snapshot, publicUsersSnapshot, varietyOptionsSnap] = await Promise.all([
             getDocsFromServer(experimentsQuery),
-            getDocsFromServer(collection(db, 'publicUsers'))
+            getDocsFromServer(collection(db, 'publicUsers')),
+            // אופציונלי: אם המסמך חסר או נחסם, ה-BI ממשיך בלי איחודים.
+            getDoc(doc(db, 'appSettings', 'varietyOptions')).catch((error) => {
+                console.warn('varietyOptions not loaded; variety names are counted as typed.', error);
+                return null;
+            })
         ]);
+
+        varietyAliases = new Map();
+        const rawAliases = varietyOptionsSnap?.exists() ? varietyOptionsSnap.data()?.aliases : null;
+        if (rawAliases && typeof rawAliases === 'object') {
+            Object.entries(rawAliases).forEach(([from, to]) => {
+                const key = String(from || '').trim().toLowerCase();
+                const target = String(to || '').trim();
+                if (key && target) varietyAliases.set(key, target);
+            });
+        }
 
         publicResearchersByUid = new Map();
         publicUsersSnapshot.forEach(userDoc => {
@@ -624,9 +645,13 @@ function cropField(exp, field) {
 function cropVarieties(exp) {
     const cropData = exp?.cropDetails?.data || exp || {};
     const fromArray = Array.isArray(cropData.varieties) ? cropData.varieties : [];
-    if (fromArray.length) return fromArray.map((v) => String(v || '').trim()).filter(Boolean);
-    const single = String(cropData.variety || '').trim();
-    return single ? [single] : [];
+    const raw = fromArray.length ? fromArray : [cropData.variety];
+    const names = raw
+        .map((v) => String(v || '').trim())
+        .filter(Boolean)
+        .map((v) => varietyAliases.get(v.toLowerCase()) || v);
+    // ניסוי שמכיל גם את השם הישן וגם את הנכון נספר פעם אחת.
+    return [...new Set(names)];
 }
 
 /** נרמול מחרוזת */

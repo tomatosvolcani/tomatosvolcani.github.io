@@ -129,6 +129,11 @@ let dynamicFieldOptions = getDefaultDynamicFieldOptions();
 const GLOBAL_KEYWORDS_DOC = ['appSettings', 'keywordOptions'];
 const DEFAULT_GLOBAL_KEYWORDS = ['עגבניות', 'הדברה', 'חממה'];
 let globalKeywordOptions = [...DEFAULT_GLOBAL_KEYWORDS];
+// Global variety list, shared by every researcher (managed in admin-varieties.html).
+// `aliases` maps a merged-away spelling (lowercased) to its canonical name.
+const GLOBAL_VARIETIES_DOC = ['appSettings', 'varietyOptions'];
+let globalVarietyOptions = [];
+let globalVarietyAliases = {};
 
 function getExperimentDocumentPath() {
     if (!experimentOwnerUid || !currentExperimentId) return '';
@@ -1377,7 +1382,8 @@ function setDatalistOptions(datalistId, options) {
 
 function applyDynamicFieldOptionsToUI() {
     Object.entries(DYNAMIC_FIELD_CONFIG).forEach(([key, config]) => {
-        setDatalistOptions(config.datalistId, dynamicFieldOptions[key]);
+        const options = key === 'variety' ? getVarietyOptions() : dynamicFieldOptions[key];
+        setDatalistOptions(config.datalistId, options);
     });
 }
 
@@ -1491,6 +1497,10 @@ async function loadDynamicFieldOptions() {
 async function persistDynamicFieldOptions(formData) {
     if (!experimentOwnerUid) return;
 
+    // Every save path (manual, autosave, AI apply) runs through here, so this is
+    // where new variety names reach the global list.
+    await persistGlobalVarietyOptions(formData);
+
     try {
         const additions = collectDynamicFieldValues(formData);
         const merged = mergeDynamicFieldOptions(dynamicFieldOptions, additions);
@@ -1581,6 +1591,7 @@ onAuthStateChanged(auth, async (user) => {
 
     await loadDynamicFieldOptions();
     await loadGlobalKeywordOptions();
+    await loadGlobalVarietyOptions();
 
     if (currentExperimentId) {
         isNavigationStateReady = false;
@@ -3141,6 +3152,183 @@ async function persistGlobalKeywordOptions(keywords) {
     }
 }
 
+function normalizeVarietyAliases(rawAliases) {
+    const aliases = {};
+    if (!rawAliases || typeof rawAliases !== 'object') return aliases;
+    Object.entries(rawAliases).forEach(([from, to]) => {
+        const key = normalizeDynamicValue(from).toLowerCase();
+        const target = normalizeDynamicValue(to);
+        if (key && target) aliases[key] = target;
+    });
+    return aliases;
+}
+
+function getVarietyOptions() {
+    return normalizeUniqueValues([...globalVarietyOptions, ...(dynamicFieldOptions.variety || [])]);
+}
+
+async function loadGlobalVarietyOptions() {
+    try {
+        const varietiesSnap = await getDoc(doc(db, ...GLOBAL_VARIETIES_DOC));
+        const data = varietiesSnap.exists() ? varietiesSnap.data() || {} : {};
+        globalVarietyOptions = normalizeUniqueValues(data.varieties);
+        globalVarietyAliases = normalizeVarietyAliases(data.aliases);
+    } catch (error) {
+        globalVarietyOptions = [];
+        globalVarietyAliases = {};
+        if (error?.code === 'permission-denied') {
+            console.warn('Skipping global variety options load due to permissions (permission-denied).');
+        } else {
+            console.error('Error loading global variety options:', error);
+        }
+    }
+    applyDynamicFieldOptionsToUI();
+}
+
+function collectVarietiesFromFormData(formData) {
+    const crop = formData?.cropDetails || {};
+    const sections = [crop.data, crop.sharedData, ...(Array.isArray(crop.byTreatment) ? crop.byTreatment : [])];
+    return normalizeUniqueValues(sections.flatMap((section) => getCropVarieties(section || {})));
+}
+
+function isListedVariety(list, value) {
+    const key = value.toLowerCase();
+    return list.some((existing) => String(existing || '').trim().toLowerCase() === key);
+}
+
+async function persistGlobalVarietyOptions(formData) {
+    // Merged-away spellings stay out of the list even if an old experiment still holds them.
+    const newVarieties = collectVarietiesFromFormData(formData).filter((value) => (
+        !isListedVariety(globalVarietyOptions, value) && !globalVarietyAliases[value.toLowerCase()]
+    ));
+    if (!newVarieties.length) return;
+
+    try {
+        const varietiesRef = doc(db, ...GLOBAL_VARIETIES_DOC);
+        const result = await runTransaction(db, async (transaction) => {
+            const currentSnap = await transaction.get(varietiesRef);
+            const current = currentSnap.exists() ? currentSnap.data() || {} : {};
+            const aliases = normalizeVarietyAliases(current.aliases);
+            const currentVarieties = Array.isArray(current.varieties) ? current.varieties : [];
+            const additions = newVarieties.filter((value) => (
+                !isListedVariety(currentVarieties, value) && !aliases[value.toLowerCase()]
+            ));
+            if (additions.length) {
+                // Append only: the rules reject a non-admin write that drops an existing name.
+                transaction.set(varietiesRef, {
+                    varieties: [...currentVarieties, ...additions],
+                    updatedAt: serverTimestamp(),
+                    updatedBy: currentUser?.uid || null
+                }, { merge: true });
+            }
+            return { varieties: [...currentVarieties, ...additions], aliases };
+        });
+
+        globalVarietyOptions = normalizeUniqueValues(result.varieties);
+        globalVarietyAliases = result.aliases;
+        applyDynamicFieldOptionsToUI();
+    } catch (error) {
+        if (error?.code === 'permission-denied') {
+            console.warn('Skipping global variety options persist due to permissions (permission-denied).');
+            return;
+        }
+        console.error('Error persisting global variety options:', error);
+    }
+}
+
+// Folds the spelling noise that splits one variety into several names: case,
+// spaces, punctuation and the Hebrew vowel letters א/ו/י (איקרם / איקראם).
+function foldVarietyName(value) {
+    const stripped = String(value || '').trim().toLowerCase().replace(/[\s\-_'"׳״`.,()]+/g, '');
+    const folded = stripped.replace(/[אוי]/g, '');
+    return folded.length >= 2 ? folded : stripped;
+}
+
+function getEditDistance(a, b) {
+    if (a === b) return 0;
+    const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        let diag = prev[0];
+        prev[0] = i;
+        for (let j = 1; j <= b.length; j++) {
+            const above = prev[j];
+            prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+            diag = above;
+        }
+    }
+    return prev[b.length];
+}
+
+function findSimilarVariety(value) {
+    const typed = value.toLowerCase();
+    const typedFold = foldVarietyName(value);
+    let best = null;
+    getVarietyOptions().forEach((option) => {
+        const candidate = option.toLowerCase();
+        if (candidate === typed) return;
+        let distance;
+        if (foldVarietyName(option) === typedFold) {
+            distance = 0;
+        } else {
+            const shortest = Math.min(candidate.length, typed.length);
+            // Numeric codes (301 / 302) are distinct varieties, never typos of each other.
+            if (shortest < 4 || /^\d+$/.test(candidate) || /^\d+$/.test(typed)) return;
+            distance = getEditDistance(candidate, typed);
+            if (distance > (shortest >= 8 ? 2 : 1)) return;
+        }
+        if (!best || distance < best.distance) best = { option, distance };
+    });
+    return best?.option || '';
+}
+
+function escapeVarietyHtml(value) {
+    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value).replace(/[&<>"']/g, (ch) => entities[ch]);
+}
+
+// Resolves what the researcher typed against the global list before adding it:
+// an alias becomes its canonical name, a case variant takes the listed spelling,
+// and a near-miss asks "did you mean...?". Returns false when the user cancelled.
+async function addVarietyFromInput(typedValue) {
+    const typed = normalizeDynamicValue(typedValue);
+    if (!typed) return false;
+
+    const aliasTarget = globalVarietyAliases[typed.toLowerCase()];
+    if (aliasTarget) {
+        addVarietyTag(aliasTarget);
+        showToast(`"${typed}" אוחד ל-"${aliasTarget}" — נוסף "${aliasTarget}"`, 'info', 4000);
+        return true;
+    }
+
+    const known = getVarietyOptions().find((option) => option.toLowerCase() === typed.toLowerCase());
+    if (known) {
+        addVarietyTag(known);
+        return true;
+    }
+
+    const similar = findSimilarVariety(typed);
+    if (!similar) {
+        addVarietyTag(typed);
+        return true;
+    }
+
+    // Let the Enter keydown that triggered the add finish first: the dialog
+    // listens for Enter on document and would otherwise confirm itself.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const choice = await showThreeOptionModal({
+        title: 'זן בשם דומה כבר קיים',
+        message: `הזן <strong>${escapeVarietyHtml(similar)}</strong> כבר קיים במערכת. האם התכוונת אליו?<br>`
+            + 'שימוש בשם קיים שומר על ספירה אחידה של הזנים בדוחות.',
+        confirmText: `כן, "${similar}"`,
+        alternateText: `לא, להוסיף "${typed}" כזן חדש`,
+        cancelText: 'ביטול',
+        tone: 'info'
+    });
+    if (choice === 'cancel') return false;
+    addVarietyTag(choice === 'confirm' ? similar : typed);
+    return true;
+}
+
 function addVarietyTag(value) {
     const normalizedValue = String(value || '').trim();
     if (!normalizedValue) return;
@@ -4690,11 +4878,14 @@ function initEventListeners() {
     const addVarietyBtn = document.getElementById('add-variety');
     const varietyInput = document.getElementById('variety-input');
     if (addVarietyBtn && varietyInput) {
-        addVarietyBtn.addEventListener('click', () => {
+        addVarietyBtn.addEventListener('click', async () => {
             const value = varietyInput.value.trim();
             if (!value) return;
-            addVarietyTag(value);
+            if (!(await addVarietyFromInput(value))) return;
             varietyInput.value = '';
+            // The tag may land after a dialog, past an autosave that already
+            // consumed the edit flag set by typing.
+            markUserEdited();
         });
         varietyInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
