@@ -887,6 +887,154 @@
 }
 
 /* =========================================
+   Variety picker — רשימת זנים משותפת (appSettings/varietyOptions)
+   ========================================= */
+.variety-picker {
+    position: relative;
+}
+
+.variety-picker-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.form-group .variety-picker-field input {
+    padding-left: 92px; /* room for the "בחירה" button on the left (RTL end) */
+}
+
+.variety-picker-toggle {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #d4deeb;
+    border-radius: 8px;
+    background: #f5f8ff;
+    color: #18408d;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.variety-picker-toggle:hover {
+    background: #edf2ff;
+    border-color: #18408d;
+}
+
+.variety-picker-toggle i {
+    font-size: 11px;
+    transition: transform 0.16s ease;
+}
+
+.variety-picker.open .variety-picker-toggle {
+    background: #18408d;
+    border-color: #18408d;
+    color: #fff;
+}
+
+.variety-picker.open .variety-picker-toggle i {
+    transform: rotate(180deg);
+}
+
+.variety-picker-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    left: 42px; /* aligned with the field, not under the + button */
+    z-index: 50;
+    max-height: 280px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #d4deeb;
+    border-radius: 12px;
+    box-shadow: 0 10px 26px rgba(16, 24, 40, 0.12);
+}
+
+.variety-picker-caption {
+    padding: 4px 10px 8px;
+    font-size: 12px;
+    color: #607089;
+    border-bottom: 1px solid #eef2f7;
+    margin-bottom: 4px;
+}
+
+.variety-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1f2937;
+    cursor: pointer;
+}
+
+.variety-option mark {
+    background: #fff3c4;
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+}
+
+.variety-option.active,
+.variety-option:hover {
+    background: #edf2ff;
+}
+
+.variety-option.is-added {
+    color: #607089;
+    cursor: default;
+}
+
+.variety-option.is-added:hover,
+.variety-option.is-added.active {
+    background: #f6f8fb;
+}
+
+.variety-option-meta {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #0f7a39;
+}
+
+.variety-option.is-new {
+    justify-content: flex-start;
+    margin-top: 4px;
+    border-top: 1px dashed #d4deeb;
+    border-radius: 0 0 8px 8px;
+    color: #18408d;
+    font-weight: 600;
+}
+
+.variety-option.is-new i {
+    font-size: 12px;
+}
+
+.variety-picker-empty {
+    padding: 10px;
+    font-size: 13px;
+    color: #607089;
+    text-align: center;
+}
+
+.form-container.readonly-mode .variety-picker-toggle,
+.form-container.readonly-mode .variety-picker-menu {
+    display: none !important;
+}
+
+/* =========================================
    Pending-add hint — בחירה שטרם נוספה
    מוצג כל עוד יש טקסט בתיבת החיפוש שלא נוסף בלחיצה על כפתור ההוספה.
    ========================================= */

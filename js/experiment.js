@@ -3329,6 +3329,207 @@ async function addVarietyFromInput(typedValue) {
     return true;
 }
 
+// Dropdown for the variety field: the "בחירה" button opens the whole global list,
+// typing filters it (also across א/ו/י spelling variants), clicking adds a tag.
+// Enter on an option highlighted with the arrow keys adds it; otherwise Enter falls
+// through to the add button, which runs the alias / "did you mean" checks in
+// addVarietyFromInput().
+function initVarietyPicker(input, addButton) {
+    const picker = document.getElementById('variety-picker');
+    const toggle = document.getElementById('variety-picker-toggle');
+    const menu = document.getElementById('variety-picker-menu');
+    if (!picker || !toggle || !menu) return;
+
+    let items = [];
+    let activeIndex = -1;
+
+    const isOpen = () => !menu.hidden;
+
+    const close = () => {
+        menu.hidden = true;
+        picker.classList.remove('open');
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+        activeIndex = -1;
+    };
+
+    const setActive = (index) => {
+        const options = menu.querySelectorAll('.variety-option');
+        options.forEach((el) => el.classList.remove('active'));
+        activeIndex = index;
+        const el = options[index];
+        if (!el) {
+            input.removeAttribute('aria-activedescendant');
+            return;
+        }
+        el.classList.add('active');
+        input.setAttribute('aria-activedescendant', el.id);
+        el.scrollIntoView({ block: 'nearest' });
+    };
+
+    const appendHighlighted = (parent, text, query) => {
+        const at = query ? text.toLowerCase().indexOf(query) : -1;
+        if (at < 0) {
+            parent.textContent = text;
+            return;
+        }
+        const mark = document.createElement('mark');
+        mark.textContent = text.slice(at, at + query.length);
+        parent.append(text.slice(0, at), mark, text.slice(at + query.length));
+    };
+
+    const render = (showAll) => {
+        const typed = normalizeDynamicValue(input.value);
+        const query = showAll ? '' : typed.toLowerCase();
+        const queryFold = query ? foldVarietyName(query) : '';
+        const added = new Set(getVarietiesFromDOM().map((v) => v.toLowerCase()));
+        // Best match first; within a tier, names before numeric codes (301, 8551).
+        const rank = (option) => {
+            const key = option.toLowerCase();
+            const tier = !query || key.startsWith(query) ? 0 : (key.includes(query) ? 2 : 4);
+            return tier + (/^\d/.test(key) ? 1 : 0);
+        };
+        const options = getVarietyOptions()
+            .filter((option) => !query
+                || option.toLowerCase().includes(query)
+                || foldVarietyName(option).includes(queryFold))
+            .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'he'));
+
+        items = options.map((value) => ({ value, added: added.has(value.toLowerCase()) }));
+        const known = typed && (
+            getVarietyOptions().some((option) => option.toLowerCase() === typed.toLowerCase())
+            || globalVarietyAliases[typed.toLowerCase()]
+        );
+        if (typed && !showAll && !known) items.push({ value: typed, isNew: true });
+
+        const rows = [];
+        if (!query && options.length) {
+            const caption = document.createElement('li');
+            caption.className = 'variety-picker-caption';
+            caption.setAttribute('role', 'presentation');
+            caption.textContent = `${options.length} זנים במערכת`;
+            rows.push(caption);
+        }
+        items.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.id = `variety-option-${index}`;
+            li.className = 'variety-option';
+            li.setAttribute('role', 'option');
+            if (item.isNew) {
+                li.classList.add('is-new');
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-plus';
+                li.append(icon, ` הוספת "${item.value}" כזן חדש`);
+            } else {
+                const name = document.createElement('span');
+                appendHighlighted(name, item.value, query);
+                li.appendChild(name);
+                if (item.added) {
+                    li.classList.add('is-added');
+                    li.setAttribute('aria-disabled', 'true');
+                    const meta = document.createElement('span');
+                    meta.className = 'variety-option-meta';
+                    meta.textContent = '✓ נוסף';
+                    li.appendChild(meta);
+                }
+            }
+            // mousedown + preventDefault keeps focus in the input, so the menu does not close first.
+            li.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                choose(item);
+            });
+            li.addEventListener('mousemove', () => {
+                if (activeIndex !== index) setActive(index);
+            });
+            rows.push(li);
+        });
+        if (!items.length) {
+            const empty = document.createElement('li');
+            empty.className = 'variety-picker-empty';
+            empty.setAttribute('role', 'presentation');
+            empty.textContent = getVarietyOptions().length
+                ? 'אין זן תואם'
+                : 'עדיין אין זנים ברשימה — הקלד/י שם זן ולחצ/י Enter';
+            rows.push(empty);
+        }
+
+        menu.replaceChildren(...rows);
+        menu.hidden = false;
+        picker.classList.add('open');
+        input.setAttribute('aria-expanded', 'true');
+        // Nothing is pre-selected: Enter adds exactly what was typed (through
+        // addVarietyFromInput), so typing "מגן" never silently becomes "מגן זהב".
+        activeIndex = -1;
+    };
+
+    async function choose(item) {
+        if (!permissionsState?.canEdit || !item || item.added) return;
+        close();
+        if (item.isNew) {
+            if (!(await addVarietyFromInput(item.value))) return;
+        } else {
+            addVarietyTag(item.value);
+        }
+        input.value = '';
+        markUserEdited();
+        input.focus();
+    }
+
+    input.addEventListener('input', () => {
+        if (permissionsState?.canEdit) render(false);
+    });
+    input.addEventListener('click', () => {
+        if (permissionsState?.canEdit && !isOpen()) render(false);
+    });
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!isOpen()) {
+                render(false);
+                return;
+            }
+            if (!items.length) return;
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            setActive((activeIndex + step + items.length) % items.length);
+            return;
+        }
+        if (event.key === 'Escape' && isOpen()) {
+            event.preventDefault();
+            close();
+            return;
+        }
+        if (event.key === 'Tab') {
+            close();
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const item = isOpen() ? items[activeIndex] : null;
+            if (item && !item.added) {
+                choose(item);
+                return;
+            }
+            close();
+            addButton.click();
+        }
+    });
+    input.addEventListener('blur', close);
+    // Dragging the menu's scrollbar must not blur the input (which closes the menu).
+    menu.addEventListener('mousedown', (event) => event.preventDefault());
+
+    toggle.addEventListener('mousedown', (event) => event.preventDefault());
+    toggle.addEventListener('click', () => {
+        if (!permissionsState?.canEdit) return;
+        if (isOpen()) {
+            close();
+            return;
+        }
+        input.focus();
+        render(true);
+    });
+    addButton.addEventListener('mousedown', close);
+}
+
 function addVarietyTag(value) {
     const normalizedValue = String(value || '').trim();
     if (!normalizedValue) return;
@@ -4887,12 +5088,7 @@ function initEventListeners() {
             // consumed the edit flag set by typing.
             markUserEdited();
         });
-        varietyInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addVarietyBtn.click();
-            }
-        });
+        initVarietyPicker(varietyInput, addVarietyBtn);
     }
 
     // Sidebar submenu toggles
